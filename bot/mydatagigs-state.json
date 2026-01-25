@@ -1,0 +1,95 @@
+{
+  "cookies": [
+    {
+      "name": "wordpress_sec_f51e09a8d7da63319b536e21e7dc8226",
+      "value": "nicholasOppong%7C1769346676%7CsyJPLSPdYbr4Da7gPtCbXJAvwie328DmUb7itU0VL8q%7Cca169328104cd6ffcf16f87804fc4b71f4bab44e5d156df6b155ebd209a381bc",
+      "domain": "mydatagigs.com",
+      "path": "/wp-content/plugins",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wordpress_sec_f51e09a8d7da63319b536e21e7dc8226",
+      "value": "nicholasOppong%7C1769346676%7CsyJPLSPdYbr4Da7gPtCbXJAvwie328DmUb7itU0VL8q%7Cca169328104cd6ffcf16f87804fc4b71f4bab44e5d156df6b155ebd209a381bc",
+      "domain": "mydatagigs.com",
+      "path": "/wp-admin",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "pmpro_visit",
+      "value": "1",
+      "domain": "mydatagigs.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wordpress_logged_in_f51e09a8d7da63319b536e21e7dc8226",
+      "value": "nicholasOppong%7C1769346676%7CsyJPLSPdYbr4Da7gPtCbXJAvwie328DmUb7itU0VL8q%7C5b13ca559df52fe4ee68ac0e6cad115b3bcb38b615e8ca4c9fdc2c143234d6aa",
+      "domain": "mydatagigs.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "woocommerce_items_in_cart",
+      "value": "1",
+      "domain": "mydatagigs.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "woocommerce_cart_hash",
+      "value": "60b13322b8396cd939b205e55ecd1085",
+      "domain": "mydatagigs.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wp_woocommerce_session_f51e09a8d7da63319b536e21e7dc8226",
+      "value": "10391%7C1769778676%7C1769260276%7C%24generic%24fcqPmDA2DU_6RkvG1ixNd9cD_ZJ4Tqd1r9edk-Hm",
+      "domain": "mydatagigs.com",
+      "path": "/",
+      "expires": 1769778675.873794,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "woolentor_already_views_count_product",
+      "value": "a%3A1%3A%7Bi%3A1769173885%3Bi%3A638741%3B%7D",
+      "domain": "mydatagigs.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://mydatagigs.com",
+      "localStorage": [
+        {
+          "name": "wc_cart_hash_865cf781f7000059f9ef549d8b7be473",
+          "value": "60b13322b8396cd939b205e55ecd1085"
+        }
+      ]
+    }
+  ]
+}
