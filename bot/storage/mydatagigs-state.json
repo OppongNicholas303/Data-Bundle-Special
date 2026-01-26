@@ -2,7 +2,7 @@
   "cookies": [
     {
       "name": "wordpress_sec_f51e09a8d7da63319b536e21e7dc8226",
-      "value": "nicholasOppong%7C1769515012%7CAdhVh5NvXn6a3wkA8GirPr5G8KLOs9QnOUSyAZTgREy%7C6123cc8aaf6621fa696fc1e4e58bcb9058b428b5e73a65dee07c972a6f0153a3",
+      "value": "nicholasOppong%7C1769603650%7CVLldRXX3OvVtxRup0IrvLlQ6iAT3lePdLipRFYrFvnr%7C3a95a812b4c9754d045be89caa64324ce459a4cf08a35789666953102057e730",
       "domain": "mydatagigs.com",
       "path": "/wp-content/plugins",
       "expires": -1,
@@ -12,7 +12,7 @@
     },
     {
       "name": "wordpress_sec_f51e09a8d7da63319b536e21e7dc8226",
-      "value": "nicholasOppong%7C1769515012%7CAdhVh5NvXn6a3wkA8GirPr5G8KLOs9QnOUSyAZTgREy%7C6123cc8aaf6621fa696fc1e4e58bcb9058b428b5e73a65dee07c972a6f0153a3",
+      "value": "nicholasOppong%7C1769603650%7CVLldRXX3OvVtxRup0IrvLlQ6iAT3lePdLipRFYrFvnr%7C3a95a812b4c9754d045be89caa64324ce459a4cf08a35789666953102057e730",
       "domain": "mydatagigs.com",
       "path": "/wp-admin",
       "expires": -1,
@@ -32,7 +32,7 @@
     },
     {
       "name": "wordpress_logged_in_f51e09a8d7da63319b536e21e7dc8226",
-      "value": "nicholasOppong%7C1769515012%7CAdhVh5NvXn6a3wkA8GirPr5G8KLOs9QnOUSyAZTgREy%7C59bcc417633d94ed2bbbb906ecd2f8cb2260150e40f691df645ab5346f7bba88",
+      "value": "nicholasOppong%7C1769603650%7CVLldRXX3OvVtxRup0IrvLlQ6iAT3lePdLipRFYrFvnr%7C1948fd767b6455b6d37a14dbd84847d5288071e48245d5bf8abd55dca5da9a76",
       "domain": "mydatagigs.com",
       "path": "/",
       "expires": -1,
@@ -42,7 +42,7 @@
     },
     {
       "name": "woolentor_already_views_count_product",
-      "value": "a%3A1%3A%7Bi%3A1769342222%3Bi%3A638741%3B%7D",
+      "value": "a%3A1%3A%7Bi%3A1769430859%3Bi%3A638741%3B%7D",
       "domain": "mydatagigs.com",
       "path": "/",
       "expires": -1,

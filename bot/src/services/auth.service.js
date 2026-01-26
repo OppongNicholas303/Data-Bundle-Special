@@ -16,16 +16,20 @@ class AuthService {
 
     const page = await browserService.getPage();
     
-    await page.goto(`${BASE_URL}${URLS.LOGIN}`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(2000);
+    logger.info('Navigating to login page...');
+    await page.goto(`${BASE_URL}${URLS.LOGIN}`, { 
+      waitUntil: 'domcontentloaded', // Changed from 'networkidle' for speed
+      timeout: TIMEOUTS.NAVIGATION 
+    });
+    await page.waitForTimeout(1500); // Reduced from 2000
 
     // Check if already logged in
     const alreadyLoggedIn = await page.locator('.wppb-alert, text="You are currently logged in"')
-      .isVisible({ timeout: 3000 })
+      .isVisible({ timeout: 2000 }) // Reduced from 3000
       .catch(() => false);
     
     if (alreadyLoggedIn) {
-      logger.info('Already logged in (session active)');
+      logger.info('✓ Already logged in (session active)');
       browserService.setLoginStatus(true);
       await this.navigateToProductPage(page);
       await browserService.saveState();
@@ -37,31 +41,33 @@ class AuthService {
     }
 
     // Wait for login form
-    await page.waitForSelector('input[type="text"], input[type="email"]', { timeout: 15000 });
+    await page.waitForSelector('input[type="text"], input[type="email"]', { timeout: 10000 });
     
-    // Fill credentials
+    // Fill credentials with reduced delays
     logger.info('Filling login credentials...');
     await page.fill('input[type="text"], input[type="email"], input[name="username"], input[name="email"]', MYDATAGIGS_EMAIL);
-    await page.waitForTimeout(800 + Math.random() * 600);
+    await page.waitForTimeout(500 + Math.random() * 300); // Reduced
 
     await page.fill('input[type="password"]', MYDATAGIGS_PASSWORD);
-    await page.waitForTimeout(1000 + Math.random() * 800);
+    await page.waitForTimeout(700 + Math.random() * 400); // Reduced
 
     // Click login
     logger.info('Clicking login button...');
     await page.click('button[type="submit"], button:has-text("Login"), button:has-text("Sign in"), input[type="submit"]')
       .catch(() => page.click('a:has-text("Login")'));
     
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(3500); // Reduced from 4000
 
-    // Verify login
+    // Verify login with parallel checks
     const currentUrl = page.url();
-    logger.info('Current URL:', currentUrl);
+    logger.info(`Current URL: ${currentUrl}`);
 
-    const buyDataMenuExists = await page.locator('#menu-item-7155').isVisible({ timeout: 5000 }).catch(() => false);
-    const myAccountExists = await page.locator('text="MY ACCOUNT", text="My account"').isVisible({ timeout: 3000 }).catch(() => false);
-    const logoutExists = await page.locator('#menu-item-4802, a:has-text("Logout")').isVisible({ timeout: 3000 }).catch(() => false);
-    const alreadyLoggedInMsg = await page.locator('.wppb-alert').isVisible({ timeout: 2000 }).catch(() => false);
+    const [buyDataMenuExists, myAccountExists, logoutExists, alreadyLoggedInMsg] = await Promise.all([
+      page.locator('#menu-item-7155').isVisible({ timeout: 4000 }).catch(() => false),
+      page.locator('text="MY ACCOUNT", text="My account"').isVisible({ timeout: 2000 }).catch(() => false),
+      page.locator('#menu-item-4802, a:has-text("Logout")').isVisible({ timeout: 2000 }).catch(() => false),
+      page.locator('.wppb-alert').isVisible({ timeout: 1500 }).catch(() => false)
+    ]);
     
     logger.info('Login checks:', { buyDataMenuExists, myAccountExists, logoutExists, alreadyLoggedInMsg });
 
@@ -92,45 +98,46 @@ class AuthService {
     logger.info('Navigating to buy-data page...');
     
     try {
-      await page.locator(SELECTORS.MENU_BUY_DATA).click({ timeout: 5000 });
+      await page.locator(SELECTORS.MENU_BUY_DATA).click({ timeout: 4000 }); // Reduced from 5000
       logger.info('Clicked Buy Data menu item');
-      await page.waitForTimeout(TIMEOUTS.MEDIUM);
-      await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
+      await page.waitForTimeout(2000); // Reduced from 3000
+      await page.waitForLoadState('domcontentloaded', { timeout: 8000 }).catch(() => {});
     } catch (error) {
       logger.info('Menu click failed, using direct navigation');
       await page.goto(`${BASE_URL}${URLS.BUY_DATA}`, { 
         waitUntil: 'domcontentloaded',
         timeout: TIMEOUTS.NAVIGATION 
       }).catch(e => logger.error('Navigation error:', e.message));
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1500);
     }
 
-    logger.info('✓ Now on buy-data page:', page.url());
+    logger.info(`✓ Now on buy-data page: ${page.url()}`);
 
     // Navigate to MTN product page
     logger.info('Navigating to MTN Data Bundle Special...');
     
     try {
       const productLink = await page.locator('a[href*="mtn-data-bundle-special"]').first();
-      const linkExists = await productLink.isVisible({ timeout: 5000 }).catch(() => false);
+      const linkExists = await productLink.isVisible({ timeout: 4000 }).catch(() => false); // Reduced from 5000
       
       if (linkExists) {
         await productLink.click();
         logger.info('Clicked MTN Data Bundle Special product link');
-        await page.waitForTimeout(TIMEOUTS.MEDIUM);
-        await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(2000); // Reduced from 3000
+        await page.waitForLoadState('domcontentloaded', { timeout: 8000 }).catch(() => {});
       } else {
         logger.info('Product link not found, using direct navigation');
         await page.goto(`${BASE_URL}${URLS.MTN_PRODUCT}`, { 
           waitUntil: 'domcontentloaded',
           timeout: TIMEOUTS.NAVIGATION 
         });
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(1500);
       }
       
-      logger.info('✓ Now on product page:', page.url());
+      logger.info(`✓ Now on product page: ${page.url()}`);
     } catch (error) {
       logger.error('Error navigating to product page:', error.message);
+      throw error;
     }
   }
 
