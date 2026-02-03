@@ -203,3 +203,9 @@ logging:
   level:
     com.space: DEBUG
     org.springframework.security: DEBUG
+
+# Bot Configuration
+bot:
+  api:
+    url: http://localhost:3000
+    timeout: 30000

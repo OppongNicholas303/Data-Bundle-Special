@@ -1,51 +1,43 @@
 package com.space.space_bundle.core.services;
 
 import com.space.space_bundle.core.entities.Order;
-import com.space.space_bundle.core.entities.OrderStatus;
+import com.space.space_bundle.core.entities.Transaction;
 import com.space.space_bundle.core.entities.Wallet;
-import com.space.space_bundle.core.port.out.ProviderOrderPort;
-import com.space.space_bundle.out.persistence.repository.WalletRepositoryPort;
-import com.space.space_bundle.core.port.out.authenticationPort.AutomationPort;
-import com.space.space_bundle.out.persistence.repository.OrderRepositoryPort;
+import com.space.space_bundle.core.port.out.AutomationPort;
+import com.space.space_bundle.core.port.out.OrderRepositoryPort;
+import com.space.space_bundle.core.port.out.WalletRepositoryPort;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Service
+@RequiredArgsConstructor
 public class OrderService {
 
     private final OrderRepositoryPort orderRepository;
     private final WalletRepositoryPort walletRepository;
     private final AutomationPort automationPort;
+    private final TransactionService transactionService;
+    private final BundleService bundleService;
 
-    public OrderService(
-            OrderRepositoryPort orderRepository,
-            WalletRepositoryPort walletRepository,
-            AutomationPort automationPort
-    ) {
-        this.orderRepository = orderRepository;
-        this.walletRepository = walletRepository;
-        this.automationPort = automationPort;
-    }
-
-    /**
-     * Create and process a data bundle order
-     */
+    @Transactional
     public Order createOrder(
             String userId,
             String network,
             String phoneNumber,
-            String bundleCode,
-            BigDecimal amount
+            String bundleCode
     ) {
-        // 1️⃣ Load wallet
+        // Get bundle and price
+        BigDecimal amount = bundleService.getBundlePrice(bundleCode);
+        
+        // Load and validate wallet
         Wallet wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalStateException("Wallet not found"));
 
-        // 2️⃣ Debit wallet
-        wallet.debit(amount);
-        walletRepository.save(wallet);
-
-        // 3️⃣ Create order
+        // Create order
         Order order = Order.builder()
                 .userId(userId)
                 .network(network)
@@ -56,30 +48,48 @@ public class OrderService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        order.markPaid();
-        orderRepository.save(order);
+        order = orderRepository.save(order);
+
+        // Create debit transaction
+        Transaction debitTx = transactionService.createDebitTransaction(
+                userId, order.getId(), amount, "Order payment for " + bundleCode);
 
         try {
-            // 4️⃣ Send to provider (BOT)
+            // Debit wallet
+            wallet.debit(amount);
+            walletRepository.save(wallet);
+            transactionService.completeTransaction(debitTx.getId());
+
+            order.markPaid();
+            order = orderRepository.save(order);
+
+            // Send to bot for processing
             order.markProcessing();
-            orderRepository.save(order);
+            order = orderRepository.save(order);
 
             String providerReference = automationPort.buyDataBundle(order);
 
-            // 5️⃣ Complete
+            // Mark as completed
             order.markCompleted(providerReference);
-            orderRepository.save(order);
+            order = orderRepository.save(order);
 
         } catch (Exception ex) {
-            // 6️⃣ Failure → refund
+            // Handle failure and refund
+            transactionService.failTransaction(debitTx.getId());
+            
             order.markFailed(ex.getMessage());
-            orderRepository.save(order);
+            order = orderRepository.save(order);
 
+            // Create refund transaction
+            Transaction refundTx = transactionService.createRefundTransaction(
+                    userId, order.getId(), amount, "Refund for failed order " + order.getId());
+            
             wallet.credit(amount);
             walletRepository.save(wallet);
+            transactionService.completeTransaction(refundTx.getId());
 
             order.markRefunded();
-            orderRepository.save(order);
+            order = orderRepository.save(order);
         }
 
         return order;

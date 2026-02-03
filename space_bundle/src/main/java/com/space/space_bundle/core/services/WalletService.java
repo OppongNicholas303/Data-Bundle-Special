@@ -2,7 +2,7 @@ package com.space.space_bundle.core.services;
 
 import com.space.space_bundle.core.entities.Wallet;
 import com.space.space_bundle.core.port.out.PaymentPort;
-import com.space.space_bundle.out.persistence.repository.WalletRepositoryPort;
+import com.space.space_bundle.core.port.out.WalletRepositoryPort;
 import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
@@ -15,9 +15,9 @@ public class WalletService {
     private final WalletRepositoryPort walletRepository;
     private final PaymentPort paymentPort;
 
-    public void debitForOrder(UUID userId, BigDecimal amount) throws Exception {
+    public void debitForOrder(String userId, BigDecimal amount) throws Exception {
         // Debit the real payment provider first
-        String txRef = paymentPort.debit(userId, amount);
+        String txRef = paymentPort.debit(UUID.fromString(userId), amount);
 
         // Then debit the wallet
         Wallet wallet = walletRepository.findByUserId(userId)
@@ -28,9 +28,9 @@ public class WalletService {
         System.out.println("Debited wallet for order, payment ref: " + txRef);
     }
 
-    public void refundForOrder(UUID userId, BigDecimal amount) throws Exception {
+    public void refundForOrder(String userId, BigDecimal amount) throws Exception {
         // Refund the real payment provider first
-        String txRef = paymentPort.refund(userId, amount);
+        String txRef = paymentPort.refund(UUID.fromString(userId), amount);
 
         // Then credit the wallet
         Wallet wallet = walletRepository.findByUserId(userId)
