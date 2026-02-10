@@ -28,19 +28,19 @@ public class AuthenticationService {
     /**
      * Authenticate user with username and password
      */
-    public AuthenticationResult authenticate(String username, String password, String ipAddress, String deviceInfo) {
-        User user = userRepository.findByUsername(username)
+    public AuthenticationResult authenticate(String email, String password, String ipAddress, String deviceInfo) {
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthenticationException("Invalid credentials"));
 
         // Check if account is locked
         if (!user.isAccountNonLocked()) {
-            securityAudit.logFailedLogin(username, ipAddress, "Account locked");
+            securityAudit.logFailedLogin(email, ipAddress, "Account locked");
             throw new AuthenticationException("Account is locked due to multiple failed login attempts");
         }
 
         // Check if account is enabled
         if (!user.isEnabled()) {
-            securityAudit.logFailedLogin(username, ipAddress, "Account disabled");
+            securityAudit.logFailedLogin(email, ipAddress, "Account disabled");
             throw new AuthenticationException("Account is disabled");
         }
 
@@ -48,10 +48,10 @@ public class AuthenticationService {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             user.incrementFailedLoginAttempts();
             userRepository.save(user);
-            securityAudit.logFailedLogin(username, ipAddress, "Invalid password");
+            securityAudit.logFailedLogin(email, ipAddress, "Invalid password");
 
             if (!user.isAccountNonLocked()) {
-                securityAudit.logAccountLocked(username, "Too many failed login attempts");
+                securityAudit.logAccountLocked(email, "Too many failed login attempts");
             }
 
             throw new AuthenticationException("Invalid credentials");
@@ -70,7 +70,7 @@ public class AuthenticationService {
         String accessToken = jwtPort.generateAccessToken(user);
         String refreshToken = createRefreshToken(user, ipAddress, deviceInfo);
 
-        securityAudit.logSuccessfulLogin(username, ipAddress, deviceInfo);
+        securityAudit.logSuccessfulLogin(email, ipAddress, deviceInfo);
 
         return new AuthenticationResult(accessToken, refreshToken, user);
     }

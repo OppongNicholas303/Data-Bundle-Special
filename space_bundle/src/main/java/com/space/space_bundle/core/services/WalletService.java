@@ -1,5 +1,6 @@
 package com.space.space_bundle.core.services;
 
+import com.space.space_bundle.core.entities.Transaction;
 import com.space.space_bundle.core.entities.Wallet;
 import com.space.space_bundle.core.port.out.PaymentPort;
 import com.space.space_bundle.core.port.out.WalletRepositoryPort;
@@ -14,6 +15,7 @@ public class WalletService {
 
     private final WalletRepositoryPort walletRepository;
     private final PaymentPort paymentPort;
+    private final TransactionService transactionService;
 
     public void debitForOrder(String userId, BigDecimal amount) throws Exception {
         // Debit the real payment provider first
@@ -23,6 +25,9 @@ public class WalletService {
         Wallet wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalStateException("Wallet not found"));
         wallet.debit(amount);
+        //Transaction
+
+
         walletRepository.save(wallet);
 
         System.out.println("Debited wallet for order, payment ref: " + txRef);
@@ -59,6 +64,8 @@ public class WalletService {
         Wallet wallet = getWalletByUser(userId);
         wallet.credit(amount);
         walletRepository.save(wallet);
+        // Create debit transaction
+        Transaction creditTx = transactionService.createCreditTransaction(userId, wallet.getId(), amount, "Wallet top up of " + amount);
     }
 
     public void debit(String userId, BigDecimal amount) {

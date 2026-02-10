@@ -1,5 +1,6 @@
 package com.space.space_bundle.in.web.exception;
 
+import com.space.space_bundle.core.exceptions.InsufficientBalanceException;
 import com.space.space_bundle.core.services.AuthenticationService;
 import com.space.space_bundle.in.web.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -131,6 +132,29 @@ public class GlobalExceptionHandler {
                         .success(false)
                         .message("Validation failed")
                         .data(errors)
+                        .timestamp(System.currentTimeMillis())
+                        .build());
+    }
+
+    /**
+     * Handle insufficient balance exceptions
+     */
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleInsufficientBalanceException(
+            InsufficientBalanceException ex) {
+        log.error("Insufficient balance: {}", ex.getMessage());
+        
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("currentBalance", ex.getCurrentBalance());
+        errorDetails.put("requiredAmount", ex.getRequiredAmount());
+        errorDetails.put("shortfall", ex.getRequiredAmount().subtract(ex.getCurrentBalance()));
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.<Map<String, Object>>builder()
+                        .success(false)
+                        .message(ex.getMessage())
+                        .data(errorDetails)
                         .timestamp(System.currentTimeMillis())
                         .build());
     }

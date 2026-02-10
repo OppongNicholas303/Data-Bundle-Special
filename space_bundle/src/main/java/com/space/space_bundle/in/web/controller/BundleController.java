@@ -25,6 +25,21 @@ public class BundleController {
     private final BundleService bundleService;
 
     /**
+     * GET /api/bundles - Get all bundles
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Bundle>>> getAllBundles() {
+        
+        log.info("Get all bundles request");
+        
+        List<Bundle> bundles = bundleService.getAllBundles();
+        
+        log.info("All bundles retrieved: count={}", bundles.size());
+        
+        return ResponseEntity.ok(ApiResponse.success(bundles));
+    }
+
+    /**
      * GET /api/bundles/network/{network} - Get active bundles for network
      */
     @GetMapping("/network/{network}")

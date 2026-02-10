@@ -34,16 +34,39 @@ public class BundleService {
     }
 
     public Bundle getBundleByCode(String code) {
-        return bundleRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Bundle not found: " + code));
+        List<Bundle> bundles = bundleRepository.findByCode(code);
+        
+        if (bundles.isEmpty()) {
+            throw new IllegalArgumentException("Bundle not found: " + code);
+        }
+        
+        if (bundles.size() > 1) {
+            // Return the first active bundle if multiple exist
+            return bundles.stream()
+                    .filter(b -> b.getStatus() == Bundle.BundleStatus.ACTIVE)
+                    .findFirst()
+                    .orElse(bundles.get(0));
+        }
+        
+        return bundles.get(0);
+    }
+
+    public Bundle getBundleByCodeAndNetwork(String code, String network) {
+        return bundleRepository.findByCodeAndNetwork(code, network)
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "Bundle not found: " + code + " for network: " + network));
     }
 
     public List<Bundle> getActiveNetworkBundles(String network) {
         return bundleRepository.findActiveByNetwork(network);
     }
 
-    public BigDecimal getBundlePrice(String bundleCode) {
-        Bundle bundle = getBundleByCode(bundleCode);
+    public List<Bundle> getAllBundles() {
+        return bundleRepository.findAll();
+    }
+
+    public BigDecimal getBundlePrice(String bundleCode, String network) {
+        Bundle bundle = getBundleByCodeAndNetwork(bundleCode, network);
         if (bundle.getStatus() != Bundle.BundleStatus.ACTIVE) {
             throw new IllegalStateException("Bundle is not active: " + bundleCode);
         }
