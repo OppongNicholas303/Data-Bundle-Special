@@ -47,9 +47,11 @@ public class ServiceConfig {
     @Bean
     public WalletService walletService(
             WalletRepositoryPort walletRepository,
-            TransactionService transactionService
+            TransactionService transactionService,
+            com.space.space_bundle.out.payment.PaystackAdapter paystackAdapter,
+            UserService userService
     ) {
-        return new WalletService(walletRepository, transactionService);
+        return new WalletService(walletRepository, transactionService, paystackAdapter, userService);
     }
 
     // -----------------------------

@@ -22,6 +22,7 @@ public class PaymentWebhookService {
     private final PaystackAdapter paystackAdapter;
     private final AutomationPort automationPort;
     private final TransactionService transactionService;
+    private final WalletService walletService;
 
     @Async
     @Transactional
@@ -87,6 +88,13 @@ public class PaymentWebhookService {
     private void processSuccessfulPayment(String reference) {
         log.info("[PAYMENT] Starting payment processing for reference: {}", reference);
         
+        // Check if this is a wallet top-up
+        if (reference.startsWith("TOPUP_")) {
+            log.info("[PAYMENT] Processing wallet top-up: reference={}", reference);
+            processTopUpPayment(reference);
+            return;
+        }
+        
         // Verify transaction with Paystack
         log.info("[PAYMENT] Verifying transaction with Paystack");
         PaystackVerifyResponse verification = paystackAdapter.verifyTransaction(reference);
@@ -149,6 +157,32 @@ public class PaymentWebhookService {
             log.error("[PAYMENT] Order processing failed: orderId={}, error={}", orderId, ex.getMessage(), ex);
             order.markFailed("Bot processing failed: " + ex.getMessage());
             orderRepository.save(order);
+        }
+    }
+
+    private void processTopUpPayment(String reference) {
+        log.info("[TOPUP] Processing wallet top-up payment: reference={}", reference);
+        
+        PaystackVerifyResponse verification = paystackAdapter.verifyTransaction(reference);
+        
+        if (!verification.isStatus() || !"success".equals(verification.getData().getStatus())) {
+            log.error("[TOPUP] Verification failed: reference={}", reference);
+            return;
+        }
+        
+        java.math.BigDecimal amount = java.math.BigDecimal.valueOf(verification.getData().getAmount())
+            .divide(java.math.BigDecimal.valueOf(100));
+        
+        // Extract topUpId from reference
+        String topUpId = reference.replace("TOPUP_", "");
+        log.info("[TOPUP] Top-up verified: topUpId={}, amount={}", topUpId, amount);
+        
+        // Process top-up - the wallet service will handle finding the user
+        try {
+            walletService.processTopUpPaymentById(topUpId, amount);
+            log.info("[TOPUP] Wallet topped up successfully: reference={}, amount={}", reference, amount);
+        } catch (Exception ex) {
+            log.error("[TOPUP] Failed to process top-up: reference={}, error={}", reference, ex.getMessage(), ex);
         }
     }
 }

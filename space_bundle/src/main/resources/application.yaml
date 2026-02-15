@@ -335,6 +335,6 @@ bot:
 
 # Paystack Configuration
 paystack:
-  secret-key: ${PAYSTACK_SECRET_KEY:sk_live_91413407d791794047903bda48d5b924a52ec827}
-  public-key: ${PAYSTACK_PUBLIC_KEY:pk_live_your_public_key_here}
-  callback-url: ${PAYSTACK_CALLBACK_URL:http://localhost:3000/payment/callback}
+  secret-key: ${PAYSTACK_SECRET_KEY}
+  public-key: ${PAYSTACK_PUBLIC_KEY}
+  callback-url: ${PAYSTACK_CALLBACK_URL}

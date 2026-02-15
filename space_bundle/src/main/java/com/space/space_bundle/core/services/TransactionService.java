@@ -105,4 +105,12 @@ public class TransactionService {
     public List<Transaction> getOrderTransactions(String orderId) {
         return transactionRepository.findByOrderId(orderId);
     }
+
+    public Transaction getTransactionByOrderId(String orderId) {
+        List<Transaction> transactions = transactionRepository.findByOrderId(orderId);
+        if (transactions.isEmpty()) {
+            throw new IllegalArgumentException("Transaction not found for orderId: " + orderId);
+        }
+        return transactions.get(0);
+    }
 }
