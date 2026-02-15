@@ -30,11 +30,11 @@ public class WebhookController {
 
         log.info("Received Paystack webhook");
 
-//        // Verify signature
-//        if (!verifySignature(payload, signature)) {
-//            log.error("Invalid webhook signature");
-//            return ResponseEntity.status(401).body("Invalid signature");
-//        }
+        // Verify signature
+        if (!verifySignature(payload, signature)) {
+            log.error("Invalid webhook signature");
+            return ResponseEntity.status(401).body("Invalid signature");
+        }
 
 
         log.info("Webhook payload: {}", payload);
