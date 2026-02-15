@@ -47,22 +47,27 @@ public class OrderService {
     ) {
         BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
         
+        // Add 2% Paystack transaction fee
+        BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.02));
+        BigDecimal totalAmount = amount.add(paystackFee);
+        
         Order order = Order.builder()
                 .userId(userID)
                 .network(network)
                 .phoneNumber(phoneNumber)
                 .bundleCode(bundleCode)
-                .amount(amount)
+                .amount(totalAmount)
                 .status(com.space.space_bundle.core.enums.OrderStatus.CREATED)
                 .createdAt(LocalDateTime.now())
                 .build();
         
         order = orderRepository.save(order);
-        log.info("nowwwwwwwwwwwwwwww");
+        log.info("Order created with Paystack fee: baseAmount={}, fee={}, total={}", amount, paystackFee, totalAmount);
+        
         if (userID != null) {
             Optional<Wallet> wallet = walletRepository.findByUserId(userID);
-            if (wallet.isPresent() && wallet.get().getBalance().compareTo(amount) >= 0) {
-                return processOrderWithWallet(order, wallet.get(), amount, userID, email);
+            if (wallet.isPresent() && wallet.get().getBalance().compareTo(totalAmount) >= 0) {
+                return processOrderWithWallet(order, wallet.get(), totalAmount, userID, email);
             }else {
                 return initializePaystackPaymentForGuest(order, email);
             }
