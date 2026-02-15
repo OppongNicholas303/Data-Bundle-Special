@@ -65,6 +65,23 @@ public class TransactionService {
         return transactionRepository.save(transaction);
     }
 
+    public Transaction createPaymentTransaction(String userId, String orderId, BigDecimal amount, String description) {
+        Transaction transaction = Transaction.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(userId)
+                .orderId(orderId)
+                .type(Transaction.TransactionType.DEBIT)
+                .amount(amount)
+                .currency("GHS")
+                .status(Transaction.TransactionStatus.COMPLETED)
+                .description(description)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        return transactionRepository.save(transaction);
+    }
+
     public void completeTransaction(String transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));

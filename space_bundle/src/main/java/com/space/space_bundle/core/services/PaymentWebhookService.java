@@ -21,6 +21,7 @@ public class PaymentWebhookService {
     private final OrderRepositoryPort orderRepository;
     private final PaystackAdapter paystackAdapter;
     private final AutomationPort automationPort;
+    private final TransactionService transactionService;
 
     @Async
     @Transactional
@@ -117,6 +118,17 @@ public class PaymentWebhookService {
             log.info("[PAYMENT] Marking order as PAID");
             order.markPaid();
             order = orderRepository.save(order);
+
+            // Create transaction record for Paystack payment
+            if (order.getUserId() != null) {
+                log.info("[PAYMENT] Creating transaction record");
+                transactionService.createPaymentTransaction(
+                    order.getUserId(), 
+                    order.getId(), 
+                    order.getAmount(), 
+                    "Paystack payment for " + order.getBundleCode()
+                );
+            }
 
             // Send to bot for processing
             log.info("[PAYMENT] Marking order as PROCESSING");
