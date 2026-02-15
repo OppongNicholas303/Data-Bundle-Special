@@ -228,7 +228,7 @@ spring:
   # MongoDB Configuration
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb+srv://nicholasoppong2623_db_user:Yaw0243911336@cluster0.arawb0h.mongodb.net/?appName=Cluster0}
+      uri: ${MONGO_URI}
       auto-index-creation: true
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration
@@ -241,7 +241,7 @@ spring:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:default-jwt-secret-key-change-in-production-minimum-256-bits-required}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
   issuer: ${JWT_ISSUER:space-bundle}
