@@ -98,19 +98,7 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
-        <!-- OR RestClient/RestTemplate (Synchronous - Alternative) -->
-        <!-- This is already included in spring-boot-starter-web -->
-        <!-- No additional dependency needed for RestClient/RestTemplate -->
-
-        <!-- Optional: For better HTTP client performance with WebClient -->
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-resolver-dns-native-macos</artifactId>
-            <classifier>osx-aarch_64</classifier>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- Optional: Apache HttpClient for RestTemplate (if you prefer) -->
+        <!-- Apache HttpClient for RestTemplate -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
