@@ -1,3 +1,226 @@
+#spring:
+#  application:
+#    name: space-bundle
+#
+#  # MongoDB Configuration
+#  data:
+#    mongodb:
+#      uri: ${MONGO_URI:mongodb+srv://samo:yaw0243911336@@cluster0.dtstr21.mongodb.net/bundle}
+#      # Alternative configuration
+#      # host: ${MONGO_HOST:localhost}
+#      # port: ${MONGO_PORT:27017}
+#      # database: ${MONGO_DATABASE:space_bundle_db}
+#      # username: ${MONGO_USERNAME:}
+#      # password: ${MONGO_PASSWORD:}
+#      # authentication-database: ${MONGO_AUTH_DB:admin}
+#      auto-index-creation: true
+#
+#  # Disable default security password
+#  security:
+#    user:
+#      name: disabled
+#      password: disabled
+#
+## JWT Configuration
+#jwt:
+#  secret: ${JWT_SECRET:default-jwt-secret-key-change-in-production-minimum-256-bits-required}
+#  expiration: ${JWT_EXPIRATION:86400000}  # 24 hours in milliseconds
+#  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days in milliseconds
+#  issuer: ${JWT_ISSUER:space-bundle}
+#  header: Authorization
+#  prefix: "Bearer "
+#
+## Server Configuration
+#server:
+#  port: ${SERVER_PORT:8080}
+#  servlet:
+#    context-path: /api
+#  error:
+#    include-message: always
+#    include-binding-errors: always
+#    include-stacktrace: never
+#    include-exception: false
+#  compression:
+#    enabled: true
+#    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+#  http2:
+#    enabled: true
+#  shutdown: graceful
+#
+## Actuator Configuration
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics,prometheus
+#      base-path: /actuator
+#    enabled-by-default: false
+#  endpoint:
+#    health:
+#      enabled: true
+#      show-details: when-authorized
+#      show-components: when-authorized
+#      probes:
+#        enabled: true
+#    info:
+#      enabled: true
+#    metrics:
+#      enabled: true
+#    prometheus:
+#      enabled: true
+#  metrics:
+#    export:
+#      prometheus:
+#        enabled: true
+#    tags:
+#      application: ${spring.application.name}
+#  health:
+#    livenessstate:
+#      enabled: true
+#    readinessstate:
+#      enabled: true
+#    mongo:
+#      enabled: true
+#  info:
+#    env:
+#      enabled: true
+#    java:
+#      enabled: true
+#    os:
+#      enabled: true
+#
+## Application Info
+#info:
+#  app:
+#    name: ${spring.application.name}
+#    description: Space Bundle Application
+#    version: 0.0.1-SNAPSHOT
+#    encoding: UTF-8
+#    java:
+#      version: 21
+#
+## Logging Configuration
+#logging:
+#  level:
+#    root: INFO
+#    com.space: INFO
+#    org.springframework.web: WARN
+#    org.springframework.security: WARN
+#    org.springframework.data.mongodb: INFO
+#  pattern:
+#    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+#    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+#  file:
+#    name: ${LOG_FILE:logs/space-bundle.log}
+#    max-size: ${LOG_MAX_SIZE:10MB}
+#    max-history: ${LOG_MAX_HISTORY:30}
+#    total-size-cap: ${LOG_TOTAL_SIZE:1GB}
+#
+## Bot Configuration
+#bot:
+#  api:
+#    url: ${BOT_API_URL:https://mydatagigs.com/wp-json/custom/v1/place-order}
+#    timeout: 30000
+#
+## Paystack Configuration
+#paystack:
+#  secret-key: ${PAYSTACK_SECRET_KEY:sk_live_91413407d791794047903bda48d5b924a52ec827}
+#  public-key: ${PAYSTACK_PUBLIC_KEY:pk_live_your_public_key_here}
+#  callback-url: ${PAYSTACK_CALLBACK_URL:http://localhost:3000/payment/callback}
+#
+#---
+## Development Profile
+#spring:
+#  config:
+#    activate:
+#      on-profile: prod
+#
+#  data:
+#    mongodb:
+##      uri: mongodb://localhost:27017/space_bundle_dev
+#    uri: mongodb+srv://samo:yaw0243911336@@cluster0.dtstr21.mongodb.net/bundle
+#
+#
+#
+#jwt:
+#  secret: dev-secret-key-change-in-production-minimum-256-bits-required-for-hs256
+#  expiration: 86400000
+#  refresh-expiration: 604800000
+#
+#server:
+#  error:
+#    include-stacktrace: on_param
+#
+#management:
+#  endpoint:
+#    health:
+#      show-details: always
+#      show-components: always
+#
+#logging:
+#  level:
+#    com.space: DEBUG
+#    org.springframework.security: DEBUG
+#    org.springframework.data.mongodb: DEBUG
+#
+#---
+## Production Profile
+#spring:
+#  config:
+#    activate:
+#      on-profile: prod
+#
+#  data:
+#    mongodb:
+#      uri: ${MONGO_URI}
+#
+#jwt:
+#  secret: ${JWT_SECRET}
+#  expiration: ${JWT_EXPIRATION:3600000}  # 1 hour
+#  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
+#
+#server:
+#  port: ${SERVER_PORT:8080}
+#  error:
+#    include-stacktrace: never
+#    include-message: always
+#
+#management:
+#  endpoint:
+#    health:
+#      show-details: never
+#
+#logging:
+#  level:
+#    root: WARN
+#    com.space: INFO
+#    org.springframework.web: WARN
+#    org.springframework.security: WARN
+#    org.springframework.data.mongodb: WARN
+#
+#---
+## Test Profile
+#spring:
+#  config:
+#    activate:
+#      on-profile: test
+#
+#  data:
+#    mongodb:
+##      uri: mongodb://localhost:27017/space_bundle_test
+#      uri: mongodb+srv://samo:yaw0243911336@@cluster0.dtstr21.mongodb.net/bundle
+#
+#jwt:
+#  secret: test-secret-key-for-testing-purposes-only-minimum-256-bits
+#  expiration: 3600000
+#  refresh-expiration: 7200000
+#
+#logging:
+#  level:
+#    com.space: DEBUG
+#    org.springframework.security: DEBUG
+
+
 spring:
   application:
     name: space-bundle
@@ -5,15 +228,10 @@ spring:
   # MongoDB Configuration
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb://localhost:27017/space_bundle_db}
-      # Alternative configuration
-      # host: ${MONGO_HOST:localhost}
-      # port: ${MONGO_PORT:27017}
-      # database: ${MONGO_DATABASE:space_bundle_db}
-      # username: ${MONGO_USERNAME:}
-      # password: ${MONGO_PASSWORD:}
-      # authentication-database: ${MONGO_AUTH_DB:admin}
+      uri: ${MONGO_URI:mongodb+srv://nicholasoppong2623_db_user:Yaw0243911336@cluster0.arawb0h.mongodb.net/?appName=Cluster0}
       auto-index-creation: true
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration
 
   # Disable default security password
   security:
@@ -24,8 +242,8 @@ spring:
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:default-jwt-secret-key-change-in-production-minimum-256-bits-required}
-  expiration: ${JWT_EXPIRATION:86400000}  # 24 hours in milliseconds
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days in milliseconds
+  expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
   issuer: ${JWT_ISSUER:space-bundle}
   header: Authorization
   prefix: "Bearer "
@@ -38,7 +256,7 @@ server:
   error:
     include-message: always
     include-binding-errors: always
-    include-stacktrace: never
+    include-stacktrace: ${INCLUDE_STACKTRACE:never}
     include-exception: false
   compression:
     enabled: true
@@ -58,8 +276,8 @@ management:
   endpoint:
     health:
       enabled: true
-      show-details: when-authorized
-      show-components: when-authorized
+      show-details: ${HEALTH_SHOW_DETAILS:when-authorized}
+      show-components: ${HEALTH_SHOW_COMPONENTS:when-authorized}
       probes:
         enabled: true
     info:
@@ -81,13 +299,6 @@ management:
       enabled: true
     mongo:
       enabled: true
-  info:
-    env:
-      enabled: true
-    java:
-      enabled: true
-    os:
-      enabled: true
 
 # Application Info
 info:
@@ -96,17 +307,17 @@ info:
     description: Space Bundle Application
     version: 0.0.1-SNAPSHOT
     encoding: UTF-8
-    java:
-      version: 21
+  java:
+    version: 21
 
 # Logging Configuration
 logging:
   level:
-    root: INFO
-    com.space: INFO
-    org.springframework.web: WARN
-    org.springframework.security: WARN
-    org.springframework.data.mongodb: INFO
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.space: ${LOG_LEVEL_APP:INFO}
+    org.springframework.web: ${LOG_LEVEL_WEB:WARN}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.springframework.data.mongodb: ${LOG_LEVEL_MONGODB:INFO}
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -116,96 +327,14 @@ logging:
     max-history: ${LOG_MAX_HISTORY:30}
     total-size-cap: ${LOG_TOTAL_SIZE:1GB}
 
----
-# Development Profile
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/space_bundle_dev
-
-jwt:
-  secret: dev-secret-key-change-in-production-minimum-256-bits-required-for-hs256
-  expiration: 86400000
-  refresh-expiration: 604800000
-
-server:
-  error:
-    include-stacktrace: on_param
-
-management:
-  endpoint:
-    health:
-      show-details: always
-      show-components: always
-
-logging:
-  level:
-    com.space: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.data.mongodb: DEBUG
-
----
-# Production Profile
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-  data:
-    mongodb:
-      uri: ${MONGO_URI}
-
-jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION:3600000}  # 1 hour
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
-
-server:
-  port: ${SERVER_PORT:8080}
-  error:
-    include-stacktrace: never
-    include-message: always
-
-management:
-  endpoint:
-    health:
-      show-details: never
-
-logging:
-  level:
-    root: WARN
-    com.space: INFO
-    org.springframework.web: WARN
-    org.springframework.security: WARN
-    org.springframework.data.mongodb: WARN
-
----
-# Test Profile
-spring:
-  config:
-    activate:
-      on-profile: test
-
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/space_bundle_test
-
-jwt:
-  secret: test-secret-key-for-testing-purposes-only-minimum-256-bits
-  expiration: 3600000
-  refresh-expiration: 7200000
-
-logging:
-  level:
-    com.space: DEBUG
-    org.springframework.security: DEBUG
-
 # Bot Configuration
 bot:
   api:
-    url: http://localhost:3000
+    url: ${BOT_API_URL:https://mydatagigs.com/wp-json/custom/v1/place-order}
     timeout: 30000
+
+# Paystack Configuration
+paystack:
+  secret-key: ${PAYSTACK_SECRET_KEY:sk_live_91413407d791794047903bda48d5b924a52ec827}
+  public-key: ${PAYSTACK_PUBLIC_KEY:pk_live_your_public_key_here}
+  callback-url: ${PAYSTACK_CALLBACK_URL:http://localhost:3000/payment/callback}

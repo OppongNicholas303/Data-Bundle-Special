@@ -11,12 +11,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-
-/**
- * Wallet REST Controller
- * Handles wallet operations and balance management
- */
 @Slf4j
 @RestController
 @RequestMapping("/wallet")
@@ -25,57 +19,19 @@ public class WalletController {
 
     private final WalletService walletService;
 
-    /**
-     * GET /api/wallet/balance - Get current user's wallet balance
-     */
     @GetMapping("/balance")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<BigDecimal>> getBalance(
+    public ResponseEntity<ApiResponse<Wallet>> getBalance(
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
         
         String userId = userDetails.getUserId();
-        BigDecimal balance = walletService.getBalance(userId);
+        log.info("Get wallet balance request: userId={}", userId);
         
-        return ResponseEntity.ok(ApiResponse.success(balance));
-    }
-
-    /**
-     * POST /api/wallet/credit - Credit wallet balance
-     */
-    @PostMapping("/credit")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<String>> credit(
-            @RequestParam BigDecimal amount,
-            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        Wallet wallet = walletService.getWalletByUserId(userId);
         
-        String userId = userDetails.getUserId();
+        log.info("Wallet balance retrieved: userId={}, balance={}, currency={}, status={}", 
+                userId, wallet.getBalance(), wallet.getCurrency(), wallet.getStatus());
         
-        log.info("Wallet credit request: userId={}, amount={}", userId, amount);
-        
-        walletService.credit(userId, amount);
-        
-        log.info("Wallet credit successful: userId={}, amount={}", userId, amount);
-        
-        return ResponseEntity.ok(ApiResponse.success("Wallet credited successfully"));
-    }
-
-    /**
-     * POST /api/wallet/debit - Debit wallet balance
-     */
-    @PostMapping("/debit")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<String>> debit(
-            @RequestParam BigDecimal amount,
-            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        
-        String userId = userDetails.getUserId();
-        
-        log.info("Wallet debit request: userId={}, amount={}", userId, amount);
-        
-        walletService.debit(userId, amount);
-        
-        log.info("Wallet debit successful: userId={}, amount={}", userId, amount);
-        
-        return ResponseEntity.ok(ApiResponse.success("Wallet debited successfully"));
+        return ResponseEntity.ok(ApiResponse.success(wallet));
     }
 }

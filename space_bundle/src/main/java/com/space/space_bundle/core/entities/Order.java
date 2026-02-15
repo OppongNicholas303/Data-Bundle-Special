@@ -22,6 +22,9 @@ public class Order {
 
     private OrderStatus status;
     private String providerReference;
+    private String paymentReference; // Paystack reference
+    private String paymentUrl; // Paystack authorization URL
+    private String paymentAccessCode; // Paystack access code
     private String failureReason;
 
     private final LocalDateTime createdAt;
@@ -37,6 +40,9 @@ public class Order {
             BigDecimal amount,
             OrderStatus status,
             String providerReference,
+            String paymentReference,
+            String paymentUrl,
+            String paymentAccessCode,
             String failureReason,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
@@ -50,6 +56,9 @@ public class Order {
 
         this.status = status == null ? OrderStatus.CREATED : status;
         this.providerReference = providerReference;
+        this.paymentReference = paymentReference;
+        this.paymentUrl = paymentUrl;
+        this.paymentAccessCode = paymentAccessCode;
         this.failureReason = failureReason;
 
         this.createdAt = createdAt == null ? LocalDateTime.now() : createdAt;
@@ -60,8 +69,19 @@ public class Order {
        BUSINESS OPERATIONS
        ===================== */
 
-    public void markPaid() {
+    public void setPendingPayment(String paymentReference, String paymentUrl, String paymentAccessCode) {
         assertStatus(OrderStatus.CREATED);
+        this.status = OrderStatus.PENDING_PAYMENT;
+        this.paymentReference = paymentReference;
+        this.paymentUrl = paymentUrl;
+        this.paymentAccessCode = paymentAccessCode;
+        touch();
+    }
+
+    public void markPaid() {
+        if (this.status != OrderStatus.CREATED && this.status != OrderStatus.PENDING_PAYMENT) {
+            throw new IllegalStateException("Invalid order state for payment: " + this.status);
+        }
         this.status = OrderStatus.PAID;
         touch();
     }

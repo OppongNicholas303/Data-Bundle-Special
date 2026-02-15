@@ -29,15 +29,33 @@ public class OrderController {
      * POST /api/orders - Place a new data bundle order
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<Order>> placeOrder(@RequestBody PlaceOrderRequest request) {
+    public ResponseEntity<ApiResponse<Order>> placeOrder(
+            @RequestBody PlaceOrderRequest request,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails
+    ) {
+
+        String email = "nictech23@gmail.com";
+
+        if(userDetails  != null){
+            email = userDetails.getEmail();
+        }else {
+            email = request.getEmail() != null && !request.getEmail().isEmpty()
+                    ? request.getEmail()
+                    : email;
+        }
+
         
-        log.info("Order placement request: bundleCode={}, phoneNumber={}", 
-                request.getBundleCode(), request.getPhoneNumber());
-        
+        log.info("Order placement request: bundleCode={}, phoneNumber={}, email={}", 
+                request.getBundleCode(), request.getPhoneNumber(), request.getEmail());
+
+        // Use provided email or generate from phone number
+
         Order order = orderService.createGuestOrder(
                 request.getNetwork(),
                 request.getPhoneNumber(),
-                request.getBundleCode()
+                request.getBundleCode(),
+                email,
+                userDetails != null ? userDetails.getUserId() : null
         );
         
         log.info("Order placed successfully: orderId={}, status={}", order.getId(), order.getStatus());

@@ -2,7 +2,6 @@ package com.space.space_bundle.core.services;
 
 import com.space.space_bundle.core.entities.Transaction;
 import com.space.space_bundle.core.entities.Wallet;
-import com.space.space_bundle.core.port.out.PaymentPort;
 import com.space.space_bundle.core.port.out.WalletRepositoryPort;
 import lombok.RequiredArgsConstructor;
 
@@ -14,39 +13,9 @@ import java.util.UUID;
 public class WalletService {
 
     private final WalletRepositoryPort walletRepository;
-    private final PaymentPort paymentPort;
     private final TransactionService transactionService;
 
-    public void debitForOrder(String userId, BigDecimal amount) throws Exception {
-        // Debit the real payment provider first
-        String txRef = paymentPort.debit(UUID.fromString(userId), amount);
-
-        // Then debit the wallet
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalStateException("Wallet not found"));
-        wallet.debit(amount);
-        //Transaction
-
-
-        walletRepository.save(wallet);
-
-        System.out.println("Debited wallet for order, payment ref: " + txRef);
-    }
-
-    public void refundForOrder(String userId, BigDecimal amount) throws Exception {
-        // Refund the real payment provider first
-        String txRef = paymentPort.refund(UUID.fromString(userId), amount);
-
-        // Then credit the wallet
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalStateException("Wallet not found"));
-        wallet.credit(amount);
-        walletRepository.save(wallet);
-
-        System.out.println("Refunded wallet for order, payment ref: " + txRef);
-    }
-
-    public Wallet createWallet(String userId) {
+public Wallet createWallet(String userId) {
         Wallet wallet = Wallet.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
@@ -76,6 +45,10 @@ public class WalletService {
 
     public BigDecimal getBalance(String userId) {
         return getWalletByUser(userId).getBalance();
+    }
+
+    public Wallet getWalletByUserId(String userId) {
+        return getWalletByUser(userId);
     }
 
     private Wallet getWalletByUser(String userId) {
