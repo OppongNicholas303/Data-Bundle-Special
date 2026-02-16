@@ -57,6 +57,8 @@ public class OrderController {
                 email,
                 userDetails != null ? userDetails.getUserId() : null
         );
+
+        log.info("Creating order :{}", order);
         
         log.info("Order placed successfully: orderId={}, status={}", order.getId(), order.getStatus());
         
