@@ -36,6 +36,9 @@ public class PaymentWebhookService {
             if (cleanPayload.contains("\"event\":\"charge.success\"")) {
                 log.info("[WEBHOOK] Event is charge.success");
 
+                log.info("[WEBHOOK] Payload clean: {} " ,cleanPayload);
+                log.info("[WEBHOOK] Payload : {} " ,payload);
+
                 String reference = extractValue(payload, "reference");
                 String status = extractValue(payload, "status");
 
