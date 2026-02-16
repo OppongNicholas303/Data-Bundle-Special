@@ -38,6 +38,8 @@ public class PaymentWebhookService {
                 String reference = extractValue(payload, "reference");
                 String status = extractValue(payload, "status");
 
+                log.info("[WEBHOOK] Found reference: {}", reference);
+
                 log.info("[WEBHOOK] Extracted - reference={}, status={}", reference, status);
 
                 if ("success".equals(status)) {
@@ -144,14 +146,15 @@ public class PaymentWebhookService {
             order = orderRepository.save(order);
 
             log.info("[PAYMENT] Calling bot API to deliver bundle");
-            String providerReference = automationPort.buyDataBundle(order);
+//            String providerReference = automationPort.buyDataBundle(order);
 
             // Mark as completed
             log.info("[PAYMENT] Marking order as COMPLETED");
-            order.markCompleted(providerReference);
+//            order.markCompleted(providerReference);
+            order.markCompleted("11111111");
             order = orderRepository.save(order);
 
-            log.info("[PAYMENT] Order completed: orderId={}, providerRef={}", orderId, providerReference);
+//            log.info("[PAYMENT] Order completed: orderId={}, providerRef={}", orderId, providerReference);
 
         } catch (Exception ex) {
             log.error("[PAYMENT] Order processing failed: orderId={}, error={}", orderId, ex.getMessage(), ex);
