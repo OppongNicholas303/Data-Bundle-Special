@@ -35,6 +35,7 @@ public class PaymentWebhookService {
             // Simple string parsing instead of Jackson
             if (cleanPayload.contains("\"event\":\"charge.success\"")) {
                 log.info("[WEBHOOK] Event is charge.success");
+
                 String reference = extractValue(payload, "reference");
                 String status = extractValue(payload, "status");
 
@@ -101,12 +102,17 @@ public class PaymentWebhookService {
         log.info("[PAYMENT] Verifying transaction with Paystack");
         PaystackVerifyResponse verification = paystackAdapter.verifyTransaction(reference);
 
+        log.info("[PAYMENT] Verification response: status={}, data={}",
+                verification.isStatus(), verification.getData());
+
         if (!verification.isStatus() || !"success".equals(verification.getData().getStatus())) {
             log.error("[PAYMENT] Verification failed: reference={}", reference);
             return;
         }
         
         log.info("[PAYMENT] Verification successful");
+        log.info("[PAYMENT] Transaction details - reference={}, amount={}, status={}",
+                reference, verification.getData().getAmount(), verification.getData().getStatus());
 
         // Extract order ID from reference (ORDER_xxx)
         String orderId = reference.replace("ORDER_", "");
