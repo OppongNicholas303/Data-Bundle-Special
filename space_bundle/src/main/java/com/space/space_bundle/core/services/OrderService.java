@@ -48,7 +48,7 @@ public class OrderService {
         BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
         
         // Add 2% Paystack transaction fee
-        BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.02));
+        BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.03));
         BigDecimal totalAmount = amount.add(paystackFee);
         
         Order order = Order.builder()
@@ -160,9 +160,9 @@ public class OrderService {
             order.markProcessing();
             order = orderRepository.save(order);
 
-//            String providerReference = automationPort.buyDataBundle(order);
+            String providerReference = automationPort.buyDataBundle(order);
 
-            order.markCompleted("providerReference");
+            order.markCompleted(providerReference);
             order = orderRepository.save(order);
 
         } catch (Exception ex) {
