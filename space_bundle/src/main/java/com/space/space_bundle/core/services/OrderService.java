@@ -48,7 +48,7 @@ public class OrderService {
         BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
         
         // Add 2% Paystack transaction fee
-        BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.03));
+        BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.02));
         BigDecimal totalAmount = amount.add(paystackFee);
         
         Order order = Order.builder()
