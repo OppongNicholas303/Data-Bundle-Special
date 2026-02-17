@@ -118,7 +118,7 @@ public class SecurityConfig {
 
         // In production, replace with actual frontend URLs
         configuration.setAllowedOrigins(List.of(
-                "https://tapdataa.vercel.app/",
+                "https://tapdata.vercel.app/",
                 "http://localhost:4200",
                 "http://localhost:8081",
                 "https://jn4ktsmh-8081.uks1.devtunnels.ms",
