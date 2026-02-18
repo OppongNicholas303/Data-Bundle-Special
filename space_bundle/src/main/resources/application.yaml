@@ -228,7 +228,7 @@ spring:
   # MongoDB Configuration
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb+srv://nicholasoppong2623_db_user:Yaw0243911336@cluster0.arawb0h.mongodb.net/?appName=Cluster0}
+      uri: ${MONGO_URI}
       auto-index-creation: true
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration
@@ -241,7 +241,7 @@ spring:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:default-jwt-secret-key-change-in-production-minimum-256-bits-required}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
   issuer: ${JWT_ISSUER:space-bundle}
@@ -330,11 +330,11 @@ logging:
 # Bot Configuration
 bot:
   api:
-    url: ${BOT_API_URL:https://mydatagigs.com/wp-json/custom/v1/place-order}
+    url: ${BOT_API_URL:https}
     timeout: 30000
 
 # Paystack Configuration
 paystack:
-  secret-key: ${PAYSTACK_SECRET_KEY:sk_test_cb7cbb64518755a53d543b2e90df133c5f415aae}
-  public-key: ${PAYSTACK_PUBLIC_KEY:pk_test_302285e48b14699166173b92ebe232b51a70518a}
-  callback-url: ${PAYSTACK_CALLBACK_URL:http://localhost:3000/payment/callback}
+  secret-key: ${PAYSTACK_SECRET_KEY}
+  public-key: ${PAYSTACK_PUBLIC_KEY}
+  callback-url: ${PAYSTACK_CALLBACK_URL}

@@ -160,9 +160,9 @@ public class OrderService {
             order.markProcessing();
             order = orderRepository.save(order);
 
-//            String providerReference = automationPort.buyDataBundle(order);
+            String providerReference = automationPort.buyDataBundle(order);
 
-//            order.markCompleted(providerReference);
+            order.markCompleted(providerReference);
             order = orderRepository.save(order);
 
         } catch (Exception ex) {
