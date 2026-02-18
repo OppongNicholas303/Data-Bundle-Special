@@ -35,6 +35,7 @@ public class PaystackAdapter {
         requestBody.put("amount", amount);
         requestBody.put("reference", reference);
         requestBody.put("callback_url", callbackUrl);
+        requestBody.put("channels", new String[]{"mobile_money", "card"}); // 👈 ADD THIS
 
         log.info("Initializing Paystack transaction: email={}, amount={}, reference={}", email, amount, reference);
 
