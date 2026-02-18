@@ -40,6 +40,7 @@ public class WebhookController {
 
         log.info("Webhook payload: {}", payload);
         log.info("in the controller");
+
         try {
             webhookService.processPaystackWebhook(payload);
             return ResponseEntity.ok("Webhook processed");

@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.List;
 import org.springframework.web.bind.annotation.*;
+import java.util.Random;
 
 /**
  * Order REST Controller
@@ -34,7 +35,10 @@ public class OrderController {
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails
     ) {
 
-        String email = "nictech23@gmail.com";
+        Random random = new Random();
+        int number = 10000 + random.nextInt(90000);
+
+        String email = "nictech" + number + "@gmail.com";
 
         if(userDetails  != null){
             email = userDetails.getEmail();
