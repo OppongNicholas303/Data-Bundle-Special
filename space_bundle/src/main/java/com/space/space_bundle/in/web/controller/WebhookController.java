@@ -29,6 +29,7 @@ public class WebhookController {
             @RequestHeader("x-paystack-signature") String signature) {
 
         log.info("Received Paystack webhook");
+        log.info("Payload: {}", payload);
 
         // Verify signature
         if (!verifySignature(payload, signature)) {
