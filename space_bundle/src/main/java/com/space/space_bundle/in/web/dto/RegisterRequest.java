@@ -36,7 +36,11 @@ public class RegisterRequest {
     private String password;
 
     @NotBlank(message = "Phone number is required")
-    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Invalid phone number format")
+    @Pattern(
+            regexp = "^0\\d{9}$",
+            message = "Phone number must start with 0 and be exactly 10 digits"
+    )
     private String phoneNumber;
+
 }
 
