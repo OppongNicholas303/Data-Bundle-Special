@@ -96,6 +96,7 @@ public class AutomationAdapter implements AutomationPort {
             case "6GB": return 6;
             case "7GB": return 7;
             case "8GB": return 8;
+            case "10GB": return 10;
             case "12GB": return 12;
             case "15GB": return 15;
             case "20GB": return 20;
