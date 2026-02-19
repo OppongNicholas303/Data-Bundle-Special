@@ -42,10 +42,6 @@ public class OrderController {
 
         if(userDetails  != null){
             email = userDetails.getEmail();
-        }else {
-            email = request.getEmail() != null && !request.getEmail().isEmpty()
-                    ? request.getEmail()
-                    : email;
         }
 
         
