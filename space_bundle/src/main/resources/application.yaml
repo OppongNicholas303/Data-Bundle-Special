@@ -330,7 +330,7 @@ logging:
 # Bot Configuration
 bot:
   api:
-    url: ${BOT_API_URL:https}
+    url: ${BOT_API_URL}
     timeout: 30000
 
 # Paystack Configuration
