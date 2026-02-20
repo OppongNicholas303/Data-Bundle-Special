@@ -6,6 +6,7 @@ import com.space.space_bundle.out.persistence.entity.BundleDocument;
 import com.space.space_bundle.out.persistence.mapper.BundleMapper;
 import com.space.space_bundle.out.persistence.repository.BundleMongoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -61,9 +62,18 @@ public class BundleRepositoryAdapter implements BundleRepositoryPort {
                 .collect(Collectors.toList());
     }
 
+//    @Override
+//    public List<Bundle> findAll() {
+//        return mongoRepository.findAll()
+//                .stream()
+//                .map(BundleMapper::toDomain)
+//                .collect(Collectors.toList());
+//    }
+
     @Override
     public List<Bundle> findAll() {
-        return mongoRepository.findAll()
+        return mongoRepository
+                .findAll(Sort.by(Sort.Direction.ASC, "sellingPrice"))
                 .stream()
                 .map(BundleMapper::toDomain)
                 .collect(Collectors.toList());
