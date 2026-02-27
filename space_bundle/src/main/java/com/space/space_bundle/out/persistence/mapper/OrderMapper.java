@@ -1,7 +1,6 @@
 package com.space.space_bundle.out.persistence.mapper;
 
 import com.space.space_bundle.core.entities.Order;
-import com.space.space_bundle.core.enums.OrderStatus;
 import com.space.space_bundle.out.persistence.entity.OrderDocument;
 import lombok.experimental.UtilityClass;
 
@@ -17,7 +16,7 @@ public class OrderMapper {
                 .bundleCode(order.getBundleCode())
                 .amount(order.getAmount())
                 .status(order.getStatus().name())
-                .providerReference(order.getProviderReference())
+//                .providerReference(order.getProviderOrderNumber())
                 .paymentReference(order.getPaymentReference())
                 .paymentUrl(order.getPaymentUrl())
                 .paymentAccessCode(order.getPaymentAccessCode())
@@ -36,7 +35,7 @@ public class OrderMapper {
                 .bundleCode(doc.getBundleCode())
                 .amount(doc.getAmount())
                 .status(com.space.space_bundle.core.enums.OrderStatus.valueOf(doc.getStatus()))
-                .providerReference(doc.getProviderReference())
+//                .providerReference(doc.getProviderReference())
                 .paymentReference(doc.getPaymentReference())
                 .paymentUrl(doc.getPaymentUrl())
                 .paymentAccessCode(doc.getPaymentAccessCode())

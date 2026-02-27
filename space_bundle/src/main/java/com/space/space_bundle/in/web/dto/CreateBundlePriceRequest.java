@@ -5,14 +5,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PlaceOrderRequest {
-    private String network;
-    private String phoneNumber;
-    private String bundleCode;
-    private String email;
-    private int package_id;
+public class CreateBundlePriceRequest {
+    private Long packageId;
+    private BigDecimal sellingPrice;
+    private String name;
 }
+

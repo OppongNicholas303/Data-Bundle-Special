@@ -155,14 +155,14 @@ public class PaymentWebhookService {
             order = orderRepository.save(order);
 
             log.info("[PAYMENT] Calling bot API to deliver bundle");
-            String providerReference = automationPort.buyDataBundle(order);
+            String providerOrderNumber = automationPort.buyDataBundle(order);
 
             // Mark as completed
             log.info("[PAYMENT] Marking order as COMPLETED");
-            order.markCompleted(providerReference);
+            order.markCompleted(providerOrderNumber);
             order = orderRepository.save(order);
 
-            log.info("[PAYMENT] Order completed: orderId={}, providerRef={}", orderId, providerReference);
+//            log.info("[PAYMENT] Order completed: orderId={}, providerRef={}", orderId, providerReference);
 
         } catch (Exception ex) {
             log.error("[PAYMENT] Order processing failed: orderId={}, error={}", orderId, ex.getMessage(), ex);

@@ -43,7 +43,8 @@ public class OrderService {
             String phoneNumber,
             String bundleCode,
             String email,
-            String userID
+            String userID,
+            int package_id
     ) {
         BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
         
@@ -59,6 +60,7 @@ public class OrderService {
                 .amount(totalAmount)
                 .status(com.space.space_bundle.core.enums.OrderStatus.CREATED)
                 .createdAt(LocalDateTime.now())
+                .packageId(package_id)
                 .build();
         
         order = orderRepository.save(order);

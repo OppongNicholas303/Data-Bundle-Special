@@ -1,6 +1,8 @@
 package com.space.space_bundle.in.web.controller;
 
 import com.space.space_bundle.core.entities.Bundle;
+import com.space.space_bundle.in.web.dto.BundleWithPriceDto;
+import com.space.space_bundle.core.port.out.dto.PackageResponseDto;
 import com.space.space_bundle.core.services.BundleService;
 import com.space.space_bundle.in.web.dto.ApiResponse;
 import com.space.space_bundle.in.web.dto.CreateBundleRequest;
@@ -28,11 +30,11 @@ public class BundleController {
      * GET /api/bundles - Get all bundles
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Bundle>>> getAllBundles() {
-        
+    public ResponseEntity<ApiResponse<List<BundleWithPriceDto>>> getAllBundles() {
+
         log.info("Get all bundles request");
         
-        List<Bundle> bundles = bundleService.getAllBundles();
+        var bundles = bundleService.getAllBundles();
         
         log.info("All bundles retrieved: count={}", bundles.size());
         
@@ -91,5 +93,19 @@ public class BundleController {
         log.info("Bundle created successfully: id={}, code={}", bundle.getId(), bundle.getCode());
         
         return ResponseEntity.ok(ApiResponse.success(bundle));
+    }
+
+    /**
+     * POST /api/bundles/price - Create new bundle price
+     */
+    @PostMapping("/price")
+    public ResponseEntity<ApiResponse<com.space.space_bundle.core.entities.BundlePrice>> createBundlePrice(@RequestBody com.space.space_bundle.in.web.dto.CreateBundlePriceRequest request) {
+        log.info("Create bundle price request: packageId={}, price={}", request.getPackageId(), request.getSellingPrice());
+
+        var saved = bundleService.createBundlePrice(request.getPackageId(), request.getSellingPrice(), request.getName());
+
+        log.info("Bundle price saved: packageId={}", saved.getPackageId());
+
+        return ResponseEntity.ok(ApiResponse.success(saved));
     }
 }

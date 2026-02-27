@@ -13,9 +13,11 @@ public class ServiceConfig {
 
     @Bean
     public BundleService bundleService(
-            BundleRepositoryPort bundleRepository
+            BundleRepositoryPort bundleRepository,
+            AutomationPort automationPort,
+            BundlePricePort bundlePricePort
     ) {
-        return new BundleService(bundleRepository);
+        return new BundleService(bundleRepository, automationPort, bundlePricePort);
     }
 
     @Bean
@@ -93,4 +95,3 @@ public class ServiceConfig {
         );
     }
 }
-

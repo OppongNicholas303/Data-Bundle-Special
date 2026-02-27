@@ -17,11 +17,12 @@ public class Order {
     private final String network;       // MTN, VODAFONE, AIRTELTIGO
     private final String phoneNumber;
     private final String bundleCode;
+    private final int package_id;
 
     private final BigDecimal amount;
 
     private OrderStatus status;
-    private String providerReference;
+    private String providerOrderNumber;
     private String paymentReference; // Paystack reference
     private String paymentUrl; // Paystack authorization URL
     private String paymentAccessCode; // Paystack access code
@@ -36,10 +37,10 @@ public class Order {
             String userId,
             String network,
             String phoneNumber,
-            String bundleCode,
+            String bundleCode, int packageId,
             BigDecimal amount,
             OrderStatus status,
-            String providerReference,
+            String providerOrderNumber,
             String paymentReference,
             String paymentUrl,
             String paymentAccessCode,
@@ -52,10 +53,11 @@ public class Order {
         this.network = network;
         this.phoneNumber = phoneNumber;
         this.bundleCode = bundleCode;
+        package_id = packageId;
         this.amount = amount;
 
         this.status = status == null ? OrderStatus.CREATED : status;
-        this.providerReference = providerReference;
+        this.providerOrderNumber = providerOrderNumber;
         this.paymentReference = paymentReference;
         this.paymentUrl = paymentUrl;
         this.paymentAccessCode = paymentAccessCode;
@@ -95,7 +97,7 @@ public class Order {
     public void markCompleted(String providerReference) {
         assertStatus(OrderStatus.PROCESSING);
         this.status = OrderStatus.COMPLETED;
-        this.providerReference = providerReference;
+        this.providerOrderNumber = providerReference;
         touch();
     }
 

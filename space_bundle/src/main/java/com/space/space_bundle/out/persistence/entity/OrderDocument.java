@@ -23,8 +23,9 @@ public class OrderDocument {
     private String phoneNumber;
     private String bundleCode;
     private BigDecimal amount;
+    private int package_id;
     private String status;
-    private String providerReference;
+    private String providerOrderNumber;
     private String paymentReference;
     private String paymentUrl;
     private String paymentAccessCode;

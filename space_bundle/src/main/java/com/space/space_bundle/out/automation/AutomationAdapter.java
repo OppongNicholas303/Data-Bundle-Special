@@ -2,110 +2,125 @@ package com.space.space_bundle.out.automation;
 
 import com.space.space_bundle.core.entities.Order;
 import com.space.space_bundle.core.port.out.AutomationPort;
+import com.space.space_bundle.core.port.out.OrderRepositoryPort;
+import com.space.space_bundle.core.port.out.dto.PackageDto;
+import com.space.space_bundle.core.port.out.dto.PackageResponseDto;
 import com.space.space_bundle.out.automation.dto.BotPurchaseRequest;
 import com.space.space_bundle.out.automation.dto.BotPurchaseResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.List;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class AutomationAdapter implements AutomationPort {
 
-    private final RestTemplate restTemplate;
-    
-    @Value("${bot.api.url:https://mydatagigs.com/wp-json/custom/v1/place-order}")
+    @Value("${bot.api.url:https://myspaceserver.com/api/}")
     private String botApiUrl;
     
-    @Value("${bot.api.token:tera_live_d7a798a4790c08e51366d0580276835b}")
+    @Value("${bot.api.token:sk_4975646ef9cc4a5a2bcfd62c0f60f8a0a713de8114df7c47965b2703a9d555f7}")
     private String botApiToken;
+
+    private final WebClient webClient;
+
+    private final OrderRepositoryPort orderRepositoryPort;
+
 
     @Override
     public String buyDataBundle(Order order) {
-        String network = order.getNetwork().equalsIgnoreCase("VODAFONE") 
-                ? "telecel" 
-                : order.getNetwork().toLowerCase();
-        
-        Integer packageId = extractPackageId(order.getBundleCode());
 
-        System.out.println(network + " " + order.getBundleCode());
         BotPurchaseRequest request = BotPurchaseRequest.builder()
-                .network(network)
-                .beneficiary(order.getPhoneNumber())
-                .dataBundlePackages(packageId)
+                .package_id(order.getPackage_id())
+                .customer_phone(order.getPhoneNumber())
                 .build();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + botApiToken);
-        headers.set("Content-Type", "application/json");
-        
-        HttpEntity<BotPurchaseRequest> entity = new HttpEntity<>(request, headers);
-        
         log.info("Sending order to bot API: {}", botApiUrl);
-        log.info("Request body: network={}, beneficiary={}, pa_data-bundle-packages={}", 
-                network, order.getPhoneNumber(), packageId);
-        log.info("Full request object: {}", request);
-        
+        log.info("Request body: {}", request);
+
         try {
-            ResponseEntity<BotPurchaseResponse> response = restTemplate.exchange(
-                    botApiUrl,
-                    HttpMethod.POST,
-                    entity,
-                    BotPurchaseResponse.class
-            );
-            
-            BotPurchaseResponse body = response.getBody();
-            log.info("Bot API response status: {}", response.getStatusCode());
-            log.info("Bot API response body: {}", body);
-            
+
+            BotPurchaseResponse body = webClient.post()
+                    .uri(botApiUrl + "/external/orders")
+                    .header("X-API-Key", "Bearer " + botApiToken)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(BotPurchaseResponse.class)
+                    .block();  // blocking because your method returns String
+
             if (body == null) {
                 throw new RuntimeException("No response from bot");
             }
-            
-            if (body.getCode() != null) {
-                throw new RuntimeException(body.getMessage());
+
+            if (!body.success()
+                    || body.order() == null
+                    || body.order().id() == null) {
+
+                throw new RuntimeException(body.message());
             }
-            
-            if (!"success".equalsIgnoreCase(body.getStatus()) || body.getOrderId() == null) {
-                throw new RuntimeException("Invalid response from bot");
-            }
-            
-            log.info("Bot purchase successful: orderId={}", body.getOrderId());
-            return String.valueOf(body.getOrderId());
-            
+
+            log.info("Bot purchase successful: orderId={}", body.order().order_number());
+            return String.valueOf(body.order().order_number());
+
         } catch (Exception e) {
-            log.error("Bot API call failed: {}", e.getMessage(), e);
+            log.error("Bot API call failed", e);
             throw new RuntimeException(e.getMessage(), e);
         }
     }
-    
-    private Integer extractPackageId(String bundleCode) {
-        switch (bundleCode.toUpperCase()) {
-            case "1GB": return 1;
-            case "2GB": return 2;
-            case "3GB": return 3;
-            case "4GB": return 4;
-            case "5GB": return 5;
-            case "6GB": return 6;
-            case "7GB": return 7;
-            case "8GB": return 8;
-            case "10GB": return 10;
-            case "12GB": return 12;
-            case "15GB": return 15;
-            case "20GB": return 20;
-            case "25GB": return 25;
-            case "30GB": return 30;
-            case "40GB": return 40;
-            case "50GB": return 50;
-            case "100GB": return 100;
-            default: return 0;
+
+    @Override
+    public BotPurchaseResponse checkOrderStatus(String orderNumber) {
+
+        try {
+            BotPurchaseResponse response = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path(botApiUrl + "/external/orders/status")
+                            .queryParam("order_number", orderNumber)
+                            .build())
+                    .header("X-API-Key", "Bearer " + botApiToken)
+                    .retrieve()
+                    .bodyToMono(BotPurchaseResponse.class)
+                    .block();
+
+            if (response == null || !response.success() || response.order() == null) {
+                throw new RuntimeException("Invalid status response from bot");
+            }
+
+            log.info("Order {} status: {}", orderNumber, response.order().status());
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("Failed to check order status", e);
+            throw new RuntimeException("Failed to check order status", e);
+        }
+    }
+
+    @Override
+    public List<PackageDto> getBundlePackage() {
+        try {
+            PackageResponseDto response = webClient.get()
+                    .uri(botApiUrl + "/external/packages")
+                    .header("X-API-Key",  botApiToken)
+                    .retrieve()
+                    .bodyToMono(PackageResponseDto.class)
+                    .block();
+
+            if (response == null || !response.success() || response.packages() == null) {
+                throw new RuntimeException("Invalid packages response from bot");
+            }
+
+            log.info("Fetched {} packages from bot", response.packages().size());
+            return response.packages();
+
+        } catch (Exception e) {
+            log.error("Failed to fetch packages", e);
+            throw new RuntimeException("Failed to fetch packages", e);
         }
     }
 }

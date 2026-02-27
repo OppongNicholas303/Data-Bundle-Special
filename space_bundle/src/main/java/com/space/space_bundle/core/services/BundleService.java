@@ -1,18 +1,28 @@
 package com.space.space_bundle.core.services;
 
 import com.space.space_bundle.core.entities.Bundle;
+import com.space.space_bundle.core.entities.BundlePrice;
+import com.space.space_bundle.core.port.out.AutomationPort;
+import com.space.space_bundle.core.port.out.BundlePricePort;
 import com.space.space_bundle.core.port.out.BundleRepositoryPort;
+import com.space.space_bundle.core.port.out.dto.PackageDto;
+import com.space.space_bundle.core.port.out.dto.PackageResponseDto;
+import com.space.space_bundle.in.web.dto.BundleWithPriceDto;
 import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class BundleService {
 
     private final BundleRepositoryPort bundleRepository;
+    private final AutomationPort automationPort;
+    private final BundlePricePort bundlePriceRepository;
 
     public Bundle createBundle(String code, String name, String dataSize, String network, 
                               BigDecimal costPrice, BigDecimal sellingPrice, String description) {
@@ -60,9 +70,32 @@ public class BundleService {
     public List<Bundle> getActiveNetworkBundles(String network) {
         return bundleRepository.findActiveByNetwork(network);
     }
+//
+//    public List<PackageDto> getAllBundles() {
+//        return automationPort.getBundlePackage();
+////        return bundleRepository.findAll();
+//    }
 
-    public List<Bundle> getAllBundles() {
-        return bundleRepository.findAll();
+    public List<BundleWithPriceDto> getAllBundles() {
+        List<PackageDto> packages = automationPort.getBundlePackage();
+
+        return packages.stream()
+                .map(pkg -> {
+                    // Try exact match first, then case-insensitive match for resilience
+                    var bundlePrice = bundlePriceRepository.findByName(pkg.name())
+                            .or(() -> bundlePriceRepository.findByNameIgnoreCase(pkg.name()));
+
+                    return new BundleWithPriceDto(
+                            pkg.id(),
+                            pkg.name(),
+                            pkg.size(),
+                            pkg.network(),
+                            pkg.validityDays(),
+                            pkg.costPrice(),
+                            bundlePrice.isPresent() ? bundlePrice.get().getSellingPrice() : null
+                    );
+                })
+                .toList();
     }
 
     public BigDecimal getBundlePrice(String bundleCode, String network) {
@@ -71,5 +104,15 @@ public class BundleService {
             throw new IllegalStateException("Bundle is not active: " + bundleCode);
         }
         return bundle.getSellingPrice();
+    }
+
+    public BundlePrice createBundlePrice(Long packageId, java.math.BigDecimal sellingPrice, String name) {
+        com.space.space_bundle.core.entities.BundlePrice bp = com.space.space_bundle.core.entities.BundlePrice.builder()
+                .packageId(packageId)
+                .sellingPrice(sellingPrice)
+                .name(name)
+                .build();
+
+        return bundlePriceRepository.save(bp);
     }
 }
