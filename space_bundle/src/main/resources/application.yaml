@@ -1,5 +1,7 @@
 
 spring:
+  main:
+    lazy-initialization=true:
   application:
     name: space-bundle
 
