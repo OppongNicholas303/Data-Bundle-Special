@@ -6,10 +6,17 @@ import com.space.space_bundle.core.port.out.authenticationPort.*;
 import com.space.space_bundle.core.services.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.reactive.function.client.WebClient;
 
 
 @Configuration
 public class ServiceConfig {
+
+    // WebClient Bean - Required for AutomationAdapter
+    @Bean
+    public WebClient webClient(WebClient.Builder webClientBuilder) {
+        return webClientBuilder.build();
+    }
 
     @Bean
     public BundleService bundleService(
