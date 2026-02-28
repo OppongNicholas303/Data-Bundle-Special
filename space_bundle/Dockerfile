@@ -25,7 +25,7 @@ RUN mvn clean package -DskipTests -B
 # Run stage
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN groupadd -r spring && useradd -r -g spring spring
 USER spring:spring
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
