@@ -157,6 +157,7 @@ public class PaymentWebhookService {
             log.info("[PAYMENT] Calling bot API to deliver bundle");
             log.info("[PAYMENT] Order details before bot call: orderId={}, package_id={}, bundleCode={}", 
                     order.getId(), order.getPackage_id(), order.getBundleCode());
+
             String providerOrderNumber = automationPort.buyDataBundle(order);
 
             // Mark as completed

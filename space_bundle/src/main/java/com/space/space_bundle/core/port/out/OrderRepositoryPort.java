@@ -8,4 +8,5 @@ public interface OrderRepositoryPort {
     Order save(Order order);
     Optional<Order> findById(String id);
     List<Order> findByFilters(String userId, String orderId, String phoneNumber, String status);
+    List<Order> findByPhoneNumber(String phoneNumber);
 }

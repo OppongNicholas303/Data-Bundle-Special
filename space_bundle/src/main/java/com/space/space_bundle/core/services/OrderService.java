@@ -2,12 +2,10 @@ package com.space.space_bundle.core.services;
 
 import com.space.space_bundle.core.entities.Order;
 import com.space.space_bundle.core.entities.Transaction;
-import com.space.space_bundle.core.entities.User;
 import com.space.space_bundle.core.entities.Wallet;
 import com.space.space_bundle.core.port.out.AutomationPort;
 import com.space.space_bundle.core.port.out.OrderRepositoryPort;
 import com.space.space_bundle.core.port.out.WalletRepositoryPort;
-import com.space.space_bundle.core.exceptions.InsufficientBalanceException;
 import com.space.space_bundle.out.payment.PaystackAdapter;
 import com.space.space_bundle.out.payment.dto.PaystackInitializeResponse;
 import lombok.RequiredArgsConstructor;
@@ -242,5 +240,50 @@ public class OrderService {
         }
         
         return order;
+    }
+
+    public String checkOrderStatus(String orderId, String userId) {
+        Order order = getOrderById(orderId, userId);
+        
+        if (order.getProviderOrderNumber() == null) {
+            return order.getStatus().name();
+        }
+        
+        try {
+            var response = automationPort.checkOrderStatus(order.getProviderOrderNumber());
+            return response.order().status();
+        } catch (Exception e) {
+            log.error("Failed to check bot status for order: {}", orderId, e);
+            return order.getStatus().name();
+        }
+    }
+
+    public List<com.space.space_bundle.in.web.dto.OrderStatusResponse> getOrdersByPhoneNumber(String phoneNumber) {
+        List<Order> orders = orderRepository.findByPhoneNumber(phoneNumber);
+        
+        return orders.stream()
+                .map(order -> {
+                    String status = order.getStatus().name();
+                    
+                    // Try to get real-time status from bot if order is completed
+                    if (order.getProviderOrderNumber() != null) {
+                        try {
+                            var response = automationPort.checkOrderStatus(order.getProviderOrderNumber());
+                            status = response.order().status();
+                        } catch (Exception e) {
+                            log.warn("Failed to get bot status for order: {}", order.getId());
+                        }
+                    }
+                    
+                    return new com.space.space_bundle.in.web.dto.OrderStatusResponse(
+                            order.getProviderOrderNumber(),
+                            order.getPhoneNumber(),
+                            status,
+                            order.getBundleCode(),
+                            null, // package_size not stored in Order
+                            order.getNetwork()
+                    );
+                })
+                .toList();
     }
 }

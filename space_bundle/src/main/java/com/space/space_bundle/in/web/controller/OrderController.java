@@ -46,7 +46,7 @@ public class OrderController {
 
         
         log.info("Order placement request: bundleCode={}, phoneNumber={}, email={}", 
-                request.getBundleCode(), request.getPhoneNumber(), request.getEmail());
+                request.getBundleCode(), request.getPhoneNumber(), email);
 
         // Use provided email or generate from phone number
 
@@ -107,5 +107,21 @@ public class OrderController {
         log.info("Order retrieved: orderId={}, status={}", order.getId(), order.getStatus());
         
         return ResponseEntity.ok(ApiResponse.success(order));
+    }
+
+    /**
+     * GET /api/orders/{id}/status - Check order status from bot API
+     */
+    @GetMapping("/status")
+    public ResponseEntity<ApiResponse<List<com.space.space_bundle.in.web.dto.OrderStatusResponse>>> checkOrderStatusByPhone(
+            @RequestParam String phoneNumber) {
+        
+        log.info("Check order status by phone request: phoneNumber={}", phoneNumber);
+        
+        List<com.space.space_bundle.in.web.dto.OrderStatusResponse> orders = orderService.getOrdersByPhoneNumber(phoneNumber);
+        
+        log.info("Orders retrieved for phone: phoneNumber={}, count={}", phoneNumber, orders.size());
+        
+        return ResponseEntity.ok(ApiResponse.success(orders));
     }
 }

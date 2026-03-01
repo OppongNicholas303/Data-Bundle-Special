@@ -20,10 +20,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AutomationAdapter implements AutomationPort {
 
-    @Value("${bot.api.url:https://myspaceserver.com/api}")
+    @Value("${bot.api.url}")
     private String botApiUrl;
     
-    @Value("${bot.api.token:sk_4975646ef9cc4a5a2bcfd62c0f60f8a0a713de8114df7c47965b2703a9d555f7}")
+    @Value("${bot.api.token}")
     private String botApiToken;
 
     private final WebClient webClient;
@@ -74,14 +74,10 @@ public class AutomationAdapter implements AutomationPort {
 
     @Override
     public BotPurchaseResponse checkOrderStatus(String orderNumber) {
-
         try {
             BotPurchaseResponse response = webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(botApiUrl + "/external/orders/status")
-                            .queryParam("order_number", orderNumber)
-                            .build())
-                    .header("X-API-Key", "Bearer " + botApiToken)
+                    .uri(botApiUrl + "/external/orders/status?order_number=" + orderNumber)
+                    .header("X-API-Key", botApiToken)
                     .retrieve()
                     .bodyToMono(BotPurchaseResponse.class)
                     .block();
@@ -91,7 +87,6 @@ public class AutomationAdapter implements AutomationPort {
             }
 
             log.info("Order {} status: {}", orderNumber, response.order().status());
-
             return response;
 
         } catch (Exception e) {

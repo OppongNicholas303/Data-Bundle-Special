@@ -75,13 +75,19 @@ public class BundleService {
 
     public List<BundleWithPriceDto> getAllBundles() {
         List<PackageDto> packages = automationPort.getBundlePackage();
+        List<BundlePrice> allPrices = bundlePriceRepository.findAll();
+        
+        // Create a map for O(1) lookup
+        var priceMap = allPrices.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    bp -> bp.getName().toLowerCase(),
+                    bp -> bp,
+                    (existing, replacement) -> existing
+                ));
 
         return packages.stream()
                 .map(pkg -> {
-                    // Try exact match first, then case-insensitive match for resilience
-                    var bundlePrice = bundlePriceRepository.findByName(pkg.name())
-                            .or(() -> bundlePriceRepository.findByNameIgnoreCase(pkg.name()));
-
+                    BundlePrice bundlePrice = priceMap.get(pkg.name().toLowerCase());
                     return new BundleWithPriceDto(
                             pkg.id(),
                             pkg.name(),
@@ -89,7 +95,7 @@ public class BundleService {
                             pkg.network(),
                             pkg.validityDays(),
                             pkg.costPrice(),
-                            bundlePrice.isPresent() ? bundlePrice.get().getSellingPrice() : null
+                            bundlePrice != null ? bundlePrice.getSellingPrice() : null
                     );
                 })
                 .toList();

@@ -54,4 +54,11 @@ public class OrderMongoAdapterPort implements OrderRepositoryPort {
                 .map(OrderMapper::toDomain)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<Order> findByPhoneNumber(String phoneNumber) {
+        return repository.findByPhoneNumber(phoneNumber).stream()
+                .map(OrderMapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }

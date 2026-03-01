@@ -12,4 +12,5 @@ public interface SpringOrderRepository extends MongoRepository<OrderDocument, St
     List<OrderDocument> findByUserIdAndPhoneNumber(String userId, String phoneNumber);
     List<OrderDocument> findByUserIdAndStatus(String userId, String status);
     List<OrderDocument> findByUserIdAndPhoneNumberAndStatus(String userId, String phoneNumber, String status);
+    List<OrderDocument> findByPhoneNumber(String phoneNumber);
 }
