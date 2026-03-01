@@ -46,7 +46,8 @@ public class OrderService {
             String userID,
             int package_id
     ) {
-        BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
+        BigDecimal amount = bundleService.getBundlePrice(bundleCode);
+        log.info("Creating guest order: network={}, phone={}, bundle={}, amount={}", network, phoneNumber, bundleCode, amount);
         
         // Add 2% Paystack transaction fee
         BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.02));
@@ -64,7 +65,7 @@ public class OrderService {
                 .build();
         
         order = orderRepository.save(order);
-        log.info("Order created with Paystack fee: baseAmount={}, fee={}, total={}", amount, paystackFee, totalAmount);
+        log.info("Order created with package_id={}, Paystack fee: baseAmount={}, fee={}, total={}", package_id, amount, paystackFee, totalAmount);
         
         if (userID != null) {
             Optional<Wallet> wallet = walletRepository.findByUserId(userID);

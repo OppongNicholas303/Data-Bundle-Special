@@ -95,12 +95,10 @@ public class BundleService {
                 .toList();
     }
 
-    public BigDecimal getBundlePrice(String bundleCode, String network) {
-        Bundle bundle = getBundleByCodeAndNetwork(bundleCode, network);
-        if (bundle.getStatus() != Bundle.BundleStatus.ACTIVE) {
-            throw new IllegalStateException("Bundle is not active: " + bundleCode);
-        }
-        return bundle.getSellingPrice();
+    public BigDecimal getBundlePrice(String bundleCode) {
+        BundlePrice bundlePrice = bundlePriceRepository.findByName(bundleCode)
+                .orElseThrow(() -> new IllegalArgumentException("Bundle price not found for bundleCode: " + bundleCode));
+        return bundlePrice.getSellingPrice();
     }
 
     public BundlePrice createBundlePrice(Long packageId, java.math.BigDecimal sellingPrice, String name) {
