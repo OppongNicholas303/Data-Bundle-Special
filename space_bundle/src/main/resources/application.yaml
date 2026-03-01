@@ -112,6 +112,7 @@ bot:
   api:
     url: ${BOT_API_URL:https://myspaceserver.com/api/}
     timeout: 30000
+    token: ${BOT_TOKEN:sk_4975646ef9cc4a5a2bcfd62c0f60f8a0a713de8114df7c47965b2703a9d555f7}
 
 # Paystack Configuration
 paystack:

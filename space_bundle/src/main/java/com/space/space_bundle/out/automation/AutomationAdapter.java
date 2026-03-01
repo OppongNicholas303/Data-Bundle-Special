@@ -33,7 +33,6 @@ public class AutomationAdapter implements AutomationPort {
 
     @Override
     public String buyDataBundle(Order order) {
-
         BotPurchaseRequest request = BotPurchaseRequest.builder()
                 .package_id(order.getPackage_id())
                 .customer_phone(order.getPhoneNumber())
