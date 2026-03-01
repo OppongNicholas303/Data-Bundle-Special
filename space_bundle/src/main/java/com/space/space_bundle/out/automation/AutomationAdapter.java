@@ -20,7 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AutomationAdapter implements AutomationPort {
 
-    @Value("${bot.api.url:https://myspaceserver.com/api/}")
+    @Value("${bot.api.url:https://myspaceserver.com/api}")
     private String botApiUrl;
     
     @Value("${bot.api.token:sk_4975646ef9cc4a5a2bcfd62c0f60f8a0a713de8114df7c47965b2703a9d555f7}")
