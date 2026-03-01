@@ -1,4 +1,22 @@
 
+spring:
+  application:
+    name: space-bundle
+
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${MONGO_URI}
+      auto-index-creation: true
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration
+
+  # Disable default security password
+  security:
+    user:
+      name: disabled
+      password: disabled
+
 # Server Configuration
 server:
   port: ${SERVER_PORT:8080}
@@ -15,13 +33,6 @@ server:
   http2:
     enabled: true
   shutdown: graceful
-
-# JWT Configuration
-jwt:
-  secret: ${JWT_SECRET:my-super-secret-jwt-key-that-is-at-least-32-characters-long-for-security}
-  expiration: ${JWT_EXPIRATION:86400000}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
-  issuer: ${JWT_ISSUER:space-bundle-api}
 
 # Actuator Configuration
 management:
@@ -92,9 +103,15 @@ bot:
     timeout: 30000
     token: ${BOT_TOKEN}
 
-
 # Paystack Configuration
 paystack:
   secret-key: ${PAYSTACK_SECRET_KEY}
   public-key: ${PAYSTACK_PUBLIC_KEY}
   callback-url: ${PAYSTACK_CALLBACK_URL}
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:my-super-secret-jwt-key-that-is-at-least-32-characters-long-for-security}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  issuer: ${JWT_ISSUER:space-bundle-api}
