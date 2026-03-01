@@ -46,7 +46,7 @@ public class AutomationAdapter implements AutomationPort {
 
             BotPurchaseResponse body = webClient.post()
                     .uri(botApiUrl + "/external/orders")
-                    .header("X-API-Key", "Bearer " + botApiToken)
+                    .header("X-API-Key", botApiToken)
                     .header("Content-Type", "application/json")
                     .bodyValue(request)
                     .retrieve()
