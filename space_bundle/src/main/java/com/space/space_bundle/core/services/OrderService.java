@@ -262,6 +262,8 @@ public class OrderService {
         List<Order> orders = orderRepository.findByPhoneNumber(phoneNumber);
         
         return orders.stream()
+                .sorted((o1, o2) -> o2.getCreatedAt().compareTo(o1.getCreatedAt()))
+                .limit(1)
                 .map(order -> {
                     String status = order.getStatus().name();
                     
