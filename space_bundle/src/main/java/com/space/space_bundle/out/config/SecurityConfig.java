@@ -54,6 +54,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/bundles/**").permitAll()
                         .requestMatchers("/orders").permitAll()
+                        .requestMatchers("/orders/status").permitAll()
                         .requestMatchers("/payment/**").permitAll()
                         .requestMatchers("/webhook/**").permitAll()
                         .requestMatchers("/webhooks/**").permitAll()

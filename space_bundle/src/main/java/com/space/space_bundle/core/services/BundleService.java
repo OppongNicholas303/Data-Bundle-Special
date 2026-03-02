@@ -102,8 +102,13 @@ public class BundleService {
     }
 
     public BigDecimal getBundlePrice(String bundleCode) {
+        log.info("Looking up bundle price for bundleCode: {}", bundleCode);
         BundlePrice bundlePrice = bundlePriceRepository.findByName(bundleCode)
-                .orElseThrow(() -> new IllegalArgumentException("Bundle price not found for bundleCode: " + bundleCode));
+                .orElseThrow(() -> {
+                    log.error("Bundle price not found for bundleCode: {}", bundleCode);
+                    return new IllegalArgumentException("Bundle price not found for bundleCode: " + bundleCode + ". Please create bundle price first.");
+                });
+        log.info("Found bundle price: {} for bundleCode: {}", bundlePrice.getSellingPrice(), bundleCode);
         return bundlePrice.getSellingPrice();
     }
 
