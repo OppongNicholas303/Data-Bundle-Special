@@ -47,6 +47,7 @@ public class PaystackAdapter {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(PaystackInitializeResponse.class)
+                    .retry(3)
                     .block();
             
             log.info("Paystack response: status={}, authUrl={}, accessCode={}, reference={}", 
