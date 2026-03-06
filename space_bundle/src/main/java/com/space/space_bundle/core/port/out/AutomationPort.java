@@ -4,4 +4,5 @@ import com.space.space_bundle.core.entities.Order;
 
 public interface AutomationPort {
     String buyDataBundle(Order order);
+    String buyDataBundleFromRandy(Order order);
 }

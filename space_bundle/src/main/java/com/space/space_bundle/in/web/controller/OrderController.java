@@ -55,7 +55,8 @@ public class OrderController {
                 request.getPhoneNumber(),
                 request.getBundleCode(),
                 email,
-                userDetails != null ? userDetails.getUserId() : null
+                userDetails != null ? userDetails.getUserId() : null,
+                request.getPackage_id()
         );
 
         log.info("Creating order :{}", order);

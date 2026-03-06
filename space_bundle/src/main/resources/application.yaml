@@ -331,6 +331,9 @@ logging:
 bot:
   api:
     url: ${BOT_API_URL}
+    urlRandy: ${BOT_API_URL_RANDY}
+    token: ${BOT_TOKEN}
+    tokenRandy: ${BOT_TOKEN_RANDY}
     timeout: 30000
 
 # Paystack Configuration

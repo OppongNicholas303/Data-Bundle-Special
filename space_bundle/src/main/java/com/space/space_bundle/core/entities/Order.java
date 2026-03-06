@@ -3,12 +3,14 @@ package com.space.space_bundle.core.entities;
 import com.space.space_bundle.core.enums.OrderStatus;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
+@Setter
 public class Order {
 
     private final String id;
@@ -17,15 +19,19 @@ public class Order {
     private final String network;       // MTN, VODAFONE, AIRTELTIGO
     private final String phoneNumber;
     private final String bundleCode;
+    private final int package_id;
 
     private final BigDecimal amount;
 
     private OrderStatus status;
+    private String providerStatus;
+    private String providerOrderNumber;
     private String providerReference;
     private String paymentReference; // Paystack reference
     private String paymentUrl; // Paystack authorization URL
     private String paymentAccessCode; // Paystack access code
     private String failureReason;
+    private String byFrom;
 
     private final LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -37,11 +43,15 @@ public class Order {
             String network,
             String phoneNumber,
             String bundleCode,
+            int packageId,
             BigDecimal amount,
             OrderStatus status,
+            String providerStatus,
+            String providerOrderNumber,
             String providerReference,
             String paymentReference,
             String paymentUrl,
+            String byFrom,
             String paymentAccessCode,
             String failureReason,
             LocalDateTime createdAt,
@@ -52,12 +62,18 @@ public class Order {
         this.network = network;
         this.phoneNumber = phoneNumber;
         this.bundleCode = bundleCode;
+        this.package_id = packageId;
         this.amount = amount;
 
+        this.providerStatus = providerStatus;
+
         this.status = status == null ? OrderStatus.CREATED : status;
-        this.providerReference = providerReference;
+        this.providerOrderNumber = providerOrderNumber;
+
         this.paymentReference = paymentReference;
+        this.providerReference = providerReference;
         this.paymentUrl = paymentUrl;
+        this.byFrom = byFrom;
         this.paymentAccessCode = paymentAccessCode;
         this.failureReason = failureReason;
 
@@ -95,7 +111,7 @@ public class Order {
     public void markCompleted(String providerReference) {
         assertStatus(OrderStatus.PROCESSING);
         this.status = OrderStatus.COMPLETED;
-        this.providerReference = providerReference;
+        this.providerOrderNumber = providerReference;
         touch();
     }
 

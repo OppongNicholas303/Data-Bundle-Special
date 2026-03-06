@@ -14,4 +14,5 @@ public class PlaceOrderRequest {
     private String phoneNumber;
     private String bundleCode;
     private String email; // For guest users
+    private String package_id;
 }

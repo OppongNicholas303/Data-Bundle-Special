@@ -2,12 +2,10 @@ package com.space.space_bundle.core.services;
 
 import com.space.space_bundle.core.entities.Order;
 import com.space.space_bundle.core.entities.Transaction;
-import com.space.space_bundle.core.entities.User;
 import com.space.space_bundle.core.entities.Wallet;
 import com.space.space_bundle.core.port.out.AutomationPort;
 import com.space.space_bundle.core.port.out.OrderRepositoryPort;
 import com.space.space_bundle.core.port.out.WalletRepositoryPort;
-import com.space.space_bundle.core.exceptions.InsufficientBalanceException;
 import com.space.space_bundle.out.payment.PaystackAdapter;
 import com.space.space_bundle.out.payment.dto.PaystackInitializeResponse;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +41,8 @@ public class OrderService {
             String phoneNumber,
             String bundleCode,
             String email,
-            String userID
-    ) {
+            String userID,
+            String packageId) {
         BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
         
         // Add 2% Paystack transaction fee
@@ -57,6 +55,8 @@ public class OrderService {
                 .phoneNumber(phoneNumber)
                 .bundleCode(bundleCode)
                 .amount(totalAmount)
+                .byFrom(packageId)
+                .providerStatus("processing")
                 .status(com.space.space_bundle.core.enums.OrderStatus.CREATED)
                 .createdAt(LocalDateTime.now())
                 .build();

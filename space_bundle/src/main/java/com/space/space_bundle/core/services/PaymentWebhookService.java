@@ -155,7 +155,8 @@ public class PaymentWebhookService {
             order = orderRepository.save(order);
 
             log.info("[PAYMENT] Calling bot API to deliver bundle");
-            String providerReference = automationPort.buyDataBundle(order);
+
+            String providerReference = buyBundle(order);
 
             // Mark as completed
             log.info("[PAYMENT] Marking order as COMPLETED");
@@ -169,6 +170,17 @@ public class PaymentWebhookService {
             order.markFailed("Bot processing failed: " + ex.getMessage());
             orderRepository.save(order);
         }
+    }
+
+    private String buyBundle(Order order) {
+        int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
+
+        if (size >= 4 ) {
+            order.setByFrom("my_data_gb");
+            return automationPort.buyDataBundle(order);
+        }
+        order.setByFrom("randy");
+        return automationPort.buyDataBundleFromRandy(order);
     }
 
     private void processTopUpPayment(String reference) {
