@@ -22,6 +22,8 @@ public class TransactionDocument {
     private String orderId;
     private String type;
     private BigDecimal amount;
+    private BigDecimal balanceBefore;
+    private BigDecimal balanceAfter;
     private String currency;
     private String status;
     private String reference;

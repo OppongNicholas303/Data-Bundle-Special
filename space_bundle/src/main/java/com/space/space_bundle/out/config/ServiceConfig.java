@@ -92,5 +92,14 @@ public class ServiceConfig {
                 walletService
         );
     }
+
+    @Bean
+    public DashboardService dashboardService(
+            TransactionService transactionService,
+            OrderService orderService,
+            BundleService bundleService
+    ) {
+        return new DashboardService(transactionService, orderService, bundleService);
+    }
 }
 

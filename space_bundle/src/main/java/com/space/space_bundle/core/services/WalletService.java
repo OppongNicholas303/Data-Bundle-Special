@@ -44,16 +44,21 @@ public Wallet createWallet(String userId) {
 
     public void credit(String userId, BigDecimal amount) {
         Wallet wallet = getWalletByUser(userId);
+        BigDecimal before = wallet.getBalance();
         wallet.credit(amount);
         walletRepository.save(wallet);
-        // Create debit transaction
-        Transaction creditTx = transactionService.createCreditTransaction(userId, wallet.getId(), amount, "Wallet top up of " + amount);
+        BigDecimal after = wallet.getBalance();
+        // Create credit transaction
+        Transaction creditTx = transactionService.createCreditTransaction(userId, wallet.getId(), amount, before, after, "Wallet top up of " + amount);
     }
 
-    public void debit(String userId, BigDecimal amount) {
+    public void debit(String userId, BigDecimal amount, String orderId, String description) {
         Wallet wallet = getWalletByUser(userId);
+        BigDecimal before = wallet.getBalance();
         wallet.debit(amount);
         walletRepository.save(wallet);
+        BigDecimal after = wallet.getBalance();
+        transactionService.createDebitTransaction(userId, orderId, amount, before, after, description);
     }
 
     public BigDecimal getBalance(String userId) {
@@ -78,8 +83,10 @@ public Wallet createWallet(String userId) {
         String reference = "TOPUP_" + topUpId;
         
         // Create pending transaction to store userId
+        Wallet wallet = getWalletByUser(userId);
+        BigDecimal currentBalance = wallet.getBalance();
         transactionService.createCreditTransaction(
-            userId, topUpId, amount, "Wallet top-up pending");
+            userId, topUpId, amount, currentBalance, currentBalance.add(amount), "Wallet top-up pending");
         
         String userEmail = userService.getUserById(userId).getEmail();
         Integer amountInKobo = amount.multiply(BigDecimal.valueOf(100)).intValue();
@@ -105,11 +112,13 @@ public Wallet createWallet(String userId) {
         String userId = pendingTx.getUserId();
         
         Wallet wallet = getWalletByUser(userId);
+        BigDecimal before = wallet.getBalance();
         wallet.credit(amount);
         walletRepository.save(wallet);
+        BigDecimal after = wallet.getBalance();
         
-        // Complete the pending transaction
-        transactionService.completeTransaction(pendingTx.getId());
+        // Complete the pending transaction with updated balances
+        transactionService.completeTransaction(pendingTx.getId(), before, after);
         
         log.info("Wallet topped up: userId={}, amount={}", userId, amount);
     }

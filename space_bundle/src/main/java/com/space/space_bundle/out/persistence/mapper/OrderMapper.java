@@ -22,6 +22,10 @@ public class OrderMapper {
                 .paymentUrl(order.getPaymentUrl())
                 .paymentAccessCode(order.getPaymentAccessCode())
                 .failureReason(order.getFailureReason())
+                .package_id(order.getPackage_id())
+                .providerStatus(order.getProviderStatus())
+                .providerOrderNumber(order.getProviderOrderNumber())
+                .byFrom(order.getByFrom())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .build();
@@ -41,6 +45,10 @@ public class OrderMapper {
                 .paymentUrl(doc.getPaymentUrl())
                 .paymentAccessCode(doc.getPaymentAccessCode())
                 .failureReason(doc.getFailureReason())
+                .packageId(doc.getPackage_id())
+                .providerStatus(doc.getProviderStatus())
+                .providerOrderNumber(doc.getProviderOrderNumber())
+                .byFrom(doc.getByFrom())
                 .createdAt(doc.getCreatedAt())
                 .updatedAt(doc.getUpdatedAt())
                 .build();

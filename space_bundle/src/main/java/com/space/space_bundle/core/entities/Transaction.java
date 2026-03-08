@@ -14,6 +14,8 @@ public class Transaction {
     private String orderId;
     private TransactionType type;
     private BigDecimal amount;
+    private BigDecimal balanceBefore;
+    private BigDecimal balanceAfter;
     private String currency;
     private TransactionStatus status;
     private String reference;

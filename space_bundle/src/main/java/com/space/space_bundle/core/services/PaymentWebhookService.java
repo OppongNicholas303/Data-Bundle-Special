@@ -5,6 +5,7 @@ import com.space.space_bundle.core.port.out.AutomationPort;
 import com.space.space_bundle.core.port.out.OrderRepositoryPort;
 import com.space.space_bundle.out.payment.PaystackAdapter;
 import com.space.space_bundle.out.payment.dto.PaystackVerifyResponse;
+import com.space.space_bundle.core.port.out.EmailPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -23,6 +24,7 @@ public class PaymentWebhookService {
     private final AutomationPort automationPort;
     private final TransactionService transactionService;
     private final WalletService walletService;
+    private final EmailPort emailPort;
 
     @Async
     @Transactional
@@ -58,6 +60,7 @@ public class PaymentWebhookService {
             log.info("[WEBHOOK] Finished processing");
         } catch (Exception e) {
             log.error("[WEBHOOK] Failed to process: {}", e.getMessage(), e);
+            emailPort.sendEmail("nictech23@gmail.com", "Webhook Processing Exception", "Failed to process payload. Error: " + e.getMessage());
             throw new RuntimeException("Webhook processing failed", e);
         }
     }
@@ -141,10 +144,13 @@ public class PaymentWebhookService {
             // Create transaction record for Paystack payment
             if (order.getUserId() != null) {
                 log.info("[PAYMENT] Creating transaction record");
+                java.math.BigDecimal currentBalance = walletService.getBalance(order.getUserId());
                 transactionService.createPaymentTransaction(
                     order.getUserId(), 
                     order.getId(), 
                     order.getAmount(), 
+                    currentBalance, 
+                    currentBalance, 
                     "Paystack payment for " + order.getBundleCode()
                 );
             }
@@ -167,6 +173,7 @@ public class PaymentWebhookService {
 
         } catch (Exception ex) {
             log.error("[PAYMENT] Order processing failed: orderId={}, error={}", orderId, ex.getMessage(), ex);
+            emailPort.sendEmail("nictech23@gmail.com", "Order Exception: " + orderId, "Bot processing failed for order: " + orderId + "\nError: " + ex.getMessage());
             order.markFailed("Bot processing failed: " + ex.getMessage());
             orderRepository.save(order);
         }
@@ -206,6 +213,7 @@ public class PaymentWebhookService {
             log.info("[TOPUP] Wallet topped up successfully: reference={}, amount={}", reference, amount);
         } catch (Exception ex) {
             log.error("[TOPUP] Failed to process top-up: reference={}, error={}", reference, ex.getMessage(), ex);
+            emailPort.sendEmail("nictech23@gmail.com", "Top-up Exception: " + reference, "Failed to process top-up.\nError: " + ex.getMessage());
         }
     }
 }

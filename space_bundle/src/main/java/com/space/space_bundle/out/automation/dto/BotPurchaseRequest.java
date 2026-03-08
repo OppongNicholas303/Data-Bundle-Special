@@ -13,7 +13,7 @@ public class BotPurchaseRequest {
     @JsonProperty("pa_data-bundle-packages")
     private Integer dataBundlePackages;
 
-    private int package_id;
+    private String package_id;
     private String customer_phone;
 
 }

@@ -19,7 +19,7 @@ public class Order {
     private final String network;       // MTN, VODAFONE, AIRTELTIGO
     private final String phoneNumber;
     private final String bundleCode;
-    private final int package_id;
+    private final String package_id;
 
     private final BigDecimal amount;
 
@@ -43,7 +43,7 @@ public class Order {
             String network,
             String phoneNumber,
             String bundleCode,
-            int packageId,
+            String packageId,
             BigDecimal amount,
             OrderStatus status,
             String providerStatus,

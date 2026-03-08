@@ -10,6 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import reactor.util.retry.Retry;
+import java.time.Duration;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +49,8 @@ public class PaystackAdapter {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(PaystackInitializeResponse.class)
+                    .timeout(Duration.ofSeconds(15))
+                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                     .block();
             
             log.info("Paystack response: status={}, authUrl={}, accessCode={}, reference={}", 
@@ -70,6 +74,8 @@ public class PaystackAdapter {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + secretKey)
                 .retrieve()
                 .bodyToMono(PaystackVerifyResponse.class)
+                .timeout(Duration.ofSeconds(15))
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                 .block();
     }
 }

@@ -1,6 +1,7 @@
 package com.space.space_bundle.in.web.controller;
 
 import com.space.space_bundle.core.services.PaymentWebhookService;
+import com.space.space_bundle.core.port.out.EmailPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class WebhookController {
 
     private final PaymentWebhookService webhookService;
+    private final EmailPort emailPort;
 
     @Value("${paystack.secret-key}")
     private String paystackSecretKey;
@@ -46,6 +48,7 @@ public class WebhookController {
             return ResponseEntity.ok("Webhook processed");
         } catch (Exception e) {
             log.error("Webhook processing failed: {}", e.getMessage(), e);
+            emailPort.sendEmail("nictech23@gmail.com", "Webhook Controller Exception", "Exception in handlePaystackWebhook endpoint:\n" + e.getMessage());
             return ResponseEntity.status(500).body("Processing failed");
         }
     }
@@ -68,6 +71,7 @@ public class WebhookController {
             return hexString.toString().equals(signature);
         } catch (Exception e) {
             log.error("Signature verification failed: {}", e.getMessage());
+            emailPort.sendEmail("nictech23@gmail.com", "Webhook Signature Verification Failed", "Exception during Paystack signature verification:\n" + e.getMessage());
             return false;
         }
     }

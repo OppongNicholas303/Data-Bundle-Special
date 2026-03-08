@@ -49,13 +49,21 @@ public class OrderService {
         BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.02));
         BigDecimal totalAmount = amount.add(paystackFee);
         
+        String resolvedPackageId = null;
+        if (bundleCode != null) {
+            String upperCode = bundleCode.toUpperCase();
+            if (upperCode.equals("1GB")) resolvedPackageId = "20";
+            else if (upperCode.equals("2GB")) resolvedPackageId = "21";
+            else if (upperCode.equals("3GB")) resolvedPackageId = "23";
+        }
+
         Order order = Order.builder()
                 .userId(userID)
                 .network(network)
                 .phoneNumber(phoneNumber)
                 .bundleCode(bundleCode)
                 .amount(totalAmount)
-                .byFrom(packageId)
+                .packageId(resolvedPackageId)
                 .providerStatus("processing")
                 .status(com.space.space_bundle.core.enums.OrderStatus.CREATED)
                 .createdAt(LocalDateTime.now())
@@ -108,45 +116,15 @@ public class OrderService {
         return order;
     }
 
-//    @Transactional
-//    public Order createOrder(
-//            String userId,
-//            String network,
-//            String phoneNumber,
-//            String bundleCode
-//    ) {
-//        BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
-//
-//        Wallet wallet = walletRepository.findByUserId(userId)
-//                .orElseThrow(() -> new IllegalStateException("Wallet not found"));
-//
-//        Order order = Order.builder()
-//                .userId(userId)
-//                .network(network)
-//                .phoneNumber(phoneNumber)
-//                .bundleCode(bundleCode)
-//                .amount(amount)
-//                .status(com.space.space_bundle.core.enums.OrderStatus.CREATED)
-//                .createdAt(LocalDateTime.now())
-//                .build();
-//
-//        order = orderRepository.save(order);
-//
-//        // Check if user has sufficient balance
-//        // TODO: Remove this condition to always use Paystack for testing
-//        if (false && wallet.getBalance().compareTo(amount) >= 0) {
-//            return processOrderWithWallet(order, wallet, amount, userId, "email@gmail.com");
-//        } else {
-//            return initializePaystackPayment(order, userId);
-//        }
-//    }
-
     private Order processOrderWithWallet(Order order, Wallet wallet, BigDecimal amount, String userId, String email) {
+        BigDecimal beforeDebit = wallet.getBalance();
+        BigDecimal afterDebit = beforeDebit.subtract(amount);
+        
         Transaction debitTx = transactionService.createDebitTransaction(
-                userId, order.getId(), amount, "Order payment for " + order.getBundleCode());
+                userId, order.getId(), amount, beforeDebit, afterDebit, "Order payment for " + order.getBundleCode());
 
-        if (wallet.getBalance().compareTo(amount)<=0 ){
-            return  initializePaystackPaymentForGuest(order, email);
+        if (wallet.getBalance().compareTo(amount) <= 0) {
+            return initializePaystackPaymentForGuest(order, email);
         }
 
         try {
@@ -174,8 +152,11 @@ public class OrderService {
             order.markFailed(ex.getMessage());
             order = orderRepository.save(order);
 
+            BigDecimal beforeRefund = wallet.getBalance();
+            BigDecimal afterRefund = beforeRefund.add(amount);
+            
             Transaction refundTx = transactionService.createRefundTransaction(
-                    userId, order.getId(), amount, "Refund for failed order " + order.getId());
+                    userId, order.getId(), amount, beforeRefund, afterRefund, "Refund for failed order " + order.getId());
 
             wallet.credit(amount);
             walletRepository.save(wallet);

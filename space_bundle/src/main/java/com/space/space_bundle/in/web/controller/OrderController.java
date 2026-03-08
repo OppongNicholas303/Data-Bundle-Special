@@ -44,6 +44,8 @@ public class OrderController {
             email = userDetails.getEmail();
         }
 
+        log.info("request: {}", request);
+
         
         log.info("Order placement request: bundleCode={}, phoneNumber={}, email={}", 
                 request.getBundleCode(), request.getPhoneNumber(), request.getEmail());

@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers("/webhook/**").permitAll()
                         .requestMatchers("/webhooks/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/bot/**").permitAll()
                         .requestMatchers("/error").permitAll()
 
                         // Admin-only endpoints
