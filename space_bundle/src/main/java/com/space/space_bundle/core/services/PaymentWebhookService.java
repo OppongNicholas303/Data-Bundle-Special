@@ -184,14 +184,12 @@ public class PaymentWebhookService {
 
         if (size >= 4 ) {
             order.setByFrom("my_data_gb");
-            log.info("Calling my_data_gb API for mydata");
-//            return automationPort.buyDataBundle(order);
-            return null;
+            log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
+            return automationPort.buyDataBundle(order);
         }
         order.setByFrom("randy");
-            log.info("Calling randy API for Randy");
-//        return automationPort.buyDataBundleFromRandy(order);
-        return null;
+        log.info("[PAYMENT] Buying bundle from randy for orderId={}", order.getId());
+        return automationPort.buyDataBundleFromRandy(order);
     }
 
     private void processTopUpPayment(String reference) {
