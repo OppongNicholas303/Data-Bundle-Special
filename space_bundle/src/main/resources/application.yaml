@@ -126,13 +126,13 @@ bot:
   api:
     url: ${BOT_API_URL}
     urlRandy: ${BOT_API_URL_RANDY}
-    token: ${BOT_TOKEN:https}
+    token: ${BOT_TOKEN}
     tokenRandy: ${BOT_TOKEN_RANDY}
     timeout: 30000
     login:
       url: https://mydatagigs.com/login/
-      username: ${BOT_LOGIN_USERNAME:nicholas.oppong2623@gmail.com}
-      password: ${BOT_LOGIN_PASSWORD:Vida0243911336@}
+      username: ${BOT_LOGIN_USERNAME}
+      password: ${BOT_LOGIN_PASSWORD}
 
 # Paystack Configuration
 paystack:

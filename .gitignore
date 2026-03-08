@@ -168,7 +168,6 @@ $RECYCLE.BIN/
 # Build files
 build/
 dist/
-out/
 
 # Test files
 test-results/
