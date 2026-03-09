@@ -130,12 +130,26 @@ public class AutomationAdapter implements AutomationPort {
 
 
     private Integer extractPackageId(String bundleCode) {
-        if (bundleCode == null) return null;
         switch (bundleCode.toUpperCase()) {
-            case "1GB": return 20;
-            case "2GB": return 21;
-            case "3GB": return 23;
-            default: return null;
+            case "1GB": return 1;
+            case "2GB": return 2;
+            case "3GB": return 3;
+            case "4GB": return 4;
+            case "5GB": return 5;
+            case "6GB": return 6;
+            case "7GB": return 7;
+            case "8GB": return 8;
+            case "10GB": return 10;
+            case "12GB": return 12;
+            case "15GB": return 15;
+            case "20GB": return 20;
+            case "25GB": return 25;
+            case "30GB": return 30;
+            case "40GB": return 40;
+            case "50GB": return 50;
+            case "100GB": return 100;
+            default: return 0;
         }
     }
+
 }

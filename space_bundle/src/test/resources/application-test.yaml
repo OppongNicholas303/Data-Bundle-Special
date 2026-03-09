@@ -1,0 +1,22 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/test_db
+
+jwt:
+  secret: dummy_secret_that_is_at_least_32_characters_long
+
+bot:
+  api:
+    url: dummy_url
+    urlRandy: dummy_url_randy
+    token: dummy_token
+    tokenRandy: dummy_token_randy
+    login:
+      username: dummy_user
+      password: dummy_password
+
+paystack:
+  secret-key: dummy_secret
+  public-key: dummy_public
+  callback-url: dummy_url

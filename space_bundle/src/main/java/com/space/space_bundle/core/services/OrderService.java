@@ -44,17 +44,20 @@ public class OrderService {
             String userID,
             String packageId) {
         BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
-        
+
         // Add 2% Paystack transaction fee
         BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.02));
         BigDecimal totalAmount = amount.add(paystackFee);
-        
+
         String resolvedPackageId = null;
         if (bundleCode != null) {
             String upperCode = bundleCode.toUpperCase();
-            if (upperCode.equals("1GB")) resolvedPackageId = "20";
-            else if (upperCode.equals("2GB")) resolvedPackageId = "21";
-            else if (upperCode.equals("3GB")) resolvedPackageId = "23";
+            if (upperCode.equals("1GB"))
+                resolvedPackageId = "20";
+            else if (upperCode.equals("2GB"))
+                resolvedPackageId = "21";
+            else if (upperCode.equals("3GB"))
+                resolvedPackageId = "23";
         }
 
         Order order = Order.builder()
@@ -68,22 +71,21 @@ public class OrderService {
                 .status(com.space.space_bundle.core.enums.OrderStatus.CREATED)
                 .createdAt(LocalDateTime.now())
                 .build();
-        
+
         order = orderRepository.save(order);
         log.info("Order created with Paystack fee: baseAmount={}, fee={}, total={}", amount, paystackFee, totalAmount);
-        
+
         if (userID != null) {
             Optional<Wallet> wallet = walletRepository.findByUserId(userID);
             if (wallet.isPresent() && wallet.get().getBalance().compareTo(totalAmount) >= 0) {
                 return processOrderWithWallet(order, wallet.get(), totalAmount, userID, email);
-            }else {
+            } else {
                 return initializePaystackPaymentForGuest(order, email);
             }
         }
-        
+
         return initializePaystackPaymentForGuest(order, email);
     }
-
 
     private Order initializePaystackPaymentForGuest(Order order, String email) {
         try {
@@ -96,10 +98,9 @@ public class OrderService {
 
             if (response.isStatus() && response.getData() != null) {
                 order.setPendingPayment(
-                    reference, 
-                    response.getData().getAuthorization_url(),
-                    response.getData().getAccess_code()
-                );
+                        reference,
+                        response.getData().getAuthorization_url(),
+                        response.getData().getAccess_code());
                 order = orderRepository.save(order);
                 log.info("Paystack payment initialized for guest: orderId={}, reference={}", order.getId(), reference);
             } else {
@@ -119,11 +120,12 @@ public class OrderService {
     private Order processOrderWithWallet(Order order, Wallet wallet, BigDecimal amount, String userId, String email) {
         BigDecimal beforeDebit = wallet.getBalance();
         BigDecimal afterDebit = beforeDebit.subtract(amount);
-        
+
         Transaction debitTx = transactionService.createDebitTransaction(
                 userId, order.getId(), amount, beforeDebit, afterDebit, "Order payment for " + order.getBundleCode());
 
-        if (wallet.getBalance().compareTo(amount) <= 0) {
+        if (wallet.getBalance().compareTo(amount) < 0) {
+            transactionService.failTransaction(debitTx.getId());
             return initializePaystackPaymentForGuest(order, email);
         }
 
@@ -138,7 +140,7 @@ public class OrderService {
             order.markProcessing();
             order = orderRepository.save(order);
 
-            String providerReference = automationPort.buyDataBundle(order);
+            String providerReference = buyBundle(order);
 
             order.markCompleted(providerReference);
             order = orderRepository.save(order);
@@ -154,9 +156,10 @@ public class OrderService {
 
             BigDecimal beforeRefund = wallet.getBalance();
             BigDecimal afterRefund = beforeRefund.add(amount);
-            
+
             Transaction refundTx = transactionService.createRefundTransaction(
-                    userId, order.getId(), amount, beforeRefund, afterRefund, "Refund for failed order " + order.getId());
+                    userId, order.getId(), amount, beforeRefund, afterRefund,
+                    "Refund for failed order " + order.getId());
 
             wallet.credit(amount);
             walletRepository.save(wallet);
@@ -167,10 +170,9 @@ public class OrderService {
 
             log.info("Order refunded: orderId={}, reason={}", order.getId(), ex.getMessage());
 
+            return initializePaystackPaymentForGuest(order, email);
 
-            return  initializePaystackPaymentForGuest(order, email);
-
-//            throw new RuntimeException("Order failed: " + ex.getMessage());
+            // throw new RuntimeException("Order failed: " + ex.getMessage());
         }
 
         return order;
@@ -187,10 +189,9 @@ public class OrderService {
 
             if (response.isStatus() && response.getData() != null) {
                 order.setPendingPayment(
-                    reference, 
-                    response.getData().getAuthorization_url(),
-                    response.getData().getAccess_code()
-                );
+                        reference,
+                        response.getData().getAuthorization_url(),
+                        response.getData().getAccess_code());
                 order = orderRepository.save(order);
                 log.info("Paystack payment initialized: orderId={}, reference={}", order.getId(), reference);
             } else {
@@ -214,11 +215,24 @@ public class OrderService {
     public Order getOrderById(String orderId, String userId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
-        
+
         if (!order.getUserId().equals(userId)) {
             throw new IllegalArgumentException("Order does not belong to user");
         }
-        
+
         return order;
+    }
+
+    private String buyBundle(Order order) {
+        int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
+
+        if (size >= 4) {
+            order.setByFrom("my_data_gb");
+            log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
+            return automationPort.buyDataBundle(order);
+        }
+        order.setByFrom("randy");
+        log.info("[PAYMENT] Buying bundle from randy for orderId={}", order.getId());
+        return automationPort.buyDataBundleFromRandy(order);
     }
 }
