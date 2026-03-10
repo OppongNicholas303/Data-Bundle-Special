@@ -34,7 +34,7 @@ public class OrderMongoAdapterPort implements OrderRepositoryPort {
     @Override
     public List<Order> findByFilters(String userId, String orderId, String phoneNumber, String status) {
         List<OrderDocument> documents;
-        
+
         if (orderId != null) {
             documents = repository.findById(orderId)
                     .filter(doc -> doc.getUserId().equals(userId))
@@ -49,9 +49,15 @@ public class OrderMongoAdapterPort implements OrderRepositoryPort {
         } else {
             documents = repository.findByUserId(userId);
         }
-        
+
         return documents.stream()
                 .map(OrderMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<Order> findLatestByPhoneNumber(String phoneNumber) {
+        return repository.findFirstByPhoneNumberOrderByCreatedAtDesc(phoneNumber)
+                .map(OrderMapper::toDomain);
     }
 }

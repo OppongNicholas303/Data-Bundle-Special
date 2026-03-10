@@ -124,9 +124,9 @@ logging:
 # Bot Configuration
 bot:
   api:
-    url: ${BOT_API_URL}
+    url: ${BOT_API_URL:https}
     urlRandy: ${BOT_API_URL_RANDY}
-    token: ${BOT_TOKEN}
+    token: ${BOT_TOKEN:https}
     tokenRandy: ${BOT_TOKEN_RANDY}
     timeout: 30000
     login:
@@ -139,3 +139,5 @@ paystack:
   secret-key: ${PAYSTACK_SECRET_KEY}
   public-key: ${PAYSTACK_PUBLIC_KEY}
   callback-url: ${PAYSTACK_CALLBACK_URL}
+
+

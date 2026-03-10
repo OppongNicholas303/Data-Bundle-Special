@@ -57,7 +57,7 @@ public class OrderService {
             else if (upperCode.equals("2GB"))
                 resolvedPackageId = "21";
             else if (upperCode.equals("3GB"))
-                resolvedPackageId = "23";
+                resolvedPackageId = "22";
         }
 
         Order order = Order.builder()
@@ -124,7 +124,7 @@ public class OrderService {
         Transaction debitTx = transactionService.createDebitTransaction(
                 userId, order.getId(), amount, beforeDebit, afterDebit, "Order payment for " + order.getBundleCode());
 
-        if (wallet.getBalance().compareTo(amount) < 0) {
+        if (wallet.getBalance().compareTo(amount) <= 0) {
             transactionService.failTransaction(debitTx.getId());
             return initializePaystackPaymentForGuest(order, email);
         }

@@ -5,11 +5,17 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SpringOrderRepository extends MongoRepository<OrderDocument, String> {
     List<OrderDocument> findByUserId(String userId);
+
     List<OrderDocument> findByUserIdAndPhoneNumber(String userId, String phoneNumber);
+
     List<OrderDocument> findByUserIdAndStatus(String userId, String status);
+
     List<OrderDocument> findByUserIdAndPhoneNumberAndStatus(String userId, String phoneNumber, String status);
+
+    Optional<OrderDocument> findFirstByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
 }

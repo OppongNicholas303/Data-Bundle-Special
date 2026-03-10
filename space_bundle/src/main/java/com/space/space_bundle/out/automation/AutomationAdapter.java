@@ -87,6 +87,29 @@ public class AutomationAdapter implements AutomationPort {
 
 
     @Override
+    public BotPurchaseResponseRandy checkOrderStatusFromRandy(String orderNumber) {
+        try {
+            BotPurchaseResponseRandy response = webClient.get()
+                    .uri(botApiUrlRandy + "/external/orders/status?order_number=" + orderNumber)
+                    .header("X-API-Key", botApiTokenRandy)
+                    .retrieve()
+                    .bodyToMono(BotPurchaseResponseRandy.class)
+                    .block();
+
+            if (response == null || !response.success() || response.order() == null) {
+                throw new RuntimeException("Invalid status response from bot");
+            }
+
+            log.info("Order {} status: {}", orderNumber, response.order().status());
+            return response;
+
+        } catch (Exception e) {
+            log.error("Failed to check order status", e);
+            throw new RuntimeException("Failed to check order status", e);
+        }
+    }
+
+    @Override
     public String buyDataBundleFromRandy(Order order) {
         BotPurchaseRequest request = BotPurchaseRequest.builder()
                 .package_id(order.getPackage_id())
@@ -125,6 +148,8 @@ public class AutomationAdapter implements AutomationPort {
             log.error("Bot API call failed", e);
             throw new RuntimeException(e.getMessage(), e);
         }
+
+
 
     }
 
