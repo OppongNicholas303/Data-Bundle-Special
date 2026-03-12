@@ -26,6 +26,9 @@ public class PaymentWebhookService {
     private final WalletService walletService;
     private final EmailPort emailPort;
 
+    @org.springframework.beans.factory.annotation.Value("${app.support-email:placeholder@example.com}")
+    private String supportEmail;
+
     @Async
     @Transactional
     public void processPaystackWebhook(String payload) {
@@ -33,13 +36,13 @@ public class PaymentWebhookService {
         try {
             // Remove whitespace for easier parsing
             String cleanPayload = payload.replaceAll("\\s+", "");
-            
+
             // Simple string parsing instead of Jackson
             if (cleanPayload.contains("\"event\":\"charge.success\"")) {
                 log.info("[WEBHOOK] Event is charge.success");
 
-                log.info("[WEBHOOK] Payload clean: {} " ,cleanPayload);
-                log.info("[WEBHOOK] Payload : {} " ,payload);
+                log.info("[WEBHOOK] Payload clean: {} ", cleanPayload);
+                log.info("[WEBHOOK] Payload : {} ", payload);
 
                 String reference = extractValue(payload, "reference");
                 String status = extractValue(payload, "status");
@@ -60,7 +63,8 @@ public class PaymentWebhookService {
             log.info("[WEBHOOK] Finished processing");
         } catch (Exception e) {
             log.error("[WEBHOOK] Failed to process: {}", e.getMessage(), e);
-            emailPort.sendEmail("nictech23@gmail.com", "Webhook Processing Exception", "Failed to process payload. Error: " + e.getMessage());
+            emailPort.sendEmail(supportEmail, "Webhook Processing Exception",
+                    "Failed to process payload. Error: " + e.getMessage());
             throw new RuntimeException("Webhook processing failed", e);
         }
     }
@@ -68,14 +72,15 @@ public class PaymentWebhookService {
     private String extractValue(String json, String key) {
         String searchKey = "\"" + key + "\":";
         int startIndex = json.indexOf(searchKey);
-        if (startIndex == -1) return null;
-        
+        if (startIndex == -1)
+            return null;
+
         startIndex += searchKey.length();
         // Skip whitespace
         while (startIndex < json.length() && Character.isWhitespace(json.charAt(startIndex))) {
             startIndex++;
         }
-        
+
         // Check if value is a string (starts with ")
         if (json.charAt(startIndex) == '"') {
             startIndex++; // Skip opening quote
@@ -84,10 +89,10 @@ public class PaymentWebhookService {
         } else {
             // Value is not a string (number, boolean, etc.)
             int endIndex = startIndex;
-            while (endIndex < json.length() && 
-                   json.charAt(endIndex) != ',' && 
-                   json.charAt(endIndex) != '}' && 
-                   json.charAt(endIndex) != ']') {
+            while (endIndex < json.length() &&
+                    json.charAt(endIndex) != ',' &&
+                    json.charAt(endIndex) != '}' &&
+                    json.charAt(endIndex) != ']') {
                 endIndex++;
             }
             return json.substring(startIndex, endIndex).trim();
@@ -96,14 +101,14 @@ public class PaymentWebhookService {
 
     private void processSuccessfulPayment(String reference) {
         log.info("[PAYMENT] Starting payment processing for reference: {}", reference);
-        
+
         // Check if this is a wallet top-up
         if (reference.startsWith("TOPUP_")) {
             log.info("[PAYMENT] Processing wallet top-up: reference={}", reference);
             processTopUpPayment(reference);
             return;
         }
-        
+
         // Verify transaction with Paystack
         log.info("[PAYMENT] Verifying transaction with Paystack");
         PaystackVerifyResponse verification = paystackAdapter.verifyTransaction(reference);
@@ -115,7 +120,7 @@ public class PaymentWebhookService {
             log.error("[PAYMENT] Verification failed: reference={}", reference);
             return;
         }
-        
+
         log.info("[PAYMENT] Verification successful");
         log.info("[PAYMENT] Transaction details - reference={}, amount={}, status={}",
                 reference, verification.getData().getAmount(), verification.getData().getStatus());
@@ -123,7 +128,7 @@ public class PaymentWebhookService {
         // Extract order ID from reference (ORDER_xxx)
         String orderId = reference.replace("ORDER_", "");
         log.info("[PAYMENT] Looking for order: {}", orderId);
-        
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
 
@@ -146,13 +151,12 @@ public class PaymentWebhookService {
                 log.info("[PAYMENT] Creating transaction record");
                 java.math.BigDecimal currentBalance = walletService.getBalance(order.getUserId());
                 transactionService.createPaymentTransaction(
-                    order.getUserId(), 
-                    order.getId(), 
-                    order.getAmount(), 
-                    currentBalance, 
-                    currentBalance, 
-                    "Paystack payment for " + order.getBundleCode()
-                );
+                        order.getUserId(),
+                        order.getId(),
+                        order.getAmount(),
+                        currentBalance,
+                        currentBalance,
+                        "Paystack payment for " + order.getBundleCode());
             }
 
             // Send to bot for processing
@@ -173,7 +177,8 @@ public class PaymentWebhookService {
 
         } catch (Exception ex) {
             log.error("[PAYMENT] Order processing failed: orderId={}, error={}", orderId, ex.getMessage(), ex);
-            emailPort.sendEmail("nictech23@gmail.com", "Order Exception: " + orderId, "Bot processing failed for order: " + orderId + "\nError: " + ex.getMessage());
+            emailPort.sendEmail(supportEmail, "Order Exception: " + orderId,
+                    "Bot processing failed for order: " + orderId + "\nError: " + ex.getMessage());
             order.markFailed("Bot processing failed: " + ex.getMessage());
             orderRepository.save(order);
         }
@@ -182,7 +187,7 @@ public class PaymentWebhookService {
     private String buyBundle(Order order) {
         int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
 
-        if (size >= 4 ) {
+        if (size >= 4) {
             order.setByFrom("my_data_gb");
             log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
             return automationPort.buyDataBundle(order);
@@ -194,28 +199,29 @@ public class PaymentWebhookService {
 
     private void processTopUpPayment(String reference) {
         log.info("[TOPUP] Processing wallet top-up payment: reference={}", reference);
-        
+
         PaystackVerifyResponse verification = paystackAdapter.verifyTransaction(reference);
-        
+
         if (!verification.isStatus() || !"success".equals(verification.getData().getStatus())) {
             log.error("[TOPUP] Verification failed: reference={}", reference);
             return;
         }
-        
+
         java.math.BigDecimal amount = java.math.BigDecimal.valueOf(verification.getData().getAmount())
-            .divide(java.math.BigDecimal.valueOf(100));
-        
+                .divide(java.math.BigDecimal.valueOf(100));
+
         // Extract topUpId from reference
         String topUpId = reference.replace("TOPUP_", "");
         log.info("[TOPUP] Top-up verified: topUpId={}, amount={}", topUpId, amount);
-        
+
         // Process top-up - the wallet service will handle finding the user
         try {
             walletService.processTopUpPaymentById(topUpId, amount);
             log.info("[TOPUP] Wallet topped up successfully: reference={}, amount={}", reference, amount);
         } catch (Exception ex) {
             log.error("[TOPUP] Failed to process top-up: reference={}, error={}", reference, ex.getMessage(), ex);
-            emailPort.sendEmail("nictech23@gmail.com", "Top-up Exception: " + reference, "Failed to process top-up.\nError: " + ex.getMessage());
+            emailPort.sendEmail(supportEmail, "Top-up Exception: " + reference,
+                    "Failed to process top-up.\nError: " + ex.getMessage());
         }
     }
 }

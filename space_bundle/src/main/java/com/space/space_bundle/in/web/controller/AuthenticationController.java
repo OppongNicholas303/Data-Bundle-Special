@@ -33,7 +33,7 @@ public class AuthenticationController {
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
 
-    @Value("${app.frontend-url}")
+    @Value("${app.frontend-url:http://localhost:8081}")
     private String frontendUrl;
 
     /**

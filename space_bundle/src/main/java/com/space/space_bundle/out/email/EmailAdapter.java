@@ -15,7 +15,7 @@ public class EmailAdapter implements EmailPort {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
+    @Value("${spring.mail.username:placeholder@example.com}")
     private String fromAddress;
 
     @Override
