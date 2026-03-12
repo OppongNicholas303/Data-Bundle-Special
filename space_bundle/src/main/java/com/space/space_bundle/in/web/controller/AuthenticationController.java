@@ -4,6 +4,7 @@ import com.space.space_bundle.core.entities.User;
 import com.space.space_bundle.core.services.AuthenticationService;
 import com.space.space_bundle.in.web.dto.*;
 import com.space.space_bundle.out.security.service.CustomUserDetailsService;
+import com.space.space_bundle.out.security.service.CustomUserDetailsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,9 @@ public class AuthenticationController {
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     /**
      * POST /api/auth/login - Authenticate user and return JWT tokens
      */
@@ -49,8 +53,7 @@ public class AuthenticationController {
                 request.getUsername(),
                 request.getPassword(),
                 ipAddress,
-                deviceInfo
-        );
+                deviceInfo);
 
         AuthenticationResponse response = buildAuthenticationResponse(result);
 
@@ -72,8 +75,7 @@ public class AuthenticationController {
                 request.getUsername(),
                 request.getEmail(),
                 request.getPassword(),
-                request.getPhoneNumber()
-        );
+                request.getPhoneNumber());
 
         AuthenticationResponse.UserInfo userInfo = mapToUserInfo(user);
 
@@ -98,8 +100,7 @@ public class AuthenticationController {
 
         AuthenticationService.AuthenticationResult result = authenticationService.refreshToken(
                 request.getRefreshToken(),
-                ipAddress
-        );
+                ipAddress);
 
         AuthenticationResponse response = buildAuthenticationResponse(result);
 
@@ -146,12 +147,46 @@ public class AuthenticationController {
         authenticationService.changePassword(
                 userId,
                 request.getCurrentPassword(),
-                request.getNewPassword()
-        );
+                request.getNewPassword());
 
         log.info("Password changed successfully for user ID: {}", userId);
 
         return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
+    }
+
+    /**
+     * POST /api/auth/forgot-password - Initiate password reset process
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+        log.info("Forgot password request for email: {}", request.getEmail());
+
+        authenticationService.forgotPassword(request.getEmail(), frontendUrl);
+
+        log.info("Password reset email sent for email: {}", request.getEmail());
+
+        return ResponseEntity.ok(ApiResponse.success("Password reset link has been sent to your email", null));
+    }
+
+    /**
+     * POST /api/auth/reset-password - Reset user password using reset token
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        log.info("Password reset attempt for email: {}", request.getEmail());
+
+        authenticationService.resetPassword(
+                request.getEmail(),
+                request.getToken(),
+                request.getNewPassword());
+
+        log.info("Password reset successful for email: {}", request.getEmail());
+
+        return ResponseEntity.ok(ApiResponse.success("Password has been reset successfully", null));
     }
 
     /**

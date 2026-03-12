@@ -1,8 +1,8 @@
 package com.space.space_bundle.core.services;
 
-
 import com.space.space_bundle.core.entities.RefreshToken;
 import com.space.space_bundle.core.entities.User;
+import com.space.space_bundle.core.port.out.EmailPort;
 import com.space.space_bundle.core.port.out.authenticationPort.*;
 import lombok.RequiredArgsConstructor;
 
@@ -17,13 +17,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthenticationService {
 
-
     private final UserRepositoryPort userRepository;
     private final RefreshTokenRepositoryPort refreshTokenRepository;
     private final PasswordEncoderPort passwordEncoder;
     private final JwtPort jwtPort;
     private final SecurityAuditPort securityAudit;
-    private final  WalletService walletService;
+    private final WalletService walletService;
+    private final EmailPort emailPort;
 
     /**
      * Authenticate user with username and password
@@ -213,8 +213,111 @@ public class AuthenticationService {
         }
     }
 
+    /**
+     * Initiate password reset process
+     */
+    public void forgotPassword(String email, String frontendUrl) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RegistrationException("User not found with email: " + email));
+
+        // Generate password reset token
+        String resetToken = UUID.randomUUID().toString();
+        user.setPasswordResetToken(resetToken);
+        user.setPasswordResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        userRepository.save(user);
+
+        // Send email with reset link
+        String resetLink = frontendUrl + "/reset-password?token=" + resetToken + "&email=" + email;
+        String subject = "Reset Your TapData Password";
+
+        // Plain text version for better deliverability
+        String textBody = "Hello " + user.getUsername() + ",\n\n" +
+                "We received a request to reset your TapData account password. Click the link below to set a new password:\n\n"
+                +
+                resetLink + "\n\n" +
+                "This link will expire in 1 hour.\n\n" +
+                "If you didn't request this, you can safely ignore this email.\n\n" +
+                "© 2026 TapData. All rights reserved.";
+
+        // HTML version
+        String htmlBody = "<!DOCTYPE html>" +
+                "<html>" +
+                "<head>" +
+                "<style>" +
+                "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }"
+                +
+                ".container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 12px; background-color: #ffffff; }"
+                +
+                ".header { text-align: center; padding-bottom: 20px; border-bottom: 1px solid #f1f3f5; }" +
+                ".logo { color: #2563EB; font-size: 28px; font-weight: bold; text-decoration: none; }" +
+                ".content { padding: 30px 0; }" +
+                ".button-container { text-align: center; margin: 30px 0; }" +
+                ".button { background-color: #2563EB; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; }"
+                +
+                ".footer { text-align: center; padding-top: 20px; color: #6a737d; font-size: 14px; border-top: 1px solid #f1f3f5; }"
+                +
+                ".expiry { color: #d73a49; font-size: 13px; margin-top: 10px; }" +
+                ".legal { font-size: 11px; color: #999; margin-top: 20px; }" +
+                "</style>" +
+                "</head>" +
+                "<body>" +
+                "<div class='container'>" +
+                "<div class='header'><div class='logo'>TapData</div></div>" +
+                "<div class='content'>" +
+                "<h2>Password Reset Request</h2>" +
+                "<p>Hello <strong>" + user.getUsername() + "</strong>,</p>" +
+                "<p>We received a request to reset your TapData account password. Click the button below to secure your account and set a new password:</p>"
+                +
+                "<div class='button-container'>" +
+                "<a href='" + resetLink + "' class='button'>Reset Password</a>" +
+                "</div>" +
+                "<p>Or copy and paste this link into your browser:</p>" +
+                "<p style='word-break: break-all; color: #0366d6; font-size: 14px;'>" + resetLink + "</p>" +
+                "<p class='expiry'>This link will expire in 1 hour for your security.</p>" +
+                "</div>" +
+                "<div class='footer'>" +
+                "<p>If you didn't request this, you can safely ignore this email.</p>" +
+                "<p>&copy; 2026 TapData Inc. • Legon, Accra, Ghana</p>" +
+                "<div class='legal'>You are receiving this because you requested a password reset for your TapData account.</div>"
+                +
+                "</div>" +
+                "</div>" +
+                "</body>" +
+                "</html>";
+
+        try {
+            emailPort.sendMultipartEmail(email, subject, textBody, htmlBody);
+        } catch (Exception e) {
+            throw new RegistrationException("Failed to send password reset email");
+        }
+    }
+
+    /**
+     * Reset user password using reset token
+     */
+    public void resetPassword(String email, String token, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RegistrationException("User not found with email: " + email));
+
+        // Validate reset token
+        if (!token.equals(user.getPasswordResetToken()) || !user.isPasswordResetTokenValid()) {
+            throw new RegistrationException("Invalid or expired password reset token");
+        }
+
+        // Validate password strength
+        validatePasswordStrength(newPassword);
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiry(null);
+        user.setPasswordLastChanged(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
     // DTOs for service layer
-    public record AuthenticationResult(String accessToken, String refreshToken, User user) {}
+    public record AuthenticationResult(String accessToken, String refreshToken, User user) {
+    }
 
     public static class AuthenticationException extends RuntimeException {
         public AuthenticationException(String message) {

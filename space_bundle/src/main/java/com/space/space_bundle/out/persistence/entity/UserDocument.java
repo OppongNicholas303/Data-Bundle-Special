@@ -41,48 +41,35 @@ public class UserDocument {
     private LocalDateTime lastFailedLogin;
     private LocalDateTime lastSuccessfulLogin;
     private LocalDateTime passwordLastChanged;
+    private String passwordResetToken;
+    private LocalDateTime passwordResetTokenExpiry;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-//    public static UserDocument fromDomain(User user) {
-//        return UserDocument.builder()
-//                .id(user.getId())
-//                .username(user.getUsername())
-//                .email(user.getEmail())
-//                .password(user.getPassword())
-//                .phoneNumber(user.getPhoneNumber())
-//                .roles(user.getRoles().stream()
-//                        .map(Enum::name)
-//                        .collect(Collectors.toSet()))
-//                .enabled(user.isEnabled())
-//                .accountNonLocked(user.isAccountNonLocked())
-//                .failedLoginAttempts(user.getFailedLoginAttempts())
-//                .lastFailedLogin(user.getLastFailedLogin())
-//                .lastSuccessfulLogin(user.getLastSuccessfulLogin())
-//                .passwordLastChanged(user.getPasswordLastChanged())
-//                .createdAt(user.getCreatedAt())
-//                .updatedAt(user.getUpdatedAt())
-//                .build();
-//    }
-//
-//    public User toDomain() {
-//        return User.builder()
-//                .id(this.id)
-//                .username(this.username)
-//                .email(this.email)
-//                .password(this.password)
-//                .phoneNumber(this.phoneNumber)
-//                .roles(this.roles.stream()
-//                        .map(User.Role::valueOf)
-//                        .collect(Collectors.toSet()))
-//                .enabled(this.enabled)
-//                .accountNonLocked(this.accountNonLocked)
-//                .failedLoginAttempts(this.failedLoginAttempts)
-//                .lastFailedLogin(this.lastFailedLogin)
-//                .lastSuccessfulLogin(this.lastSuccessfulLogin)
-//                .passwordLastChanged(this.passwordLastChanged)
-//                .createdAt(this.createdAt)
-//                .updatedAt(this.updatedAt)
-//                .build();
-//    }
+    // public static UserDocument fromDomain(User user) {
+    // return UserDocument.builder()
+    // .id(user.getId())
+    // .username(user.getUsername())
+    // .email(user.getEmail())
+    // .password(user.getPassword())
+    // .phoneNumber(user.getPhoneNumber())
+    // .roles(user.getRoles().stream()
+    // .map(Enum::name)
+    // .collect(Collectors.toSet()))
+    // .email(this.email)
+    // .password(this.password)
+    // .phoneNumber(this.phoneNumber)
+    // .roles(this.roles.stream()
+    // .map(User.Role::valueOf)
+    // .collect(Collectors.toSet()))
+    // .enabled(this.enabled)
+    // .accountNonLocked(this.accountNonLocked)
+    // .failedLoginAttempts(this.failedLoginAttempts)
+    // .lastFailedLogin(this.lastFailedLogin)
+    // .lastSuccessfulLogin(this.lastSuccessfulLogin)
+    // .passwordLastChanged(this.passwordLastChanged)
+    // .createdAt(this.createdAt)
+    // .updatedAt(this.updatedAt)
+    // .build();
+    // }
 }

@@ -1,5 +1,3 @@
-
-
 spring:
   application:
     name: space-bundle
@@ -8,8 +6,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:nicholas.oppong@stu.ucc.edu.gh}
-    password: ${MAIL_PASSWORD:youdkvfjtbxvstgp}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -35,7 +33,7 @@ spring:
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+  expiration: ${JWT_EXPIRATION:1800000} # 30 minutes in milliseconds
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
   issuer: ${JWT_ISSUER:space-bundle}
   header: Authorization
@@ -124,9 +122,9 @@ logging:
 # Bot Configuration
 bot:
   api:
-    url: ${BOT_API_URL:https}
+    url: ${BOT_API_URL}
     urlRandy: ${BOT_API_URL_RANDY}
-    token: ${BOT_TOKEN:https}
+    token: ${BOT_TOKEN}
     tokenRandy: ${BOT_TOKEN_RANDY}
     timeout: 30000
     login:
@@ -139,5 +137,9 @@ paystack:
   secret-key: ${PAYSTACK_SECRET_KEY}
   public-key: ${PAYSTACK_PUBLIC_KEY}
   callback-url: ${PAYSTACK_CALLBACK_URL}
+
+# Frontend Configuration
+app:
+  frontend-url: ${FRONTEND_URL}
 
 

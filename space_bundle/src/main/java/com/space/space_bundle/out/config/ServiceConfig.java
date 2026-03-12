@@ -81,7 +81,8 @@ public class ServiceConfig {
             PasswordEncoderPort passwordEncoder,
             JwtPort jwtPort,
             SecurityAuditPort securityAudit,
-            WalletService walletService
+            WalletService walletService,
+            EmailPort emailPort
     ) {
         return new AuthenticationService(
                 userRepository,
@@ -89,7 +90,8 @@ public class ServiceConfig {
                 passwordEncoder,
                 jwtPort,
                 securityAudit,
-                walletService
+                walletService,
+                emailPort
         );
     }
 

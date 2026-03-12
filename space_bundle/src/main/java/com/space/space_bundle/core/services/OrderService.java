@@ -224,15 +224,32 @@ public class OrderService {
     }
 
     private String buyBundle(Order order) {
-        int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
-
-        if (size >= 4) {
-            order.setByFrom("my_data_gb");
-            log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
-            return automationPort.buyDataBundle(order);
+        try {
+            String bundleCode = order.getBundleCode().toUpperCase().trim();
+            
+            // Extract numeric size from bundle code (handles "500MB", "1GB", "1.5GB", etc.)
+            String numericPart = bundleCode.replaceAll("[^0-9.]", "");
+            
+            if (numericPart.isEmpty()) {
+                throw new IllegalArgumentException("Invalid bundle code format: " + order.getBundleCode());
+            }
+            
+            // Parse as double to handle decimal values like "1.5"
+            double size = Double.parseDouble(numericPart);
+            
+            if (size >= 4) {
+                order.setByFrom("my_data_gb");
+                log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}, bundleCode={}", order.getId(), bundleCode);
+                return automationPort.buyDataBundle(order);
+            }
+            
+            order.setByFrom("randy");
+            log.info("[PAYMENT] Buying bundle from randy for orderId={}, bundleCode={}", order.getId(), bundleCode);
+            return automationPort.buyDataBundleFromRandy(order);
+            
+        } catch (Exception ex) {
+            log.error("[PAYMENT] Failed to parse bundle code: {}, error={}", order.getBundleCode(), ex.getMessage(), ex);
+            throw new RuntimeException("Failed to process bundle: Invalid bundle code format - " + order.getBundleCode());
         }
-        order.setByFrom("randy");
-        log.info("[PAYMENT] Buying bundle from randy for orderId={}", order.getId());
-        return automationPort.buyDataBundleFromRandy(order);
     }
 }

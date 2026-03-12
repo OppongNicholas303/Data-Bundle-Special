@@ -28,6 +28,8 @@ public class User {
     private LocalDateTime lastFailedLogin;
     private LocalDateTime lastSuccessfulLogin;
     private LocalDateTime passwordLastChanged;
+    private String passwordResetToken;
+    private LocalDateTime passwordResetTokenExpiry;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -56,5 +58,18 @@ public class User {
         }
         // Password expires after 90 days
         return passwordLastChanged.plusDays(90).isBefore(LocalDateTime.now());
+    }
+
+    public void setPasswordResetToken(String token) {
+        this.passwordResetToken = token;
+        // Token expires in 1 hour
+        this.passwordResetTokenExpiry = LocalDateTime.now().plusHours(1);
+    }
+
+    public boolean isPasswordResetTokenValid() {
+        if (passwordResetToken == null || passwordResetTokenExpiry == null) {
+            return false;
+        }
+        return passwordResetTokenExpiry.isAfter(LocalDateTime.now());
     }
 }
