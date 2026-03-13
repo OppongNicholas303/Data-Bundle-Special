@@ -122,6 +122,7 @@ public class SecurityConfig {
                 "https://tapdata.vercel.app/",
                 "https://tapdataa.vercel.app/",
                 "http://localhost:4200",
+                "http://localhost:5174/",
                 "http://localhost:8081",
                 "https://jn4ktsmh-8081.uks1.devtunnels.ms",
                 "https://bundle-buddy-99.vercel.app"
