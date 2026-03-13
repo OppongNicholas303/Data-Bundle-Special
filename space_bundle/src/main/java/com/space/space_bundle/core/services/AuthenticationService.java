@@ -6,6 +6,7 @@ import com.space.space_bundle.core.port.out.EmailPort;
 import com.space.space_bundle.core.port.out.authenticationPort.*;
 import lombok.RequiredArgsConstructor;
 
+import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -14,6 +15,7 @@ import java.util.UUID;
  * Core authentication service - contains business logic
  * Framework-independent
  */
+@Slf4j
 @RequiredArgsConstructor
 public class AuthenticationService {
 
@@ -288,7 +290,8 @@ public class AuthenticationService {
         try {
             emailPort.sendMultipartEmail(email, subject, textBody, htmlBody);
         } catch (Exception e) {
-            throw new RegistrationException("Failed to send password reset email");
+            log.error("SMTP Error: Failed to send password reset email to {}: {}", email, e.getMessage(), e);
+            throw new RegistrationException("Failed to send password reset email: " + e.getMessage());
         }
     }
 
