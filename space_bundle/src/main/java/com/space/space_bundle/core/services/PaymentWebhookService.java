@@ -166,7 +166,11 @@ public class PaymentWebhookService {
 
             log.info("[PAYMENT] Calling bot API to deliver bundle");
 
-            String providerReference = buyBundle(order);
+            String providerReference = "MTN".equals(order.getNetwork())
+                    ? buyBundle(order)
+                    : automationPort.buyDataBundle(order);
+
+//            String providerReference = buyBundle(order);
 
             // Mark as completed
             log.info("[PAYMENT] Marking order as COMPLETED");

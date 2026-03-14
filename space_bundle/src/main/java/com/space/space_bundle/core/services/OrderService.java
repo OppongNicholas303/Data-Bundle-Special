@@ -78,7 +78,7 @@ public class OrderService {
         if (userID != null) {
             Optional<Wallet> wallet = walletRepository.findByUserId(userID);
             if (wallet.isPresent() && wallet.get().getBalance().compareTo(totalAmount) >= 0) {
-                return processOrderWithWallet(order, wallet.get(), totalAmount, userID, email);
+                return processOrderWithWallet(order, wallet.get(), totalAmount, userID, email, network);
             } else {
                 return initializePaystackPaymentForGuest(order, email);
             }
@@ -117,7 +117,7 @@ public class OrderService {
         return order;
     }
 
-    private Order processOrderWithWallet(Order order, Wallet wallet, BigDecimal amount, String userId, String email) {
+    private Order processOrderWithWallet(Order order, Wallet wallet, BigDecimal amount, String userId, String email, String network) {
         BigDecimal beforeDebit = wallet.getBalance();
         BigDecimal afterDebit = beforeDebit.subtract(amount);
 
@@ -140,7 +140,10 @@ public class OrderService {
             order.markProcessing();
             order = orderRepository.save(order);
 
-            String providerReference = buyBundle(order);
+
+            String providerReference = "MTN".equals(network)
+                    ? buyBundle(order)
+                    : automationPort.buyDataBundle(order);
 
             order.markCompleted(providerReference);
             order = orderRepository.save(order);
