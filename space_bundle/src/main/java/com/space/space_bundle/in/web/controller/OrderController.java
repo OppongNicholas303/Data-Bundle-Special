@@ -38,7 +38,7 @@ public class OrderController {
         Random random = new Random();
         int number = 10000 + random.nextInt(90000);
 
-        String email = "baba" + number + "@gmail.com";
+        String email = "nictech" + number + "@gmail.com";
 
         if(userDetails  != null){
             email = userDetails.getEmail();
