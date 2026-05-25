@@ -19,11 +19,14 @@ public class OrderDocument {
     @Id
     private String id;
     private String userId;
+    private String agentId;
     private String network;
     private String phoneNumber;
     private String bundleCode;
     private String package_id;
     private BigDecimal amount;
+    private BigDecimal baseAmount;
+    private BigDecimal commissionAmount;
     private String status;
     private String providerStatus;
     private String providerOrderNumber;

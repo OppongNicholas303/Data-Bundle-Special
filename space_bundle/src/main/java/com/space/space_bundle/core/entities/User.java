@@ -36,7 +36,8 @@ public class User {
     public enum Role {
         ROLE_USER,
         ROLE_ADMIN,
-        ROLE_SUPPORT
+        ROLE_SUPPORT,
+        ROLE_AGENT
     }
 
     public void incrementFailedLoginAttempts() {

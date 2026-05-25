@@ -60,4 +60,11 @@ public class OrderMongoAdapterPort implements OrderRepositoryPort {
         return repository.findFirstByPhoneNumberOrderByCreatedAtDesc(phoneNumber)
                 .map(OrderMapper::toDomain);
     }
+
+    @Override
+    public List<Order> findByAgentId(String agentId) {
+        return repository.findByAgentId(agentId).stream()
+                .map(OrderMapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }

@@ -24,7 +24,7 @@ public class Transaction {
     private LocalDateTime updatedAt;
 
     public enum TransactionType {
-        DEBIT, CREDIT, REFUND
+        DEBIT, CREDIT, REFUND, COMMISSION, WITHDRAWAL, PURCHASE, FUNDING, SETTLEMENT
     }
 
     public enum TransactionStatus {

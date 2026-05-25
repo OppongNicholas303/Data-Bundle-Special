@@ -12,4 +12,6 @@ public interface OrderRepositoryPort {
     List<Order> findByFilters(String userId, String orderId, String phoneNumber, String status);
 
     Optional<Order> findLatestByPhoneNumber(String phoneNumber);
+
+    List<Order> findByAgentId(String agentId);
 }

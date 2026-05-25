@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@org.springframework.stereotype.Service
 @RequiredArgsConstructor
 public class TransactionService {
 
@@ -87,6 +88,44 @@ public class TransactionService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
+        return transactionRepository.save(transaction);
+    }
+
+    public Transaction createCommissionTransaction(String userId, String orderId, BigDecimal amount,
+                                                    BigDecimal before, BigDecimal after, String description) {
+        Transaction transaction = Transaction.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(userId)
+                .orderId(orderId)
+                .type(Transaction.TransactionType.COMMISSION)
+                .amount(amount)
+                .balanceBefore(before)
+                .balanceAfter(after)
+                .currency("GHS")
+                .status(Transaction.TransactionStatus.COMPLETED)
+                .description(description)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        return transactionRepository.save(transaction);
+    }
+
+    public Transaction createWithdrawalTransaction(String userId, String reference, BigDecimal amount,
+                                                    BigDecimal before, BigDecimal after, String description) {
+        Transaction transaction = Transaction.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(userId)
+                .orderId(reference)
+                .type(Transaction.TransactionType.WITHDRAWAL)
+                .amount(amount)
+                .balanceBefore(before)
+                .balanceAfter(after)
+                .currency("GHS")
+                .status(Transaction.TransactionStatus.PENDING)
+                .description(description)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
         return transactionRepository.save(transaction);
     }
 

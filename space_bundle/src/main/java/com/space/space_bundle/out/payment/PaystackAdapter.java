@@ -78,4 +78,75 @@ public class PaystackAdapter {
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                 .block();
     }
+
+    /**
+     * Create a Paystack transfer recipient (for agent withdrawals)
+     */
+    public String createTransferRecipient(String name, String bankCode, String accountNumber) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("type", "ghipss");  // Ghana Interbank Payment and Settlement System
+        body.put("name", name);
+        body.put("account_number", accountNumber);
+        body.put("bank_code", bankCode);
+        body.put("currency", "GHS");
+
+        log.info("Creating Paystack transfer recipient: name={}, bankCode={}", name, bankCode);
+
+        try {
+            Map response = webClient.post()
+                    .uri("/transferrecipient")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + secretKey)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(Duration.ofSeconds(15))
+                    .block();
+
+            if (response == null || !Boolean.TRUE.equals(response.get("status"))) {
+                throw new RuntimeException("Failed to create transfer recipient");
+            }
+            Map data = (Map) response.get("data");
+            return (String) data.get("recipient_code");
+        } catch (Exception e) {
+            log.error("Paystack create recipient error: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to create transfer recipient: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Initiate a Paystack transfer (for agent withdrawals)
+     */
+    public Map<String, Object> initiateTransfer(int amountInKobo, String recipientCode,
+                                                  String reference, String reason) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("source", "balance");
+        body.put("amount", amountInKobo);
+        body.put("recipient", recipientCode);
+        body.put("reference", reference);
+        body.put("reason", reason);
+        body.put("currency", "GHS");
+
+        log.info("Initiating Paystack transfer: reference={}, amount={}", reference, amountInKobo);
+
+        try {
+            Map response = webClient.post()
+                    .uri("/transfer")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + secretKey)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(Duration.ofSeconds(15))
+                    .block();
+
+            if (response == null || !Boolean.TRUE.equals(response.get("status"))) {
+                throw new RuntimeException("Paystack transfer failed");
+            }
+            return (Map<String, Object>) response.get("data");
+        } catch (Exception e) {
+            log.error("Paystack transfer error: {}", e.getMessage(), e);
+            throw new RuntimeException("Transfer failed: " + e.getMessage());
+        }
+    }
 }

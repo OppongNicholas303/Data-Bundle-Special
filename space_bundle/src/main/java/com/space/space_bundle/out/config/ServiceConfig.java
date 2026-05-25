@@ -6,44 +6,22 @@ import com.space.space_bundle.core.port.out.authenticationPort.*;
 import com.space.space_bundle.core.services.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 
 @Configuration
 public class ServiceConfig {
 
     @Bean
-    public BundleService bundleService(
-            BundleRepositoryPort bundleRepository
-    ) {
+    public BundleService bundleService(BundleRepositoryPort bundleRepository) {
         return new BundleService(bundleRepository);
     }
 
     @Bean
-    public TransactionService transactionService(
-            TransactionRepositoryPort transactionRepository
-    ) {
-        return new TransactionService(transactionRepository);
+    public UserService userService(UserRepositoryPort userRepository) {
+        return new UserService(userRepository);
     }
 
-    // -----------------------------
-    // ORDER SERVICE
-    // -----------------------------
-    @Bean
-    public OrderService orderService(
-            OrderRepositoryPort orderRepositoryPort,
-            WalletRepositoryPort walletRepository,
-            AutomationPort automationPort,
-            TransactionService transactionService,
-            BundleService bundleService,
-            com.space.space_bundle.out.payment.PaystackAdapter paystackAdapter,
-            UserService userService
-    ) {
-        return new OrderService(orderRepositoryPort, walletRepository, automationPort, transactionService, bundleService, paystackAdapter, userService);
-    }
-
-    // -----------------------------
-    // WALLET SERVICE
-    // -----------------------------
     @Bean
     public WalletService walletService(
             WalletRepositoryPort walletRepository,
@@ -54,25 +32,52 @@ public class ServiceConfig {
         return new WalletService(walletRepository, transactionService, paystackAdapter, userService);
     }
 
-    // -----------------------------
-    // USER SERVICE
-    // -----------------------------
     @Bean
-    public UserService userService(
-            UserRepositoryPort userRepository
+    public CommissionService commissionService(
+            CommissionRepositoryPort commissionRepository,
+            WalletRepositoryPort walletRepository,
+            TransactionService transactionService,
+            AgentProfileRepositoryPort agentProfileRepository
     ) {
-        return new UserService(userRepository);
+        return new CommissionService(commissionRepository, walletRepository, transactionService, agentProfileRepository);
     }
 
-    // -----------------------------
-    // PROVIDER ACCOUNT SERVICE
-    // -----------------------------
-//    @Bean
-//    public ProviderAccountService providerAccountService(
-//            ProviderAccountRepository providerAccountRepository
-//    ) {
-//        return new ProviderAccountService(providerAccountRepository);
-//    }
+    @Bean
+    public AgentService agentService(
+            AgentProfileRepositoryPort agentProfileRepository,
+            AgentBundlePricingRepositoryPort agentBundlePricingRepository,
+            UserRepositoryPort userRepository,
+            BundleRepositoryPort bundleRepository,
+            WalletRepositoryPort walletRepository,
+            TransactionService transactionService,
+            com.space.space_bundle.out.payment.PaystackAdapter paystackAdapter
+    ) {
+        return new AgentService(
+                agentProfileRepository,
+                agentBundlePricingRepository,
+                userRepository,
+                bundleRepository,
+                walletRepository,
+                transactionService,
+                paystackAdapter);
+    }
+
+    @Bean
+    public OrderService orderService(
+            OrderRepositoryPort orderRepositoryPort,
+            WalletRepositoryPort walletRepository,
+            AutomationPort automationPort,
+            TransactionService transactionService,
+            BundleService bundleService,
+            com.space.space_bundle.out.payment.PaystackAdapter paystackAdapter,
+            UserService userService,
+            @Lazy AgentService agentService,
+            @Lazy CommissionService commissionService
+    ) {
+        return new OrderService(orderRepositoryPort, walletRepository, automationPort,
+                transactionService, bundleService, paystackAdapter, userService,
+                agentService, commissionService);
+    }
 
     @Bean
     public AuthenticationService authenticationService(
@@ -91,8 +96,7 @@ public class ServiceConfig {
                 jwtPort,
                 securityAudit,
                 walletService,
-                emailPort
-        );
+                emailPort);
     }
 
     @Bean
@@ -104,4 +108,3 @@ public class ServiceConfig {
         return new DashboardService(transactionService, orderService, bundleService);
     }
 }
-

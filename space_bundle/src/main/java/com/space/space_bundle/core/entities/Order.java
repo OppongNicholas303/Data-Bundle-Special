@@ -15,13 +15,16 @@ public class Order {
 
     private final String id;
     private final String userId;
+    private final String agentId;         // null for direct platform orders
 
-    private final String network;       // MTN, VODAFONE, AIRTELTIGO
+    private final String network;         // MTN, VODAFONE, AIRTELTIGO
     private final String phoneNumber;
     private final String bundleCode;
     private final String package_id;
 
-    private final BigDecimal amount;
+    private final BigDecimal amount;      // what customer pays (agent selling price or platform price)
+    private final BigDecimal baseAmount;  // platform base/selling price
+    private final BigDecimal commissionAmount; // agent profit = amount - baseAmount
 
     private OrderStatus status;
     private String providerStatus;
@@ -40,11 +43,14 @@ public class Order {
     public Order(
             String id,
             String userId,
+            String agentId,
             String network,
             String phoneNumber,
             String bundleCode,
             String packageId,
             BigDecimal amount,
+            BigDecimal baseAmount,
+            BigDecimal commissionAmount,
             OrderStatus status,
             String providerStatus,
             String providerOrderNumber,
@@ -59,11 +65,14 @@ public class Order {
     ) {
         this.id = id == null ? UUID.randomUUID().toString() : id;
         this.userId = userId;
+        this.agentId = agentId;
         this.network = network;
         this.phoneNumber = phoneNumber;
         this.bundleCode = bundleCode;
         this.package_id = packageId;
         this.amount = amount;
+        this.baseAmount = baseAmount;
+        this.commissionAmount = commissionAmount;
 
         this.providerStatus = providerStatus;
 

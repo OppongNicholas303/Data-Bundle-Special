@@ -52,13 +52,14 @@ public class OrderController {
 
         // Use provided email or generate from phone number
 
-        Order order = orderService.createGuestOrder(
+        Order order = orderService.createGuestOrderByAgentCode(
                 request.getNetwork(),
                 request.getPhoneNumber(),
                 request.getBundleCode(),
                 email,
                 userDetails != null ? userDetails.getUserId() : null,
-                request.getPackage_id()
+                request.getPackage_id(),
+                request.getAgentCode()
         );
 
         log.info("Creating order :{}", order);

@@ -1,6 +1,7 @@
 package com.space.space_bundle.core.services;
 
 import com.space.space_bundle.core.entities.Order;
+import com.space.space_bundle.core.entities.AgentProfile;
 import com.space.space_bundle.core.entities.Transaction;
 import com.space.space_bundle.core.entities.Wallet;
 import com.space.space_bundle.core.port.out.AutomationPort;
@@ -33,6 +34,8 @@ public class OrderService {
     private final BundleService bundleService;
     private final PaystackAdapter paystackAdapter;
     private final UserService userService;
+    private final AgentService agentService;
+    private final CommissionService commissionService;
 
     @Value("${paystack.callback-url:http://localhost:3000/payment/callback}")
     private String paystackCallbackUrl;
@@ -45,30 +48,83 @@ public class OrderService {
             String email,
             String userID,
             String packageId) {
-        BigDecimal amount = bundleService.getBundlePrice(bundleCode, network);
+        return createGuestOrderByAgentCode(network, phoneNumber, bundleCode, email, userID, packageId, null);
+    }
 
-        // Add 2% Paystack transaction fee
-        BigDecimal paystackFee = amount.multiply(BigDecimal.valueOf(0.02));
-        BigDecimal totalAmount = amount.add(paystackFee);
+    /**
+     * Entry point when customer orders through an agent storefront link.
+     * agentCode is the public referral code e.g. "AGT-X7K2A".
+     */
+    @Transactional
+    public Order createGuestOrderByAgentCode(
+            String network,
+            String phoneNumber,
+            String bundleCode,
+            String email,
+            String userID,
+            String packageId,
+            String agentCode) {
+
+        // Resolve agentUserId from public referral code
+        String resolvedAgentUserId = null;
+        if (agentCode != null && !agentCode.isBlank()) {
+            AgentProfile agentProfile = agentService.resolveByReferralCode(agentCode);
+            resolvedAgentUserId = agentProfile.getUserId();
+        }
+        return createGuestOrder(network, phoneNumber, bundleCode, email, userID, packageId, resolvedAgentUserId);
+    }
+
+    @Transactional
+    public Order createGuestOrder(
+            String network,
+            String phoneNumber,
+            String bundleCode,
+            String email,
+            String userID,
+            String packageId,
+            String agentUserId) {
+
+        // Resolve base price from platform bundle
+        BigDecimal baseAmount = bundleService.getBundlePrice(bundleCode, network);
+
+        // Resolve effective customer price (agent price if agent order, else base)
+        BigDecimal customerAmount;
+        String agentProfileId = null;
+        BigDecimal commissionAmount = BigDecimal.ZERO;
+
+        if (agentUserId != null) {
+            // Find the bundle id for pricing lookup
+            var bundle = bundleService.getBundleByCodeAndNetwork(bundleCode, network);
+            customerAmount = agentService.resolveEffectivePrice(agentUserId, bundle.getId());
+            commissionAmount = customerAmount.subtract(baseAmount);
+            agentProfileId = agentService.getProfile(agentUserId).getId();
+        } else {
+            customerAmount = baseAmount;
+        }
+
+        // Add 2% Paystack transaction fee on top of customer amount
+        BigDecimal paystackFee = customerAmount.multiply(BigDecimal.valueOf(0.02));
+        BigDecimal totalAmount = customerAmount.add(paystackFee);
 
         String resolvedPackageId = null;
-
         if (bundleCode != null) {
             String upperCode = bundleCode.toUpperCase();
-            if(Objects.equals(network, "MTN")){
+            if (Objects.equals(network, "MTN")) {
                 resolvedPackageId = BUNDLE_PACKAGE_MAP_MTN.get(upperCode);
-            }else {
+            } else {
                 resolvedPackageId = BUNDLE_PACKAGE_MAP_TELECEL.get(upperCode);
             }
-
         }
 
         Order order = Order.builder()
                 .userId(userID)
+                .agentId(agentProfileId)
                 .network(network)
                 .phoneNumber(phoneNumber)
                 .bundleCode(bundleCode)
                 .amount(totalAmount)
+                .baseAmount(baseAmount)
+                .commissionAmount(commissionAmount)
                 .packageId(resolvedPackageId)
                 .providerStatus("processing")
                 .status(com.space.space_bundle.core.enums.OrderStatus.CREATED)
@@ -76,7 +132,8 @@ public class OrderService {
                 .build();
 
         order = orderRepository.save(order);
-        log.info("Order created with Paystack fee: baseAmount={}, fee={}, total={}", amount, paystackFee, totalAmount);
+        log.info("Order created: baseAmount={}, customerAmount={}, commission={}, total={}",
+                baseAmount, customerAmount, commissionAmount, totalAmount);
 
         if (userID != null) {
             Optional<Wallet> wallet = walletRepository.findByUserId(userID);
@@ -172,6 +229,17 @@ public class OrderService {
             order.markCompleted(providerReference);
             order = orderRepository.save(order);
 
+            // Settle agent commission if this is an agent order
+            if (order.getAgentId() != null
+                    && order.getCommissionAmount() != null
+                    && order.getCommissionAmount().compareTo(BigDecimal.ZERO) > 0) {
+                commissionService.settleAgentCommission(
+                        order.getAgentId(),
+                        order.getId(),
+                        order.getBaseAmount(),
+                        order.getAmount());
+            }
+
         } catch (Exception ex) {
 
             log.error("Order processing failed: orderId={}, error={}", order.getId(), ex.getMessage(), ex);
@@ -237,6 +305,11 @@ public class OrderService {
 
     public List<Order> getOrders(String userId, String orderId, String phoneNumber, String status) {
         return orderRepository.findByFilters(userId, orderId, phoneNumber, status);
+    }
+
+    public List<Order> getOrdersByAgentId(String agentUserId) {
+        String agentProfileId = agentService.getProfile(agentUserId).getId();
+        return orderRepository.findByAgentId(agentProfileId);
     }
 
     public Order getOrderById(String orderId, String userId) {

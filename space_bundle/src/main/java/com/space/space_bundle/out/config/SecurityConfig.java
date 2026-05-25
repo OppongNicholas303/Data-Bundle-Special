@@ -65,6 +65,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
+                        // Agent endpoints — require ROLE_AGENT (enforced at method level too)
+                        .requestMatchers("/agents/register").authenticated()
+                        .requestMatchers("/agents/storefront/**").permitAll()
+                        .requestMatchers("/agents/**").hasRole("AGENT")
+
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )

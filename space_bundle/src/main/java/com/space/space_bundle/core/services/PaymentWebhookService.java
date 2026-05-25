@@ -12,8 +12,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -25,6 +23,7 @@ public class PaymentWebhookService {
     private final TransactionService transactionService;
     private final WalletService walletService;
     private final EmailPort emailPort;
+    private final CommissionService commissionService;
 
     @org.springframework.beans.factory.annotation.Value("${app.support-email:placeholder@example.com}")
     private String supportEmail;
@@ -176,6 +175,19 @@ public class PaymentWebhookService {
             log.info("[PAYMENT] Marking order as COMPLETED");
             order.markCompleted(providerReference);
             order = orderRepository.save(order);
+
+            // Settle agent commission if this is an agent order
+            if (order.getAgentId() != null
+                    && order.getCommissionAmount() != null
+                    && order.getCommissionAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                log.info("[COMMISSION] Settling commission for agentId={}, orderId={}",
+                        order.getAgentId(), order.getId());
+                commissionService.settleAgentCommission(
+                        order.getAgentId(),
+                        order.getId(),
+                        order.getBaseAmount(),
+                        order.getAmount());
+            }
 
             log.info("[PAYMENT] Order completed: orderId={}, providerRef={}", orderId, providerReference);
 
