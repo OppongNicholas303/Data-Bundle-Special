@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -50,14 +52,15 @@ public class OrderService {
         BigDecimal totalAmount = amount.add(paystackFee);
 
         String resolvedPackageId = null;
+
         if (bundleCode != null) {
             String upperCode = bundleCode.toUpperCase();
-            if (upperCode.equals("1GB"))
-                resolvedPackageId = "20";
-            else if (upperCode.equals("2GB"))
-                resolvedPackageId = "21";
-            else if (upperCode.equals("3GB"))
-                resolvedPackageId = "22";
+            if(Objects.equals(network, "MTN")){
+                resolvedPackageId = BUNDLE_PACKAGE_MAP_MTN.get(upperCode);
+            }else {
+                resolvedPackageId = BUNDLE_PACKAGE_MAP_TELECEL.get(upperCode);
+            }
+
         }
 
         Order order = Order.builder()
@@ -86,6 +89,27 @@ public class OrderService {
 
         return initializePaystackPaymentForGuest(order, email);
     }
+
+    private static final Map<String, String> BUNDLE_PACKAGE_MAP_MTN = Map.ofEntries(
+            Map.entry("1GB", "20"),
+            Map.entry("2GB", "21"),
+            Map.entry("3GB", "22"),
+            Map.entry("4GB", "23"),
+            Map.entry("5GB", "24"),
+            Map.entry("6GB", "25"),
+            Map.entry("8GB", "27"),
+            Map.entry("10GB", "28"),
+            Map.entry("15GB", "29"),
+            Map.entry("20GB", "30"),
+            Map.entry("25GB", "31")
+    );
+
+    private static final Map<String, String> BUNDLE_PACKAGE_MAP_TELECEL = Map.ofEntries(
+            Map.entry("5GB", "38"),
+            Map.entry("10GB", "39"),
+            Map.entry("15GB", "40"),
+            Map.entry("20GB", "41")
+    );
 
     private Order initializePaystackPaymentForGuest(Order order, String email) {
         try {

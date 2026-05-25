@@ -62,14 +62,6 @@ public class BundleRepositoryAdapter implements BundleRepositoryPort {
                 .collect(Collectors.toList());
     }
 
-//    @Override
-//    public List<Bundle> findAll() {
-//        return mongoRepository.findAll()
-//                .stream()
-//                .map(BundleMapper::toDomain)
-//                .collect(Collectors.toList());
-//    }
-
     @Override
     public List<Bundle> findAll() {
         return mongoRepository

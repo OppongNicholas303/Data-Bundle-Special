@@ -189,13 +189,13 @@ public class PaymentWebhookService {
     }
 
     private String buyBundle(Order order) {
-        int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
-
-        if (size >= 4) {
-            order.setByFrom("my_data_gb");
-            log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
-            return automationPort.buyDataBundle(order);
-        }
+//        int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
+//
+//        if (size >= 4) {
+//            order.setByFrom("my_data_gb");
+//            log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
+//            return automationPort.buyDataBundle(order);
+//        }
         order.setByFrom("randy");
         log.info("[PAYMENT] Buying bundle from randy for orderId={}", order.getId());
         return automationPort.buyDataBundleFromRandy(order);
