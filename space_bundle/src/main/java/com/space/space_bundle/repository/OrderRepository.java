@@ -1,0 +1,26 @@
+package com.space.space_bundle.repository;
+
+import com.space.space_bundle.entity.Order;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface OrderRepository extends MongoRepository<Order, String> {
+    List<Order> findByUserId(String userId);
+    List<Order> findByAgentId(String agentId);
+    List<Order> findByUserIdAndStatus(String userId, String status);
+    List<Order> findByUserIdAndPhoneNumber(String userId, String phoneNumber);
+    List<Order> findByUserIdAndPhoneNumberAndStatus(String userId, String phoneNumber, String status);
+    Optional<Order> findFirstByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
+    List<Order> findByStatus(String status);
+    List<Order> findByNetwork(String network);
+    List<Order> findByStatusAndNetwork(String status, String network);
+    List<Order> findByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
+    List<Order> findByStatusAndCreatedAtBetween(String status, LocalDateTime from, LocalDateTime to);
+    List<Order> findByNetworkAndCreatedAtBetween(String network, LocalDateTime from, LocalDateTime to);
+    List<Order> findByStatusAndNetworkAndCreatedAtBetween(String status, String network, LocalDateTime from, LocalDateTime to);
+}

@@ -106,23 +106,15 @@ info:
   java:
     version: 21
 
-# Logging Configuration
+# Logging — managed by logback-spring.xml
 logging:
-  level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-    com.space: ${LOG_LEVEL_APP:INFO}
-    org.springframework.web: ${LOG_LEVEL_WEB:WARN}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
-    org.springframework.data.mongodb: ${LOG_LEVEL_MONGODB:INFO}
-    sun.rmi.transport.tcp: ERROR   # <-- Add this line
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: ${LOG_FILE:logs/space-bundle.log}
     max-size: ${LOG_MAX_SIZE:10MB}
     max-history: ${LOG_MAX_HISTORY:30}
-    total-size-cap: ${LOG_TOTAL_SIZE:1GB}
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.space: ${LOG_LEVEL_APP:INFO}
 
 # Bot Configuration
 bot:
@@ -141,12 +133,12 @@ bot:
 paystack:
   secret-key: ${PAYSTACK_SECRET_KEY}
   public-key: ${PAYSTACK_PUBLIC_KEY}
-  callback-url: ${PAYSTACK_CALLBACK_URL}
+  callback-url: ${PAYSTACK_CALLBACK_URL:http:}
 
 # Frontend Configuration
 app:
   frontend-url: ${FRONTEND_URL}
-  support-email: ${SUPPORT_EMAIL:support@tapdata.com}
-  storefront-base-url: ${STOREFRONT_BASE_URL:https://tapdata.vercel.app/store}
+  support-email: ${SUPPORT_EMAIL}
+  storefront-base-url: ${STOREFRONT_BASE_URL}
 
 

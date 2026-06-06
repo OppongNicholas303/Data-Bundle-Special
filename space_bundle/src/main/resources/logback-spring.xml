@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+  <springProperty scope="context" name="LOG_FILE"        source="logging.file.name"       defaultValue="logs/space-bundle.log"/>
+  <springProperty scope="context" name="LOG_MAX_SIZE"    source="logging.file.max-size"    defaultValue="10MB"/>
+  <springProperty scope="context" name="LOG_MAX_HISTORY" source="logging.file.max-history" defaultValue="30"/>
+  <springProperty scope="context" name="LOG_LEVEL_ROOT"  source="logging.level.root"       defaultValue="INFO"/>
+  <springProperty scope="context" name="LOG_LEVEL_APP"   source="logging.level.com.space"  defaultValue="INFO"/>
+
+  <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+  <!-- ── Console ──────────────────────────────────────────────────────────── -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${LOG_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!--
+    FILE appender — Windows-safe rolling strategy:
+    - Active file is logs/space-bundle.log
+    - Rolled files go to logs/archived/ with a date+index pattern
+    - Because the archive path differs from the active file path,
+      Logback never tries to rename the active file — no Windows lock conflict
+    - Uses SizeAndTimeBasedRollingPolicy (replaces deprecated SizeAndTimeBasedFNATP)
+    - prudent=false (required for compression to work)
+  -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_FILE}</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>logs/archived/space-bundle.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+      <maxFileSize>${LOG_MAX_SIZE}</maxFileSize>
+      <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+      <cleanHistoryOnStart>true</cleanHistoryOnStart>
+    </rollingPolicy>
+    <encoder>
+      <pattern>${LOG_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- Async wrapper — keeps log I/O off the main thread -->
+  <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="FILE"/>
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>false</includeCallerData>
+    <neverBlock>true</neverBlock>
+  </appender>
+
+  <!-- Suppress noisy loggers -->
+  <logger name="sun.rmi.transport.tcp"            level="ERROR"/>
+  <logger name="org.springframework.web"          level="WARN"/>
+  <logger name="org.springframework.security"     level="WARN"/>
+  <logger name="org.springframework.data.mongodb" level="INFO"/>
+
+  <!-- App logger -->
+  <logger name="com.space" level="${LOG_LEVEL_APP}" additivity="false">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_FILE"/>
+  </logger>
+
+  <!-- Root -->
+  <root level="${LOG_LEVEL_ROOT}">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_FILE"/>
+  </root>
+
+</configuration>
