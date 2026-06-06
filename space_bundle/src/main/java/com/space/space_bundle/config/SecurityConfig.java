@@ -99,6 +99,7 @@ public class SecurityConfig {
             "https://tapdata.vercel.app",
             "https://tapdataa.vercel.app",
                 "https://tapdata-admin.vercel.app",
+                "https://tapdata-store.vercel.app",
             "https://bundle-buddy-99.vercel.app",
             "http://localhost:5173",
             "http://localhost:5174",
