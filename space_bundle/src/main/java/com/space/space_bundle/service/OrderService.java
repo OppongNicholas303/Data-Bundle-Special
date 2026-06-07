@@ -259,7 +259,7 @@ public class OrderService {
     }
 
     private String resolvePackageId(String bundleCode, String network, String provided) {
-        if (provided != null) return provided;
+//        if (provided != null) return provided;
         if (bundleCode == null) return null;
         String upper = bundleCode.toUpperCase();
         return Objects.equals(network, "MTN") ? PKG_MTN.get(upper) : PKG_TELECEL.get(upper);
