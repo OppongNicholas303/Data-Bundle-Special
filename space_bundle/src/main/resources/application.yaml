@@ -129,6 +129,11 @@ bot:
       username: ${BOT_LOGIN_USERNAME}
       password: ${BOT_LOGIN_PASSWORD}
 
+mashup:
+  offers:
+    url: ${MASHUP_OFFERS_URL}
+    timeout-seconds: ${MASHUP_OFFERS_TIMEOUT_SECONDS:8}
+
 # Paystack Configuration
 paystack:
   secret-key: ${PAYSTACK_SECRET_KEY}
@@ -140,3 +145,5 @@ app:
   frontend-url: ${FRONTEND_URL}
   support-email: ${SUPPORT_EMAIL}
   storefront-base-url: ${STOREFRONT_BASE_URL}
+
+
