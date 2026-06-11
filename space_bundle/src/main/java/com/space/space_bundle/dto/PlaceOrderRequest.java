@@ -23,8 +23,14 @@ public class PlaceOrderRequest {
     private String phoneNumber;
 
     @NotBlank(message = "Bundle code is required")
-    @Size(max = 10, message = "Invalid bundle code")
+    @Size(max = 40, message = "Invalid bundle code")
     private String bundleCode;
+
+    @Pattern(
+        regexp = "(?i)^(STANDARD|MASHUP)$",
+        message = "Invalid bundle type"
+    )
+    private String bundleType;
 
     private String email;
     private String package_id;

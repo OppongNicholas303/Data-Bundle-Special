@@ -2,6 +2,7 @@ package com.space.space_bundle.service;
 
 import com.space.space_bundle.dto.SingleOrderUserDTO;
 import com.space.space_bundle.entity.AgentProfile;
+import com.space.space_bundle.entity.MashupBundle;
 import com.space.space_bundle.entity.Order;
 import com.space.space_bundle.entity.Wallet;
 import com.space.space_bundle.repository.OrderRepository;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,6 +37,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WalletRepository walletRepository;
     private final BundleService bundleService;
+    private final MashupService mashupService;
     private final AgentService agentService;
     private final CommissionService commissionService;
     private final TransactionService transactionService;
@@ -69,6 +72,17 @@ public class OrderService {
     @Transactional
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId, String agentCode) {
+        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, null);
+    }
+
+    @Transactional
+    public Order placeOrder(String network, String phoneNumber, String bundleCode,
+                            String email, String userId, String packageId, String agentCode,
+                            String bundleType) {
+
+        if (isMashupBundle(bundleType)) {
+            return placeMashupOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode);
+        }
 
         // Normalize network to lowercase to match DB storage ("mtn", "telecel", "airteltigo")
 //        String normalizedNetwork = network == null ? null : network.toLowerCase();
@@ -111,6 +125,7 @@ public class OrderService {
                 .network(normalizedNetwork)
                 .phoneNumber(phoneNumber)
                 .bundleCode(bundleCode)
+                .bundleType("STANDARD")
                 .packageId(resolvedPkg)
                 .amount(total)
                 .baseAmount(baseAmount)
@@ -129,6 +144,69 @@ public class OrderService {
             Optional<Wallet> wallet = walletRepository.findByUserId(userId);
             if (wallet.isPresent() && wallet.get().getBalance().compareTo(total) >= 0)
                 return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork);
+        }
+
+        return initPaystack(order, email);
+    }
+
+    private Order placeMashupOrder(String network, String phoneNumber, String bundleCode,
+                                   String email, String userId, String packageId, String agentCode) {
+        MashupBundle mashupBundle = mashupService.getPurchasablePackage(bundleCode, packageId);
+        String normalizedNetwork = mashupBundle.getNetwork() != null
+                ? mashupBundle.getNetwork().toUpperCase(Locale.ROOT)
+                : "MTN";
+
+        if (network != null && !network.isBlank() && !network.equalsIgnoreCase(normalizedNetwork)) {
+            throw new IllegalArgumentException("Mashup package is only available on " + normalizedNetwork);
+        }
+
+        String agentProfileId = null;
+        String agentUserId = null;
+        BigDecimal baseAmount = mashupBundle.getSellingPrice();
+        BigDecimal costPrice = mashupBundle.getCostPrice() != null
+                ? mashupBundle.getCostPrice()
+                : BigDecimal.ZERO;
+        BigDecimal customerAmount = baseAmount;
+        BigDecimal commissionAmount = BigDecimal.ZERO;
+
+        if (agentCode != null && !agentCode.isBlank()) {
+            AgentProfile profile = agentService.resolveByCode(agentCode);
+            agentProfileId = profile.getId();
+            agentUserId = profile.getUserId();
+            customerAmount = agentService.resolveEffectiveMashupPrice(agentUserId, mashupBundle.getId());
+            commissionAmount = customerAmount.subtract(baseAmount);
+        }
+
+        BigDecimal fee = customerAmount.multiply(BigDecimal.valueOf(0.02));
+        BigDecimal total = customerAmount.add(fee);
+        String resolvedPkg = String.valueOf(mashupBundle.getSpecialOfferPackageId());
+
+        Order order = orderRepository.save(Order.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(userId)
+                .agentId(agentProfileId)
+                .network(normalizedNetwork)
+                .phoneNumber(phoneNumber)
+                .bundleCode(mashupBundle.getSlug())
+                .bundleType("MASHUP")
+                .packageId(resolvedPkg)
+                .amount(total)
+                .baseAmount(baseAmount)
+                .costPrice(costPrice)
+                .commissionAmount(commissionAmount)
+                .status(Order.OrderStatus.CREATED.name())
+                .providerStatus("processing")
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        log.info("Mashup order created: id={}, packageId={}, base={}",
+                order.getId(), resolvedPkg, baseAmount);
+
+        if (userId != null) {
+            Optional<Wallet> wallet = walletRepository.findByUserId(userId);
+            if (wallet.isPresent() && wallet.get().getBalance().compareTo(total) >= 0) {
+                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork);
+            }
         }
 
         return initPaystack(order, email);
@@ -208,6 +286,10 @@ public class OrderService {
     }
 
     // ── Internal helpers ───────────────────────────────────────────────────
+
+    private boolean isMashupBundle(String bundleType) {
+        return bundleType != null && "MASHUP".equalsIgnoreCase(bundleType.trim());
+    }
 
     private Order initPaystack(Order order, String email) {
         try {

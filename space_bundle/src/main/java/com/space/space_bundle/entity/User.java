@@ -62,8 +62,8 @@ public class User {
     }
 
     public boolean isPasswordExpired() {
-        if (passwordLastChanged == null) return false;
-        return passwordLastChanged.plusDays(90).isBefore(LocalDateTime.now());
+        // Password expiry policy disabled
+        return false;
     }
 
     public boolean isPasswordResetTokenValid() {

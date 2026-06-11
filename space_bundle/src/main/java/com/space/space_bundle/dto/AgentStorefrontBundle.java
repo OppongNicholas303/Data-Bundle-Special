@@ -15,4 +15,5 @@ public class AgentStorefrontBundle {
     private String network;
     private BigDecimal sellingPrice;
     private String agentCode;
+    private String bundleType; // "STANDARD" or "MASHUP"
 }

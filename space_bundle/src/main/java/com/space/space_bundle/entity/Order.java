@@ -29,6 +29,7 @@ public class Order {
     private String network;
     private String phoneNumber;
     private String bundleCode;
+    private String bundleType;
     private String packageId;
 
     private BigDecimal amount;        // total customer pays (includes Paystack fee)

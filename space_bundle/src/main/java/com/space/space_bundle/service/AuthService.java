@@ -43,8 +43,6 @@ public class AuthService {
             throw new AuthException("Invalid credentials");
         }
 
-        if (user.isPasswordExpired()) throw new AuthException("Password expired. Please reset.");
-
         user.resetFailedLoginAttempts();
         userRepository.save(user);
 

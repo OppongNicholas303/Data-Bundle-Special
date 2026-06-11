@@ -41,7 +41,7 @@ public class OrderController {
         Order order = orderService.placeOrder(
                 request.getNetwork(), request.getPhoneNumber(), request.getBundleCode(),
                 email, userDetails != null ? userDetails.getUserId() : null,
-                request.getPackage_id(), request.getAgentCode());
+                request.getPackage_id(), request.getAgentCode(), request.getBundleType());
 
         return ResponseEntity.ok(ApiResponse.success(order));
     }

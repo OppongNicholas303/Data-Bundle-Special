@@ -42,10 +42,10 @@ public class TransactionController {
     public ResponseEntity<Map<String, Object>> verifyPaymentByOrder(@PathVariable String orderId) {
         // Handle both "ORDER_xxx" and plain "xxx" formats
         String cleanId = orderId.replace("ORDER_", "");
-
+        
         try {
             Order order = orderService.getOrderById(cleanId);
-
+            
             // Map order status to payment status
             String paymentStatus = "failed"; // default
             if ("PAID".equals(order.getStatus()) || "PROCESSING".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
@@ -53,14 +53,14 @@ public class TransactionController {
             } else if ("PENDING_PAYMENT".equals(order.getStatus())) {
                 paymentStatus = "pending";
             }
-
+            
             Map<String, Object> response = new HashMap<>();
             response.put("status", paymentStatus);
             response.put("amount", order.getAmount().doubleValue());
             response.put("reference", "ORDER_" + order.getId());
             response.put("channel", "paystack");
             response.put("orderId", order.getId());
-
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             // Order not found or other error
