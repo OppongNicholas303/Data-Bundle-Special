@@ -1,5 +1,6 @@
 package com.space.space_bundle.service;
 
+import com.space.space_bundle.dto.SingleOrderUserDTO;
 import com.space.space_bundle.entity.AgentProfile;
 import com.space.space_bundle.entity.Order;
 import com.space.space_bundle.entity.Wallet;
@@ -9,6 +10,11 @@ import com.space.space_bundle.security.PaystackAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,6 +41,7 @@ public class OrderService {
     private final PaystackAdapter paystackAdapter;
     private final AutomationService automationService;
     private final com.space.space_bundle.feature.FeatureFlagService featureFlagService;
+    private final MongoTemplate mongoTemplate;
 
     @Value("${paystack.callback-url:http://localhost:3000/payment/callback}")
     private String callbackUrl;
@@ -159,6 +167,44 @@ public class OrderService {
     public Order getOrderById(String orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+    }
+
+
+    public List<String> getDistinctCompletedPhoneNumbers() {
+        return mongoTemplate.findDistinct(
+                Query.query(Criteria.where("status").is(Order.OrderStatus.COMPLETED.name())),
+                "phoneNumber",
+                Order.class,
+                String.class
+        );
+    }
+
+
+    public List<SingleOrderUserDTO> getUsersWithSingleCompletedOrder() {
+
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("status").is(Order.OrderStatus.COMPLETED.name())),
+
+                Aggregation.group("phoneNumber")
+                        .count().as("orderCount")
+                        .first("phoneNumber").as("phoneNumber")
+                        .first("userId").as("userId"),
+
+                Aggregation.match(Criteria.where("orderCount").is(1)),
+                Aggregation.lookup("users", "userId", "_id", "userDetails"),
+                Aggregation.unwind("userDetails"),
+
+                Aggregation.project()
+                        .and("phoneNumber").as("phoneNumber")
+                        .and("userDetails.username").as("name")
+                        .andExclude("_id")
+        );
+
+        AggregationResults<SingleOrderUserDTO> results = mongoTemplate.aggregate(
+                aggregation, "orders", SingleOrderUserDTO.class
+        );
+
+        return results.getMappedResults();
     }
 
     // ── Internal helpers ───────────────────────────────────────────────────

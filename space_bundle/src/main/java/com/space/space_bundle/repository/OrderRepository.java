@@ -3,6 +3,7 @@ package com.space.space_bundle.repository;
 import com.space.space_bundle.entity.Order;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.mongodb.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,4 +24,7 @@ public interface OrderRepository extends MongoRepository<Order, String> {
     List<Order> findByStatusAndCreatedAtBetween(String status, LocalDateTime from, LocalDateTime to);
     List<Order> findByNetworkAndCreatedAtBetween(String network, LocalDateTime from, LocalDateTime to);
     List<Order> findByStatusAndNetworkAndCreatedAtBetween(String status, String network, LocalDateTime from, LocalDateTime to);
+    @Query(value = "{ 'status': 'COMPLETED' }", fields = "{ 'phoneNumber': 1 }")
+    List<Order> findCompletedOrders();
+
 }
