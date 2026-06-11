@@ -26,6 +26,8 @@ public class AgentService {
     private final WalletRepository walletRepository;
     private final WithdrawalRepository withdrawalRepository;
     private final TransactionService transactionService;
+    private final AgentMashupPricingRepository agentMashupPricingRepository;
+    private final MashupRepository mashupRepository;
 
     @Transactional
     public AgentProfile register(String userId, String businessName) {
@@ -114,13 +116,58 @@ public class AgentService {
         return agentBundlePricingRepository.findByAgentId(getProfileByUserId(agentUserId).getId());
     }
 
+    @Transactional
+    public AgentMashupPricing setMashupPrice(String agentUserId, String mashupBundleId, BigDecimal sellingPrice) {
+        AgentProfile profile = getProfileByUserId(agentUserId);
+        MashupBundle bundle = mashupRepository.findById(mashupBundleId)
+                .orElseThrow(() -> new IllegalArgumentException("Mashup bundle not found: " + mashupBundleId));
+
+        if (!bundle.isPurchasable())
+            throw new IllegalStateException("Mashup bundle is not active/purchasable");
+
+        if (sellingPrice.compareTo(bundle.getSellingPrice()) < 0)
+            throw new IllegalArgumentException(
+                    "Selling price " + sellingPrice + " cannot be below base price " + bundle.getSellingPrice());
+
+        AgentMashupPricing pricing = agentMashupPricingRepository
+                .findByAgentIdAndMashupBundleId(profile.getId(), mashupBundleId)
+                .orElse(AgentMashupPricing.builder()
+                        .id(UUID.randomUUID().toString())
+                        .agentId(profile.getId())
+                        .mashupBundleId(mashupBundleId)
+                        .basePrice(bundle.getSellingPrice())
+                        .active(true)
+                        .createdAt(LocalDateTime.now())
+                        .build());
+
+        pricing.setSellingPrice(sellingPrice);
+        pricing.setBasePrice(bundle.getSellingPrice()); // sync in case platform changed it
+        pricing.setUpdatedAt(LocalDateTime.now());
+        return agentMashupPricingRepository.save(pricing);
+    }
+
+    public BigDecimal resolveEffectiveMashupPrice(String agentUserId, String mashupBundleId) {
+        AgentProfile profile = getProfileByUserId(agentUserId);
+        return agentMashupPricingRepository
+                .findByAgentIdAndMashupBundleId(profile.getId(), mashupBundleId)
+                .filter(AgentMashupPricing::isActive)
+                .map(AgentMashupPricing::getSellingPrice)
+                .orElseGet(() -> mashupRepository.findById(mashupBundleId)
+                        .orElseThrow(() -> new IllegalArgumentException("Mashup bundle not found: " + mashupBundleId))
+                        .getSellingPrice());
+    }
+
+    public List<AgentMashupPricing> getMashupPricings(String agentUserId) {
+        return agentMashupPricingRepository.findByAgentId(getProfileByUserId(agentUserId).getId());
+    }
+
     public List<AgentStorefrontBundle> getStorefront(String referralCode) {
         AgentProfile profile = resolveByCode(referralCode);
         return getStorefrontByProfile(profile, referralCode);
     }
 
     public List<AgentStorefrontBundle> getStorefrontByProfile(AgentProfile profile, String referralCode) {
-        return bundleRepository.findAll().stream()
+        List<AgentStorefrontBundle> standardBundles = bundleRepository.findAll().stream()
                 .filter(b -> Bundle.BundleStatus.ACTIVE.name().equals(b.getStatus()))
                 .map(bundle -> {
                     BigDecimal price = agentBundlePricingRepository
@@ -132,8 +179,32 @@ public class AgentService {
                             .bundleId(bundle.getId()).bundleCode(bundle.getCode())
                             .name(bundle.getName()).dataSize(bundle.getDataSize())
                             .network(bundle.getNetwork()).sellingPrice(price)
-                            .agentCode(referralCode).build();
+                            .agentCode(referralCode)
+                            .bundleType("STANDARD")
+                            .build();
                 }).toList();
+
+        List<AgentStorefrontBundle> mashupBundles = mashupRepository.findAll().stream()
+                .filter(MashupBundle::isPurchasable)
+                .map(bundle -> {
+                    BigDecimal price = agentMashupPricingRepository
+                            .findByAgentIdAndMashupBundleId(profile.getId(), bundle.getId())
+                            .filter(AgentMashupPricing::isActive)
+                            .map(AgentMashupPricing::getSellingPrice)
+                            .orElse(bundle.getSellingPrice());
+                    return AgentStorefrontBundle.builder()
+                            .bundleId(String.valueOf(bundle.getSpecialOfferPackageId())).bundleCode(bundle.getSlug())
+                            .name(bundle.getName()).dataSize(bundle.getDataSize() != null ? bundle.getDataSize() : bundle.getDataAmountMb() + "MB")
+                            .network(bundle.getNetwork()).sellingPrice(price)
+                            .agentCode(referralCode)
+                            .bundleType("MASHUP")
+                            .build();
+                }).toList();
+
+        java.util.List<AgentStorefrontBundle> allBundles = new java.util.ArrayList<>();
+        allBundles.addAll(standardBundles);
+        allBundles.addAll(mashupBundles);
+        return allBundles;
     }
 
     @Transactional

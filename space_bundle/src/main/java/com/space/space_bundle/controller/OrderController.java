@@ -1,5 +1,6 @@
 package com.space.space_bundle.controller;
 
+import com.space.space_bundle.dto.SingleOrderUserDTO;
 import com.space.space_bundle.entity.Order;
 import com.space.space_bundle.dto.ApiResponse;
 import com.space.space_bundle.dto.PlaceOrderRequest;
@@ -40,7 +41,7 @@ public class OrderController {
         Order order = orderService.placeOrder(
                 request.getNetwork(), request.getPhoneNumber(), request.getBundleCode(),
                 email, userDetails != null ? userDetails.getUserId() : null,
-                request.getPackage_id(), request.getAgentCode());
+                request.getPackage_id(), request.getAgentCode(), request.getBundleType());
 
         return ResponseEntity.ok(ApiResponse.success(order));
     }
@@ -63,5 +64,18 @@ public class OrderController {
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
         return ResponseEntity.ok(ApiResponse.success(
                 orderService.getById(id, userDetails.getUserId())));
+    }
+
+    @GetMapping("/completed/phone-numbers")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getDistinctCompletedPhoneNumbers() {
+        List<String> phoneNumbers = orderService.getDistinctCompletedPhoneNumbers();
+        return ResponseEntity.ok(phoneNumbers);
+    }
+
+    @GetMapping("/completed/single-order-users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<SingleOrderUserDTO>> getUsersWithSingleCompletedOrder() {
+        return ResponseEntity.ok(orderService.getUsersWithSingleCompletedOrder());
     }
 }

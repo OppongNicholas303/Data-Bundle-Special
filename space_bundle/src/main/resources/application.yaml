@@ -140,5 +140,3 @@ app:
   frontend-url: ${FRONTEND_URL}
   support-email: ${SUPPORT_EMAIL}
   storefront-base-url: ${STOREFRONT_BASE_URL}
-
-

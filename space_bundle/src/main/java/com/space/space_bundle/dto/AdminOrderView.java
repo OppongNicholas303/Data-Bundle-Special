@@ -17,6 +17,7 @@ public class AdminOrderView {
     private String network;
     private String phoneNumber;
     private String bundleCode;
+    private String bundleType;
     private String packageId;
 
     /** Total amount the customer paid (sellingPrice + 2% Paystack fee) */
@@ -61,6 +62,7 @@ public class AdminOrderView {
                 .network(o.getNetwork())
                 .phoneNumber(o.getPhoneNumber())
                 .bundleCode(o.getBundleCode())
+                .bundleType(o.getBundleType())
                 .packageId(o.getPackageId())
                 .amount(amount)
                 .baseAmount(selling)

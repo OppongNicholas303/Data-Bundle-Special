@@ -2,6 +2,7 @@ package com.space.space_bundle.controller;
 
 import com.space.space_bundle.dto.AgentStorefrontBundle;
 import com.space.space_bundle.entity.AgentBundlePricing;
+import com.space.space_bundle.entity.AgentMashupPricing;
 import com.space.space_bundle.entity.AgentProfile;
 import com.space.space_bundle.entity.Commission;
 import com.space.space_bundle.dto.*;
@@ -82,6 +83,24 @@ public class AgentController {
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
         return ResponseEntity.ok(ApiResponse.success("Price updated",
                 agentService.setPrice(userDetails.getUserId(), bundleId, request.getSellingPrice())));
+    }
+
+    @GetMapping("/mashup/pricing")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<ApiResponse<List<AgentMashupPricing>>> mashupPricings(
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(
+                agentService.getMashupPricings(userDetails.getUserId())));
+    }
+
+    @PutMapping("/mashup/{mashupBundleId}/price")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<ApiResponse<AgentMashupPricing>> setMashupPrice(
+            @PathVariable String mashupBundleId,
+            @Valid @RequestBody SetBundlePriceRequest request,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Mashup price updated",
+                agentService.setMashupPrice(userDetails.getUserId(), mashupBundleId, request.getSellingPrice())));
     }
 
     @GetMapping("/orders")
