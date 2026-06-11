@@ -108,12 +108,12 @@ public class WebhookService {
             boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", true);
             if (useRandyOnly) {
                 order.setByFrom("randy");
-                providerRef = automationService.buyFromRandy(order);
+                providerRef = order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
             } else {
                 // Preserve prior behavior: MTN => Randy, others => legacy bot
                 if ("MTN".equalsIgnoreCase(order.getNetwork())) {
                     order.setByFrom("randy");
-                    providerRef = automationService.buyFromRandy(order);
+                    providerRef = order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
                 } else {
                     providerRef = automationService.buy(order);
                 }

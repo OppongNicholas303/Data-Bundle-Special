@@ -375,13 +375,13 @@ public class OrderService {
         if (useRandyOnly) {
             // Route all orders through Randy when the feature flag is enabled
             order.setByFrom("randy");
-            return automationService.buyFromRandy(order);
+            return order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
         }
 
         // Default behaviour: MTN uses Randy, others use the legacy bot
         if ("MTN".equalsIgnoreCase(network)) {
             order.setByFrom("randy");
-            return automationService.buyFromRandy(order);
+            return order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
         }
         return automationService.buy(order);
     }

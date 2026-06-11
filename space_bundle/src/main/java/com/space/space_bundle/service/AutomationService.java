@@ -88,6 +88,33 @@ public class AutomationService {
         }
     }
 
+    public String buyFromRandyMashup(Order order) {
+        BotPurchaseRequest request = BotPurchaseRequest.builder()
+                .package_id(order.getPackageId())
+                .customer_phone(order.getPhoneNumber())
+                .build();
+
+        try {
+            log.info("Sending request to Randy bot: {}", request);
+            BotPurchaseResponseRandy body = webClient.post()
+                    .uri(botUrlRandy + "/external/special-offers/mashup/orders")
+                    .header("X-API-Key", botTokenRandy)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(BotPurchaseResponseRandy.class)
+                    .block();
+
+            if (body == null || !body.success() || body.order() == null || body.order().id() == null)
+                throw new RuntimeException(body != null ? body.message() : "No response");
+
+            return String.valueOf(body.order().order_number());
+        } catch (Exception e) {
+            log.error("Randy bot failed: {}", e.getMessage(), e);
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
+
     public BotPurchaseResponseRandy checkStatus(String orderNumber) {
         try {
             BotPurchaseResponseRandy response = webClient.get()
