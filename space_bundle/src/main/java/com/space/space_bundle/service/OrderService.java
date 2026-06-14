@@ -108,8 +108,11 @@ public class OrderService {
             AgentProfile profile = agentService.resolveByCode(agentCode);
             agentProfileId = profile.getId();
             agentUserId = profile.getUserId();
-            customerAmount = agentService.resolveEffectivePrice(agentUserId,
-                    bundleService.getByCodeAndNetwork(bundleCode, normalizedNetwork).getId());
+            String bundleId = bundleService.getByCodeAndNetwork(bundleCode, normalizedNetwork).getId();
+            // customerAmount = what customer pays (agent's selling price)
+            customerAmount = agentService.resolveEffectivePrice(agentUserId, bundleId);
+            // baseAmount = what platform earns = agent's assigned base price
+            baseAmount = agentService.resolveAgentBasePrice(agentUserId, bundleId, baseAmount);
             commissionAmount = customerAmount.subtract(baseAmount);
         }
 

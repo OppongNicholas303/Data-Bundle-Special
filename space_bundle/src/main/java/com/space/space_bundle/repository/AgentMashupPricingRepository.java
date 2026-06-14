@@ -11,4 +11,6 @@ public interface AgentMashupPricingRepository extends MongoRepository<AgentMashu
     Optional<AgentMashupPricing> findByAgentIdAndMashupBundleId(String agentId, String mashupBundleId);
 
     List<AgentMashupPricing> findByAgentId(String agentId);
+
+    List<AgentMashupPricing> findByMashupBundleId(String mashupBundleId);
 }
