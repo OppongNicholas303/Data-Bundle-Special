@@ -1,10 +1,15 @@
 package com.space.space_bundle.service;
 
+import com.space.space_bundle.dto.MashupBundleRequest;
 import com.space.space_bundle.entity.Bundle;
+import com.space.space_bundle.entity.MashupBundle;
 import com.space.space_bundle.repository.BundleRepository;
+import com.space.space_bundle.repository.MashupRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -16,6 +21,7 @@ import java.util.UUID;
 public class BundleService {
 
     private final BundleRepository bundleRepository;
+    private  final MashupRepository mashupRepository;
 
     public Bundle create(String code, String name, String dataSize, String network,
                          BigDecimal costPrice, BigDecimal sellingPrice, String description) {
@@ -27,6 +33,32 @@ public class BundleService {
                 .description(description)
                 .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now())
                 .build());
+    }
+
+    public MashupBundle createMashupBundle(MashupBundleRequest request) {
+        mashupRepository.findBySpecialOfferPackageId(request.getSpecialOfferPackageId())
+                .ifPresent(b -> { throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Mashup bundle with this specialOfferPackageId already exists"); });
+
+        MashupBundle bundle = MashupBundle.builder()
+                .id(UUID.randomUUID().toString())  // <-- added
+                .externalId(request.getExternalId())
+                .specialOfferPackageId(request.getSpecialOfferPackageId())
+                .slug(request.getSlug())
+                .name(request.getName())
+                .description(request.getDescription())
+                .dataAmountMb(request.getDataAmountMb())
+                .dataSize(request.getDataSize())
+                .network(request.getNetwork())
+                .costPrice(request.getCostPrice())
+                .sellingPrice(request.getSellingPrice())
+                .status(MashupBundle.MashupStatus.ACTIVE.name())
+                .available(true)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        return mashupRepository.save(bundle);
     }
 
     public Bundle getByCodeAndNetwork(String code, String network) {

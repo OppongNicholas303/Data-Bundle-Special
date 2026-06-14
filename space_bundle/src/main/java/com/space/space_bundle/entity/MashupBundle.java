@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 public class MashupBundle {
 
     @Id
+    @Field(targetType = FieldType.STRING)
     private String id;
 
     private Integer externalId;

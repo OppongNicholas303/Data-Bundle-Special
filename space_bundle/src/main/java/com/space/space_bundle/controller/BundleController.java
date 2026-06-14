@@ -1,9 +1,12 @@
 package com.space.space_bundle.controller;
 
+import com.space.space_bundle.dto.MashupBundleRequest;
 import com.space.space_bundle.entity.Bundle;
 import com.space.space_bundle.dto.ApiResponse;
 import com.space.space_bundle.dto.CreateBundleRequest;
+import com.space.space_bundle.entity.MashupBundle;
 import com.space.space_bundle.service.BundleService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -50,5 +53,12 @@ public class BundleController {
                 request.getName(), request.getDataSize(),
                 request.getCostPrice(), request.getSellingPrice(), request.getDescription());
         return ResponseEntity.ok(ApiResponse.success("Bundle updated", updated));
+    }
+
+    @PostMapping("/create-mashup")
+
+//    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<MashupBundle>> create(@RequestBody @Valid MashupBundleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Mashup bundle created", bundleService.createMashupBundle(request)));
     }
 }
