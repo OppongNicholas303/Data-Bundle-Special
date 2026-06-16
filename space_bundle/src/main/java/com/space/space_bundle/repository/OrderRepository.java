@@ -13,6 +13,9 @@ import java.util.Optional;
 public interface OrderRepository extends MongoRepository<Order, String> {
     List<Order> findByUserId(String userId);
     List<Order> findByAgentId(String agentId);
+    List<Order> findByAgentIdAndCreatedAtBetween(String agentId, LocalDateTime from, LocalDateTime to);
+    List<Order> findByAgentIdAndStatus(String agentId, String status);
+    List<Order> findByAgentIdAndStatusAndCreatedAtBetween(String agentId, String status, LocalDateTime from, LocalDateTime to);
     List<Order> findByUserIdAndStatus(String userId, String status);
     List<Order> findByUserIdAndPhoneNumber(String userId, String phoneNumber);
     List<Order> findByUserIdAndPhoneNumberAndStatus(String userId, String phoneNumber, String status);

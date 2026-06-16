@@ -10,19 +10,79 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 function AgentDetail({ agent }: { agent: AdminAgent }) {
+  const qc = useQueryClient();
+  // Filtering UX: allow presets and custom date range. Apply button updates applied range used for queries.
+  const [periodPreset, setPeriodPreset] = useState<"TODAY" | "7D" | "ALL" | "CUSTOM">("TODAY");
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const sevenAgo = new Date(); sevenAgo.setDate(sevenAgo.getDate() - 6);
+  const sevenAgoStr = sevenAgo.toISOString().slice(0, 10);
+
+  const [fromDate, setFromDate] = useState<string>(sevenAgoStr);
+  const [toDate, setToDate] = useState<string>(todayStr);
+  const [appliedFrom, setAppliedFrom] = useState<string | undefined>(todayStr);
+  const [appliedTo, setAppliedTo] = useState<string | undefined>(todayStr);
+
+  const [orderStatus, setOrderStatus] = useState<string | undefined>(undefined);
+  const [commissionStatus, setCommissionStatus] = useState<string | undefined>(undefined);
+
+  const applyFilters = (preset?: "TODAY" | "7D" | "ALL" | "CUSTOM") => {
+    const p = preset ?? periodPreset;
+    setPeriodPreset(p);
+    if (p === "ALL") {
+      setAppliedFrom(undefined);
+      setAppliedTo(undefined);
+    } else if (p === "TODAY") {
+      setAppliedFrom(todayStr);
+      setAppliedTo(todayStr);
+    } else if (p === "7D") {
+      setAppliedFrom(sevenAgoStr);
+      setAppliedTo(todayStr);
+    } else {
+      // CUSTOM
+      setAppliedFrom(fromDate || undefined);
+      setAppliedTo(toDate || undefined);
+    }
+    // Invalidate queries to force fresh fetch for the agent
+    qc.invalidateQueries({ queryKey: ["agent-commissions", agent.id] });
+    qc.invalidateQueries({ queryKey: ["agent-orders", agent.id] });
+  };
   const { data: commissions = [], isLoading: loadingC } = useQuery({
-    queryKey: ["agent-commissions", agent.id],
-    queryFn: () => adminService.getAgentCommissions(agent.id),
+    queryKey: ["agent-commissions", agent.id, appliedFrom, appliedTo, commissionStatus],
+    queryFn: () => adminService.getAgentCommissions(agent.id, commissionStatus, appliedFrom, appliedTo),
   });
   const { data: orders = [], isLoading: loadingO } = useQuery({
-    queryKey: ["agent-orders", agent.id],
-    queryFn: () => adminService.getAgentOrders(agent.id),
+    queryKey: ["agent-orders", agent.id, appliedFrom, appliedTo, orderStatus],
+    queryFn: () => adminService.getAgentOrders(agent.id, orderStatus, undefined, appliedFrom, appliedTo),
   });
   const { data: withdrawals = [], isLoading: loadingW } = useQuery({
     queryKey: ["agent-withdrawals", agent.id],
     queryFn: () => adminService.getAgentWithdrawals(agent.id),
+  });
+
+  const { data: wallet, isLoading: loadingWallet } = useQuery({
+    queryKey: ["agent-wallet", agent.id],
+    queryFn: () => adminService.getAgentWallet(agent.id),
+  });
+
+  const [topUpOpen, setTopUpOpen] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [adminNote, setAdminNote] = useState("");
+
+  const topUpMutation = useMutation({
+    mutationFn: () => adminService.topUpAgentWallet(agent.id, parseFloat(topUpAmount || "0"), adminNote),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["agent-wallet", agent.id] });
+      qc.invalidateQueries({ queryKey: ["admin-agents"] });
+      toast.success("Top-up successful");
+      setTopUpOpen(false);
+      setTopUpAmount("");
+      setAdminNote("");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   return (
@@ -31,6 +91,35 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
         <div className="bg-muted/20 border-b p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Commissions */}
           <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground">Period</label>
+                <select value={periodPreset} onChange={e => setPeriodPreset(e.target.value as any)} className="text-sm rounded px-2 py-1">
+                  <option value="TODAY">Today</option>
+                  <option value="7D">Last 7 days</option>
+                  <option value="ALL">All</option>
+                  <option value="CUSTOM">Custom</option>
+                </select>
+                {periodPreset === "CUSTOM" && (
+                  <>
+                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="text-sm rounded px-2 py-1" />
+                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="text-sm rounded px-2 py-1" />
+                  </>
+                )}
+                <label className="text-xs text-muted-foreground">Commission status</label>
+                <select value={commissionStatus ?? ""} onChange={e => setCommissionStatus(e.target.value || undefined)} className="text-sm rounded px-2 py-1">
+                  <option value="">All</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="SETTLED">SETTLED</option>
+                  <option value="REVERSED">REVERSED</option>
+                </select>
+                <Button size="sm" onClick={() => applyFilters()}>Apply</Button>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground">Total commissions</div>
+                <div className="font-semibold">{formatCurrency(commissions.reduce((s, c) => s + (Number((c as any).profit || 0)), 0))}</div>
+              </div>
+            </div>
             <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">
               <TrendingUp className="h-4 w-4 text-success" /> Commissions
             </p>
@@ -52,6 +141,35 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
           </div>
           {/* Orders */}
           <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground">Period</label>
+                <select value={periodPreset} onChange={e => setPeriodPreset(e.target.value as any)} className="text-sm rounded px-2 py-1">
+                  <option value="TODAY">Today</option>
+                  <option value="7D">Last 7 days</option>
+                  <option value="ALL">All</option>
+                  <option value="CUSTOM">Custom</option>
+                </select>
+                {periodPreset === "CUSTOM" && (
+                  <>
+                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="text-sm rounded px-2 py-1" />
+                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="text-sm rounded px-2 py-1" />
+                  </>
+                )}
+                <label className="text-xs text-muted-foreground">Order status</label>
+                <select value={orderStatus ?? ""} onChange={e => setOrderStatus(e.target.value || undefined)} className="text-sm rounded px-2 py-1">
+                  <option value="">All</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="FAILED">FAILED</option>
+                </select>
+                <Button size="sm" onClick={() => applyFilters()}>Apply</Button>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground">Orders</div>
+                <div className="font-semibold">{orders.length}</div>
+              </div>
+            </div>
             <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">
               <ShoppingCart className="h-4 w-4 text-primary" /> Orders
             </p>
@@ -71,11 +189,27 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
               </div>
             )}
           </div>
-          {/* Withdrawals */}
+          {/* Withdrawals & Wallet */}
           <div>
-            <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-              <Wallet className="h-4 w-4 text-warning" /> Withdrawals
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold flex items-center gap-1.5">
+                <Wallet className="h-4 w-4 text-warning" /> Withdrawals
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Wallet balance</p>
+                  {loadingWallet ? (
+                    <p className="font-semibold">Loading...</p>
+                  ) : wallet ? (
+                    <p className="font-semibold">{formatCurrency(wallet.balance)}</p>
+                  ) : (
+                    <p className="font-semibold">—</p>
+                  )}
+                </div>
+                <Button size="sm" onClick={() => setTopUpOpen(true)}>Top Up</Button>
+              </div>
+            </div>
+
             {loadingW ? (
               <p className="text-xs text-muted-foreground">Loading...</p>
             ) : withdrawals.length === 0 ? (
@@ -97,6 +231,34 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
                 ))}
               </div>
             )}
+
+            {/* Top-up dialog */}
+            <Dialog open={topUpOpen} onOpenChange={open => !open && setTopUpOpen(false)}>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">Top Up Wallet — {agent.businessName}</DialogTitle>
+                  <DialogDescription>Enter the amount to credit to the agent's wallet. This will add funds immediately.</DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="topup-amount">Amount (GHS)</Label>
+                    <Input id="topup-amount" type="number" step="0.01" min="0.01" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="topup-note">Admin note (optional)</Label>
+                    <Input id="topup-note" placeholder="e.g. Manual credit" value={adminNote} onChange={e => setAdminNote(e.target.value)} />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setTopUpOpen(false)} disabled={topUpMutation.isPending}>Cancel</Button>
+                    <Button className="flex-1" onClick={() => topUpMutation.mutate()} disabled={topUpMutation.isPending || !topUpAmount || parseFloat(topUpAmount) <= 0}>
+                      {topUpMutation.isPending ? "Processing..." : "Top Up"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </td>

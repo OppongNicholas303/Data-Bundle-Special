@@ -181,3 +181,10 @@ export interface MashupSyncResult {
   unavailable: number;
   seen: number;
 }
+
+export interface AgentWallet {
+  balance: number;
+  currency: string;
+  updatedAt?: string | null;
+}
+

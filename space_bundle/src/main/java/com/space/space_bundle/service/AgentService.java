@@ -34,11 +34,10 @@ public class AgentService {
         if (agentProfileRepository.existsByUserId(userId))
             throw new IllegalStateException("Agent profile already exists for userId=" + userId);
 
-        User user = userRepository.findById(userId)
+        // Do NOT grant ROLE_AGENT immediately. Agent registration should be reviewed by admin
+        // before the user receives agent privileges. Create a pending agent profile (active=false).
+        userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        user.getRoles().add(User.Role.ROLE_AGENT.name());
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
 
         AgentProfile profile = agentProfileRepository.save(AgentProfile.builder()
                 .id(UUID.randomUUID().toString())
@@ -47,7 +46,8 @@ public class AgentService {
                 .referralCode(generateUniqueCode())
                 .totalSales(BigDecimal.ZERO)
                 .totalProfit(BigDecimal.ZERO)
-                .active(true)
+                // pending approval by admin
+                .active(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build());

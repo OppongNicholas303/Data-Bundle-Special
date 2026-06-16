@@ -34,6 +34,7 @@ public class AdminController {
     private final CommissionRepository commissionRepository;
     private final AdminWithdrawalService adminWithdrawalService;
     private final OrderMigrationService orderMigrationService;
+    private final com.space.space_bundle.service.WalletService walletService;
 
     // ── Users ──────────────────────────────────────────────────────────────
 
@@ -97,21 +98,99 @@ public class AdminController {
     public ResponseEntity<ApiResponse<AgentProfile>> toggleAgentActive(@PathVariable String id) {
         AgentProfile agent = agentProfileRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + id));
-        agent.setActive(!agent.isActive());
+        boolean activating = !agent.isActive();
+        agent.setActive(activating);
         agentProfileRepository.save(agent);
+
+        // When activating, grant ROLE_AGENT and ensure wallet exists.
+        userRepository.findById(agent.getUserId()).ifPresent(user -> {
+            if (activating) {
+                if (user.getRoles() == null) user.setRoles(new java.util.HashSet<>());
+                if (!user.getRoles().contains(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name()))
+                    user.getRoles().add(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name());
+                user.setUpdatedAt(java.time.LocalDateTime.now());
+                userRepository.save(user);
+                // create wallet if missing
+                try {
+                    walletService.createWallet(user.getId());
+                } catch (Exception ignore) {
+                    // wallet may already exist; ignore
+                }
+            } else {
+                // Deactivating: remove ROLE_AGENT
+                if (user.getRoles() != null && user.getRoles().contains(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name())) {
+                    user.getRoles().remove(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name());
+                    user.setUpdatedAt(java.time.LocalDateTime.now());
+                    userRepository.save(user);
+                }
+            }
+        });
+
         return ResponseEntity.ok(ApiResponse.success(
                 agent.isActive() ? "Agent activated" : "Agent deactivated", agent));
     }
 
     @GetMapping("/agents/{id}/commissions")
-    public ResponseEntity<ApiResponse<List<Commission>>> getAgentCommissions(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success(commissionRepository.findByAgentId(id)));
+    public ResponseEntity<ApiResponse<List<Commission>>> getAgentCommissions(
+            @PathVariable String id,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.plusDays(1).atStartOfDay() : null;
+
+        boolean hasDate   = fromDt != null && toDt != null;
+        boolean hasStatus = status != null;
+
+        List<Commission> list;
+        if (hasDate && hasStatus) {
+            list = commissionRepository.findByAgentIdAndStatusAndCreatedAtBetween(id, status.toUpperCase(), fromDt, toDt);
+        } else if (hasDate) {
+            list = commissionRepository.findByAgentIdAndCreatedAtBetween(id, fromDt, toDt);
+        } else if (hasStatus) {
+            list = commissionRepository.findByAgentIdAndStatus(id, status.toUpperCase());
+        } else {
+            list = commissionRepository.findByAgentId(id);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     @GetMapping("/agents/{id}/orders")
-    public ResponseEntity<ApiResponse<List<AdminOrderView>>> getAgentOrders(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success(
-                orderRepository.findByAgentId(id).stream().map(AdminOrderView::from).toList()));
+    public ResponseEntity<ApiResponse<List<AdminOrderView>>> getAgentOrders(
+            @PathVariable String id,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String network,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.plusDays(1).atStartOfDay() : null;
+
+        boolean hasDate   = fromDt != null && toDt != null;
+        boolean hasStatus = status  != null;
+        boolean hasNet    = network != null;
+
+        List<Order> orders;
+        if (hasDate && hasStatus && hasNet)
+            orders = orderRepository.findByStatusAndNetworkAndCreatedAtBetween(status.toUpperCase(), network.toLowerCase(), fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasDate && hasStatus)
+            orders = orderRepository.findByStatusAndCreatedAtBetween(status.toUpperCase(), fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasDate && hasNet)
+            orders = orderRepository.findByNetworkAndCreatedAtBetween(network.toLowerCase(), fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasDate)
+            orders = orderRepository.findByCreatedAtBetween(fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasStatus && hasNet)
+            orders = orderRepository.findByStatusAndNetwork(status.toUpperCase(), network.toLowerCase()).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasStatus)
+            orders = orderRepository.findByAgentIdAndStatus(id, status.toUpperCase());
+        else if (hasNet)
+            orders = orderRepository.findByNetwork(network.toLowerCase()).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else
+            orders = orderRepository.findByAgentId(id);
+
+        return ResponseEntity.ok(ApiResponse.success(orders.stream().map(AdminOrderView::from).toList()));
     }
 
     @GetMapping("/agents/{id}/withdrawals")
@@ -122,6 +201,34 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(
             adminWithdrawalService.getByAgentProfileId(id)
         ));
+    }
+
+    @GetMapping("/agents/{id}/wallet")
+    public ResponseEntity<ApiResponse<com.space.space_bundle.dto.WalletBalanceResponse>> getAgentWallet(@PathVariable String id) {
+        AgentProfile agent = agentProfileRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + id));
+        java.math.BigDecimal balance = walletService.getBalance(agent.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(
+                com.space.space_bundle.dto.WalletBalanceResponse.builder()
+                        .balance(balance).currency("GHS").build()));
+    }
+
+    @PostMapping("/agents/{id}/wallet/topup")
+    public ResponseEntity<ApiResponse<com.space.space_bundle.dto.WalletBalanceResponse>> topUpAgentWallet(
+            @PathVariable String id, @RequestBody AdminTopUpRequest req) {
+        if (req.getAmount() == null) throw new IllegalArgumentException("amount is required");
+        if (req.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) throw new IllegalArgumentException("amount must be > 0");
+        AgentProfile agent = agentProfileRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + id));
+        // Use admin provided note if present, otherwise fall back to default description
+        String desc = req.getNote() != null && !req.getNote().isBlank()
+                ? req.getNote()
+                : "Admin top-up for agent " + agent.getBusinessName();
+        walletService.credit(agent.getUserId(), req.getAmount(), desc);
+        java.math.BigDecimal balance = walletService.getBalance(agent.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(
+                com.space.space_bundle.dto.WalletBalanceResponse.builder()
+                        .balance(balance).currency("GHS").build()));
     }
 
     // ── Withdrawals ────────────────────────────────────────────────────────
@@ -341,6 +448,13 @@ public class AdminController {
         private BigDecimal costPrice;
         private BigDecimal sellingPrice;
         private String description;
+    }
+
+    @Data
+    public static class AdminTopUpRequest {
+        private java.math.BigDecimal amount;
+        // Optional admin note to be saved with the wallet transaction
+        private String note;
     }
 
     @Data

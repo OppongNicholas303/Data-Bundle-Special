@@ -1,3 +1,153 @@
+#spring:
+#  application:
+#    name: space-bundle
+#
+#
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    username: ${MAIL_USERNAME}
+#    password: ${MAIL_PASSWORD}
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true
+#            required: true
+#          ssl:
+#            enable: false
+#          connectiontimeout: 10000
+#          timeout: 10000
+#          writetimeout: 10000
+#
+#  # MongoDB Configuration
+#  data:
+#    mongodb:
+#      uri: ${MONGO_URI}
+#      auto-index-creation: true
+#  autoconfigure:
+#    exclude: org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration
+#
+#  # Disable default security password
+#  security:
+#    user:
+#      name: disabled
+#      password: disabled
+#
+## JWT Configuration
+#jwt:
+#  secret: ${JWT_SECRET}
+#  expiration: ${JWT_EXPIRATION:1800000} # 30 minutes in milliseconds
+#  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
+#  issuer: ${JWT_ISSUER:space-bundle}
+#  header: Authorization
+#  prefix: "Bearer "
+#
+## Server Configuration
+#server:
+#  port: ${SERVER_PORT:8080}
+#  servlet:
+#    context-path: /api
+#  error:
+#    include-message: always
+#    include-binding-errors: always
+#    include-stacktrace: ${INCLUDE_STACKTRACE:never}
+#    include-exception: false
+#  compression:
+#    enabled: true
+#    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+#  http2:
+#    enabled: true
+#  shutdown: graceful
+#
+## Actuator Configuration
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics,prometheus
+#      base-path: /actuator
+#    enabled-by-default: false
+#  endpoint:
+#    health:
+#      enabled: true
+#      show-details: ${HEALTH_SHOW_DETAILS:when-authorized}
+#      show-components: ${HEALTH_SHOW_COMPONENTS:when-authorized}
+#      probes:
+#        enabled: true
+#    info:
+#      enabled: true
+#    metrics:
+#      enabled: true
+#    prometheus:
+#      enabled: true
+#  metrics:
+#    export:
+#      prometheus:
+#        enabled: true
+#    tags:
+#      application: ${spring.application.name}
+#  health:
+#    livenessstate:
+#      enabled: true
+#    readinessstate:
+#      enabled: true
+#    mongo:
+#      enabled: true
+#
+## Application Info
+#info:
+#  app:
+#    name: ${spring.application.name}
+#    description: Space Bundle Application
+#    version: 0.0.1-SNAPSHOT
+#    encoding: UTF-8
+#  java:
+#    version: 21
+#
+## Logging — managed by logback-spring.xml
+#logging:
+#  file:
+#    name: ${LOG_FILE:logs/space-bundle.log}
+#    max-size: ${LOG_MAX_SIZE:10MB}
+#    max-history: ${LOG_MAX_HISTORY:30}
+#  level:
+#    root: ${LOG_LEVEL_ROOT:INFO}
+#    com.space: ${LOG_LEVEL_APP:INFO}
+#
+## Bot Configuration
+#bot:
+#  api:
+#    url: ${BOT_API_URL}
+#    urlRandy: ${BOT_API_URL_RANDY}
+#    token: ${BOT_TOKEN}
+#    tokenRandy: ${BOT_TOKEN_RANDY}
+#    timeout: 30000
+#    login:
+#      url: https://mydatagigs.com/login/
+#      username: ${BOT_LOGIN_USERNAME}
+#      password: ${BOT_LOGIN_PASSWORD}
+#
+#mashup:
+#  offers:
+#    url: ${MASHUP_OFFERS_URL}
+#    timeout-seconds: ${MASHUP_OFFERS_TIMEOUT_SECONDS:8}
+#
+## Paystack Configuration
+#paystack:
+#  secret-key: ${PAYSTACK_SECRET_KEY}
+#  public-key: ${PAYSTACK_PUBLIC_KEY}
+#  callback-url: ${PAYSTACK_CALLBACK_URL:http:}
+#
+## Frontend Configuration
+#app:
+#  frontend-url: ${FRONTEND_URL}
+#  support-email: ${SUPPORT_EMAIL}
+#  storefront-base-url: ${STOREFRONT_BASE_URL}
+#
+#
+
 spring:
   application:
     name: space-bundle
@@ -6,8 +156,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:nicholas.oppong@stu.ucc.edu.gh}
+    password: ${MAIL_PASSWORD:youdkvfjtbxvstgp}
     properties:
       mail:
         smtp:
@@ -24,7 +174,7 @@ spring:
   # MongoDB Configuration
   data:
     mongodb:
-      uri: ${MONGO_URI}
+      uri: ${MONGO_URI:mongodb+srv://nicholasoppong2623_db_user:Yaw0243911336@cluster0.arawb0h.mongodb.net/bundle?retryWrites=true&w=majority&connectTimeoutMS=10000&socketTimeoutMS=60000&serverSelectionTimeoutMS=10000&maxIdleTimeMS=45000&heartbeatFrequencyMS=10000}
       auto-index-creation: true
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration
@@ -37,7 +187,7 @@ spring:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:default-jwt-secret-key-change-in-production-minimum-256-bits-required}
   expiration: ${JWT_EXPIRATION:1800000} # 30 minutes in milliseconds
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
   issuer: ${JWT_ISSUER:space-bundle}
@@ -119,31 +269,32 @@ logging:
 # Bot Configuration
 bot:
   api:
-    url: ${BOT_API_URL}
-    urlRandy: ${BOT_API_URL_RANDY}
-    token: ${BOT_TOKEN}
-    tokenRandy: ${BOT_TOKEN_RANDY}
+    url: ${BOT_API_URL:https://mydatagigs.com/wp-json/}
+    urlRandy: ${BOT_API_URL_RANDY:https://myspaceserver}
+    token: ${BOT_TOKEN:tera_live_d7a798a4790c08e51366d0580276835b}
+    tokenRandy: ${BOT_TOKEN_RANDY:sk_4975646ef9cc4a5a2bcfd62c0f60f8a0a713de8114df7c47965b2703a9d555f7}
     timeout: 30000
     login:
       url: https://mydatagigs.com/login/
-      username: ${BOT_LOGIN_USERNAME}
-      password: ${BOT_LOGIN_PASSWORD}
-
-mashup:
-  offers:
-    url: ${MASHUP_OFFERS_URL}
-    timeout-seconds: ${MASHUP_OFFERS_TIMEOUT_SECONDS:8}
+      username: ${BOT_LOGIN_USERNAME:nicholas.oppong2623@gmail.com}
+      password: ${BOT_LOGIN_PASSWORD:Vida0243911336@}
 
 # Paystack Configuration
 paystack:
-  secret-key: ${PAYSTACK_SECRET_KEY}
-  public-key: ${PAYSTACK_PUBLIC_KEY}
+  secret-key: ${PAYSTACK_SECRET_KEY:sk_test_2f49095b8e9098ffe557d1e2c0da23b7fc1d3e85}
+  #  secret-key: ${PAYSTACK_SECRET_KEY:sk_live_f0093830589f27f6918d5d09be99cba316ba2b23}
+  #  public-key: ${PAYSTACK_PUBLIC_KEY:pk_live_36be4dbef25af294c1495a55cd589e4c43a2dfc3}
+  public-key: ${PAYSTACK_PUBLIC_KEY:pk_test_5157238881b10dd94d75af2d7acd51b5590015ad}
   callback-url: ${PAYSTACK_CALLBACK_URL:http:}
+
+mashup:
+  offers:
+    url: ${MASHUP_OFFERS_URL:https://myspaceserver.c}
+    timeout-seconds: ${MASHUP_OFFERS_TIMEOUT_SECONDS:8}
+
 
 # Frontend Configuration
 app:
-  frontend-url: ${FRONTEND_URL}
-  support-email: ${SUPPORT_EMAIL}
-  storefront-base-url: ${STOREFRONT_BASE_URL}
-
-
+  frontend-url: ${FRONTEND_URL:http://localhost:8081}
+  support-email: ${SUPPORT_EMAIL:support@tapdata.com}
+  storefront-base-url: ${STOREFRONT_BASE_URL:https://tapdata.vercel.app/store}

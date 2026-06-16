@@ -44,7 +44,7 @@ public class AgentController {
     public ResponseEntity<ApiResponse<AgentProfile>> register(
             @Valid @RequestBody AgentRegisterRequest request,
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success("Agent registered",
+        return ResponseEntity.ok(ApiResponse.success("Agent registered. Pending admin approval.",
                 agentService.register(userDetails.getUserId(), request.getBusinessName())));
     }
 

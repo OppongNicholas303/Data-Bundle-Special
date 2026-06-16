@@ -41,16 +41,37 @@ export const adminService = {
     const res = await apiClient.put(`/admin/agents/${id}/toggle-active`) as ApiWrap<AdminAgent>;
     return res.data;
   },
-  getAgentCommissions: async (id: string): Promise<Commission[]> => {
-    const res = await apiClient.get(`/admin/agents/${id}/commissions`) as ApiWrap<Commission[]>;
+  getAgentCommissions: async (id: string, status?: string, from?: string, to?: string): Promise<Commission[]> => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const query = params.toString();
+    const res = await apiClient.get(`/admin/agents/${id}/commissions${query ? `?${query}` : ''}`) as ApiWrap<Commission[]>;
     return res.data;
   },
-  getAgentOrders: async (id: string): Promise<AdminOrder[]> => {
-    const res = await apiClient.get(`/admin/agents/${id}/orders`) as ApiWrap<AdminOrder[]>;
+  getAgentOrders: async (id: string, status?: string, network?: string, from?: string, to?: string): Promise<AdminOrder[]> => {
+    const params = new URLSearchParams();
+    if (status)  params.set('status',  status);
+    if (network) params.set('network', network);
+    if (from)    params.set('from',    from);
+    if (to)      params.set('to',      to);
+    const query = params.toString();
+    const res = await apiClient.get(`/admin/agents/${id}/orders${query ? `?${query}` : ''}`) as ApiWrap<AdminOrder[]>;
     return res.data;
   },
   getAgentWithdrawals: async (id: string): Promise<WithdrawalRequest[]> => {
     const res = await apiClient.get(`/admin/agents/${id}/withdrawals`) as ApiWrap<WithdrawalRequest[]>;
+    return res.data;
+  },
+
+  // Wallet
+  getAgentWallet: async (agentProfileId: string): Promise<{ balance: number; currency: string; updatedAt?: string | null }> => {
+    const res = await apiClient.get(`/admin/agents/${agentProfileId}/wallet`) as ApiWrap<{ balance: number; currency: string; updatedAt?: string | null }>;
+    return res.data;
+  },
+  topUpAgentWallet: async (agentProfileId: string, amount: number, note?: string): Promise<{ balance: number; currency: string; updatedAt?: string | null }> => {
+    const res = await apiClient.post(`/admin/agents/${agentProfileId}/wallet/topup`, { amount, note }) as ApiWrap<{ balance: number; currency: string; updatedAt?: string | null }>;
     return res.data;
   },
 
