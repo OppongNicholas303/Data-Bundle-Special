@@ -110,8 +110,7 @@ public class SecurityConfig {
             "http://localhost:8081",
             "http://localhost:3000",
             "http://localhost:3001",
-                "https://admin-dashboard-six-rho-17.vercel.app/",
-                "https://admin-dashboard-six-rho-17.vercel.app/login"
+                "https://admin-dashboard-six-rho-17.vercel.app"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "x-paystack-signature"));
