@@ -10,8 +10,8 @@ class ApiClient {
     const token = authService.getValidToken();
     const tokenType = localStorage.getItem("token_type") || "Bearer";
     return token
-      ? { Authorization: `${tokenType} ${token}`, "Content-Type": "application/json" }
-      : { "Content-Type": "application/json" };
+      ? { Authorization: `${tokenType} ${token}`, "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" }
+      : { "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" };
   }
 
   private async handleResponse(response: Response): Promise<unknown> {
