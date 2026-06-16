@@ -96,23 +96,40 @@ export const adminService = {
     await apiClient.delete(`/admin/bundles/${id}`);
   },
 
-  // Orders
-  getOrders: async (status?: string, network?: string, from?: string, to?: string): Promise<AdminOrder[]> => {
-    const params = new URLSearchParams();
-    if (status)  params.set("status",  status);
-    if (network) params.set("network", network);
-    if (from)    params.set("from",    from);
-    if (to)      params.set("to",      to);
-    const query = params.toString();
-    const res = await apiClient.get(`/admin/orders${query ? `?${query}` : ""}`) as ApiWrap<AdminOrder[]>;
-    return res.data;
-  },
+   // Orders
+   getOrders: async (status?: string, network?: string, from?: string, to?: string): Promise<AdminOrder[]> => {
+     const params = new URLSearchParams();
+     if (status)  params.set("status",  status);
+     if (network) params.set("network", network);
+     if (from)    params.set("from",    from);
+     if (to)      params.set("to",      to);
+     const query = params.toString();
+     const res = await apiClient.get(`/admin/orders${query ? `?${query}` : ""}`) as ApiWrap<AdminOrder[]>;
+     return res.data;
+   },
+   markOrderComplete: async (orderId: string, providerReference?: string): Promise<AdminOrder> => {
+     const res = await apiClient.post(`/admin/orders/${orderId}/mark-complete`, { providerReference }) as ApiWrap<AdminOrder>;
+     return res.data;
+   },
+   markOrderCompleteByAdmin: async (orderId: string): Promise<AdminOrder> => {
+     const res = await apiClient.post(`/admin/orders/${orderId}/mark-complete-by-admin`) as ApiWrap<AdminOrder>;
+     return res.data;
+   },
 
-  // Analytics
-  getDailyAnalytics: async (days = 30): Promise<DailyAnalytics[]> => {
-    const res = await apiClient.get(`/admin/analytics/daily?days=${days}`) as ApiWrap<DailyAnalytics[]>;
-    return res.data;
-  },
+   // Analytics
+   getDailyAnalytics: async (days = 30): Promise<DailyAnalytics[]> => {
+     const res = await apiClient.get(`/admin/analytics/daily?days=${days}`) as ApiWrap<DailyAnalytics[]>;
+     return res.data;
+   },
+   getAgentCommissionsSummary: async (agentId?: string, from?: string, to?: string): Promise<{ dailySummary: any[]; totalCommissions: number; totalOrders: number; fromDate: string; toDate: string; agentId: string }> => {
+     const params = new URLSearchParams();
+     if (agentId) params.set('agentId', agentId);
+     if (from) params.set('from', from);
+     if (to) params.set('to', to);
+     const query = params.toString();
+     const res = await apiClient.get(`/admin/analytics/agent-commissions${query ? `?${query}` : ''}`) as ApiWrap<any>;
+     return res.data;
+   },
 
   // Migrations
   backfillOrderCosts: async (): Promise<Record<string, number>> => {

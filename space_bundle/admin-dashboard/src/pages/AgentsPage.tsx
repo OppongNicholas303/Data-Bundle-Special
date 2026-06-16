@@ -15,48 +15,28 @@ import { Label } from "@/components/ui/label";
 
 function AgentDetail({ agent }: { agent: AdminAgent }) {
   const qc = useQueryClient();
-  // Filtering UX: allow presets and custom date range. Apply button updates applied range used for queries.
-  const [periodPreset, setPeriodPreset] = useState<"TODAY" | "7D" | "ALL" | "CUSTOM">("TODAY");
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const sevenAgo = new Date(); sevenAgo.setDate(sevenAgo.getDate() - 6);
-  const sevenAgoStr = sevenAgo.toISOString().slice(0, 10);
-
-  const [fromDate, setFromDate] = useState<string>(sevenAgoStr);
-  const [toDate, setToDate] = useState<string>(todayStr);
-  const [appliedFrom, setAppliedFrom] = useState<string | undefined>(todayStr);
-  const [appliedTo, setAppliedTo] = useState<string | undefined>(todayStr);
-
+  const [period, setPeriod] = useState<"TODAY" | "7D" | "ALL">("TODAY");
   const [orderStatus, setOrderStatus] = useState<string | undefined>(undefined);
   const [commissionStatus, setCommissionStatus] = useState<string | undefined>(undefined);
 
-  const applyFilters = (preset?: "TODAY" | "7D" | "ALL" | "CUSTOM") => {
-    const p = preset ?? periodPreset;
-    setPeriodPreset(p);
-    if (p === "ALL") {
-      setAppliedFrom(undefined);
-      setAppliedTo(undefined);
-    } else if (p === "TODAY") {
-      setAppliedFrom(todayStr);
-      setAppliedTo(todayStr);
-    } else if (p === "7D") {
-      setAppliedFrom(sevenAgoStr);
-      setAppliedTo(todayStr);
-    } else {
-      // CUSTOM
-      setAppliedFrom(fromDate || undefined);
-      setAppliedTo(toDate || undefined);
-    }
-    // Invalidate queries to force fresh fetch for the agent
-    qc.invalidateQueries({ queryKey: ["agent-commissions", agent.id] });
-    qc.invalidateQueries({ queryKey: ["agent-orders", agent.id] });
+  const computeRange = (p: "TODAY" | "7D" | "ALL") => {
+    if (p === "ALL") return { from: undefined, to: undefined };
+    const now = new Date();
+    const to = now.toISOString().slice(0, 10);
+    if (p === "TODAY") return { from: to, to };
+    const fromDate = new Date(now);
+    fromDate.setDate(now.getDate() - 6); // last 7 days
+    const from = fromDate.toISOString().slice(0, 10);
+    return { from, to };
   };
+  const { from, to } = computeRange(period);
   const { data: commissions = [], isLoading: loadingC } = useQuery({
-    queryKey: ["agent-commissions", agent.id, appliedFrom, appliedTo, commissionStatus],
-    queryFn: () => adminService.getAgentCommissions(agent.id, commissionStatus, appliedFrom, appliedTo),
+    queryKey: ["agent-commissions", agent.id, period, commissionStatus],
+    queryFn: () => adminService.getAgentCommissions(agent.id, commissionStatus, from, to),
   });
   const { data: orders = [], isLoading: loadingO } = useQuery({
-    queryKey: ["agent-orders", agent.id, appliedFrom, appliedTo, orderStatus],
-    queryFn: () => adminService.getAgentOrders(agent.id, orderStatus, undefined, appliedFrom, appliedTo),
+    queryKey: ["agent-orders", agent.id, period, orderStatus],
+    queryFn: () => adminService.getAgentOrders(agent.id, orderStatus, undefined, from, to),
   });
   const { data: withdrawals = [], isLoading: loadingW } = useQuery({
     queryKey: ["agent-withdrawals", agent.id],
@@ -94,18 +74,11 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground">Period</label>
-                <select value={periodPreset} onChange={e => setPeriodPreset(e.target.value as any)} className="text-sm rounded px-2 py-1">
+                <select value={period} onChange={e => setPeriod(e.target.value as any)} className="text-sm rounded px-2 py-1">
                   <option value="TODAY">Today</option>
                   <option value="7D">Last 7 days</option>
                   <option value="ALL">All</option>
-                  <option value="CUSTOM">Custom</option>
                 </select>
-                {periodPreset === "CUSTOM" && (
-                  <>
-                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="text-sm rounded px-2 py-1" />
-                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="text-sm rounded px-2 py-1" />
-                  </>
-                )}
                 <label className="text-xs text-muted-foreground">Commission status</label>
                 <select value={commissionStatus ?? ""} onChange={e => setCommissionStatus(e.target.value || undefined)} className="text-sm rounded px-2 py-1">
                   <option value="">All</option>
@@ -113,11 +86,11 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
                   <option value="SETTLED">SETTLED</option>
                   <option value="REVERSED">REVERSED</option>
                 </select>
-                <Button size="sm" onClick={() => applyFilters()}>Apply</Button>
               </div>
-              <div className="text-right">
-                <div className="text-xs text-muted-foreground">Total commissions</div>
-                <div className="font-semibold">{formatCurrency(commissions.reduce((s, c) => s + (Number((c as any).profit || 0)), 0))}</div>
+              <div>
+                <Button size="sm" onClick={() => {
+                  qc.invalidateQueries({ queryKey: ["agent-commissions", agent.id] });
+                }}>Refresh</Button>
               </div>
             </div>
             <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">
@@ -144,18 +117,11 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground">Period</label>
-                <select value={periodPreset} onChange={e => setPeriodPreset(e.target.value as any)} className="text-sm rounded px-2 py-1">
+                <select value={period} onChange={e => setPeriod(e.target.value as any)} className="text-sm rounded px-2 py-1">
                   <option value="TODAY">Today</option>
                   <option value="7D">Last 7 days</option>
                   <option value="ALL">All</option>
-                  <option value="CUSTOM">Custom</option>
                 </select>
-                {periodPreset === "CUSTOM" && (
-                  <>
-                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="text-sm rounded px-2 py-1" />
-                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="text-sm rounded px-2 py-1" />
-                  </>
-                )}
                 <label className="text-xs text-muted-foreground">Order status</label>
                 <select value={orderStatus ?? ""} onChange={e => setOrderStatus(e.target.value || undefined)} className="text-sm rounded px-2 py-1">
                   <option value="">All</option>
@@ -163,11 +129,11 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
                   <option value="COMPLETED">COMPLETED</option>
                   <option value="FAILED">FAILED</option>
                 </select>
-                <Button size="sm" onClick={() => applyFilters()}>Apply</Button>
               </div>
-              <div className="text-right">
-                <div className="text-xs text-muted-foreground">Orders</div>
-                <div className="font-semibold">{orders.length}</div>
+              <div>
+                <Button size="sm" onClick={() => {
+                  qc.invalidateQueries({ queryKey: ["agent-orders", agent.id] });
+                }}>Refresh</Button>
               </div>
             </div>
             <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">

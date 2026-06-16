@@ -14,4 +14,5 @@ public interface CommissionRepository extends MongoRepository<Commission, String
     List<Commission> findByAgentIdAndCreatedAtBetween(String agentId, LocalDateTime from, LocalDateTime to);
     List<Commission> findByAgentIdAndStatus(String agentId, String status);
     List<Commission> findByAgentIdAndStatusAndCreatedAtBetween(String agentId, String status, LocalDateTime from, LocalDateTime to);
+    List<Commission> findByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
 }
