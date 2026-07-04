@@ -166,11 +166,16 @@ public class PaymentWebhookService {
 
             log.info("[PAYMENT] Calling bot API to deliver bundle");
 
-            String providerReference = "MTN".equals(order.getNetwork())
-                    ? buyBundle(order)
-                    : automationPort.buyDataBundle(order);
 
-//            String providerReference = buyBundle(order);
+//      I will chnage when randy server is up
+
+//            String providerReference = "MTN".equals(order.getNetwork())
+//                    ? buyBundle(order)
+//                    : automationPort.buyDataBundle(order);
+
+
+//            I will comment this out when randy server is up
+            String providerReference = buyBundle(order);
 
             // Mark as completed
             log.info("[PAYMENT] Marking order as COMPLETED");
@@ -189,13 +194,13 @@ public class PaymentWebhookService {
     }
 
     private String buyBundle(Order order) {
-//        int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
-//
-//        if (size >= 4) {
-//            order.setByFrom("my_data_gb");
-//            log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
-//            return automationPort.buyDataBundle(order);
-//        }
+        int size = Integer.parseInt(order.getBundleCode().replace("GB", "").trim());
+
+        if (size >= 0) {
+            order.setByFrom("my_data_gb");
+            log.info("[PAYMENT] Buying bundle from my_data_gb for orderId={}", order.getId());
+            return automationPort.buyDataBundle(order);
+        }
         order.setByFrom("randy");
         log.info("[PAYMENT] Buying bundle from randy for orderId={}", order.getId());
         return automationPort.buyDataBundleFromRandy(order);
