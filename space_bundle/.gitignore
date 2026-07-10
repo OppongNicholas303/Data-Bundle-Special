@@ -33,3 +33,6 @@ build/
 .vscode/
 .env
 admin-dashboard/node_modules
+bundle-buddy-99/node_modules
+admin-dashboard/
+bundle-buddy-99/

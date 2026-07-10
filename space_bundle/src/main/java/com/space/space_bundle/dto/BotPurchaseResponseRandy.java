@@ -6,7 +6,7 @@ public record BotPurchaseResponseRandy(
         OrderData order
 ) {
     public record OrderData(
-            String id,
+            Long id,
             String order_number,
             String status
     ) {}

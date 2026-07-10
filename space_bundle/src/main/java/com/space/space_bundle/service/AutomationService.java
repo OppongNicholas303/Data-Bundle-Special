@@ -63,7 +63,7 @@ public class AutomationService {
 
     public String buyFromRandy(Order order) {
         BotPurchaseRequest request = BotPurchaseRequest.builder()
-                .package_id(order.getPackageId())
+                .package_id(Integer.parseInt(order.getPackageId()))
                 .customer_phone(order.getPhoneNumber())
                 .build();
 
@@ -90,14 +90,14 @@ public class AutomationService {
 
     public String buyFromRandyMashup(Order order) {
         BotPurchaseRequest request = BotPurchaseRequest.builder()
-                .package_id(order.getPackageId())
+                .package_id(Integer.parseInt(order.getPackageId()))
                 .customer_phone(order.getPhoneNumber())
                 .build();
 
         try {
             log.info("Sending request to Randy bot: {}", request);
             BotPurchaseResponseRandy body = webClient.post()
-                    .uri(botUrlRandy + "/external/special-offers/mashup/orders")
+                    .uri(botUrlRandy + "/external/orders")
                     .header("X-API-Key", botTokenRandy)
                     .header("Content-Type", "application/json")
                     .bodyValue(request)

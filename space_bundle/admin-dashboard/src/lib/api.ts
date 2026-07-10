@@ -1,6 +1,6 @@
 import { authService } from "./auth";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://data-bundle-special-2bst.onrender.com/api";
 
 class ApiClient {
   private baseURL: string;
@@ -10,8 +10,8 @@ class ApiClient {
     const token = authService.getValidToken();
     const tokenType = localStorage.getItem("token_type") || "Bearer";
     return token
-      ? { Authorization: `${tokenType} ${token}`, "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" }
-      : { "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" };
+      ? { Authorization: `${tokenType} ${token}`, "Content-Type": "application/json" }
+      : { "Content-Type": "application/json" };
   }
 
   private async handleResponse(response: Response): Promise<unknown> {
