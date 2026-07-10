@@ -56,8 +56,11 @@ public class Order {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private String adminCompletedBy;      // ID of admin who marked as COMPLETE_BY_ADMIN
+    private LocalDateTime adminCompletedAt; // When admin marked it complete
+
     public enum OrderStatus {
-        CREATED, PENDING_PAYMENT, PAID, PROCESSING, COMPLETED, FAILED, REFUNDED
+        CREATED, PENDING_PAYMENT, PAID, PROCESSING, COMPLETED, COMPLETE_BY_ADMIN, FAILED, REFUNDED
     }
 
     // ── State transitions ──────────────────────────────────────────────────
@@ -88,6 +91,16 @@ public class Order {
         assertStatus(OrderStatus.PROCESSING);
         this.status = OrderStatus.COMPLETED.name();
         this.providerOrderNumber = providerReference;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void markCompleteByAdmin(String adminId) {
+        // Admin can mark orders as COMPLETE_BY_ADMIN even if they are currently PROCESSING or COMPLETED
+        if (OrderStatus.COMPLETE_BY_ADMIN.name().equals(status))
+            throw new IllegalStateException("Order already completed by admin: " + status);
+        this.status = OrderStatus.COMPLETE_BY_ADMIN.name();
+        this.adminCompletedBy = adminId;
+        this.adminCompletedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 

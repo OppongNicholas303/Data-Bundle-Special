@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface AgentBundlePricingRepository extends MongoRepository<AgentBundlePricing, String> {
     Optional<AgentBundlePricing> findByAgentIdAndBundleId(String agentId, String bundleId);
     List<AgentBundlePricing> findByAgentId(String agentId);
+    List<AgentBundlePricing> findByBundleId(String bundleId);
 }

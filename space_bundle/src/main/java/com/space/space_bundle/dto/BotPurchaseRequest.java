@@ -10,6 +10,6 @@ public class BotPurchaseRequest {
     private String network;
     private String beneficiary;
     private Integer dataBundlePackages;
-    private String package_id;
+    private Integer package_id;
     private String customer_phone;
 }

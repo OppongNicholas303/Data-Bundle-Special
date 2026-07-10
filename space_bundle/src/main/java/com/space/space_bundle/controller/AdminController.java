@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ public class AdminController {
     private final CommissionRepository commissionRepository;
     private final AdminWithdrawalService adminWithdrawalService;
     private final OrderMigrationService orderMigrationService;
+    private final com.space.space_bundle.service.WalletService walletService;
 
     // ── Users ──────────────────────────────────────────────────────────────
 
@@ -97,21 +99,99 @@ public class AdminController {
     public ResponseEntity<ApiResponse<AgentProfile>> toggleAgentActive(@PathVariable String id) {
         AgentProfile agent = agentProfileRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + id));
-        agent.setActive(!agent.isActive());
+        boolean activating = !agent.isActive();
+        agent.setActive(activating);
         agentProfileRepository.save(agent);
+
+        // When activating, grant ROLE_AGENT and ensure wallet exists.
+        userRepository.findById(agent.getUserId()).ifPresent(user -> {
+            if (activating) {
+                if (user.getRoles() == null) user.setRoles(new java.util.HashSet<>());
+                if (!user.getRoles().contains(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name()))
+                    user.getRoles().add(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name());
+                user.setUpdatedAt(java.time.LocalDateTime.now());
+                userRepository.save(user);
+                // create wallet if missing
+                try {
+                    walletService.createWallet(user.getId());
+                } catch (Exception ignore) {
+                    // wallet may already exist; ignore
+                }
+            } else {
+                // Deactivating: remove ROLE_AGENT
+                if (user.getRoles() != null && user.getRoles().contains(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name())) {
+                    user.getRoles().remove(com.space.space_bundle.entity.User.Role.ROLE_AGENT.name());
+                    user.setUpdatedAt(java.time.LocalDateTime.now());
+                    userRepository.save(user);
+                }
+            }
+        });
+
         return ResponseEntity.ok(ApiResponse.success(
                 agent.isActive() ? "Agent activated" : "Agent deactivated", agent));
     }
 
     @GetMapping("/agents/{id}/commissions")
-    public ResponseEntity<ApiResponse<List<Commission>>> getAgentCommissions(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success(commissionRepository.findByAgentId(id)));
+    public ResponseEntity<ApiResponse<List<Commission>>> getAgentCommissions(
+            @PathVariable String id,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.plusDays(1).atStartOfDay() : null;
+
+        boolean hasDate   = fromDt != null && toDt != null;
+        boolean hasStatus = status != null;
+
+        List<Commission> list;
+        if (hasDate && hasStatus) {
+            list = commissionRepository.findByAgentIdAndStatusAndCreatedAtBetween(id, status.toUpperCase(), fromDt, toDt);
+        } else if (hasDate) {
+            list = commissionRepository.findByAgentIdAndCreatedAtBetween(id, fromDt, toDt);
+        } else if (hasStatus) {
+            list = commissionRepository.findByAgentIdAndStatus(id, status.toUpperCase());
+        } else {
+            list = commissionRepository.findByAgentId(id);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     @GetMapping("/agents/{id}/orders")
-    public ResponseEntity<ApiResponse<List<AdminOrderView>>> getAgentOrders(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success(
-                orderRepository.findByAgentId(id).stream().map(AdminOrderView::from).toList()));
+    public ResponseEntity<ApiResponse<List<AdminOrderView>>> getAgentOrders(
+            @PathVariable String id,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String network,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.plusDays(1).atStartOfDay() : null;
+
+        boolean hasDate   = fromDt != null && toDt != null;
+        boolean hasStatus = status  != null;
+        boolean hasNet    = network != null;
+
+        List<Order> orders;
+        if (hasDate && hasStatus && hasNet)
+            orders = orderRepository.findByStatusAndNetworkAndCreatedAtBetween(status.toUpperCase(), network.toLowerCase(), fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasDate && hasStatus)
+            orders = orderRepository.findByStatusAndCreatedAtBetween(status.toUpperCase(), fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasDate && hasNet)
+            orders = orderRepository.findByNetworkAndCreatedAtBetween(network.toLowerCase(), fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasDate)
+            orders = orderRepository.findByCreatedAtBetween(fromDt, toDt).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasStatus && hasNet)
+            orders = orderRepository.findByStatusAndNetwork(status.toUpperCase(), network.toLowerCase()).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else if (hasStatus)
+            orders = orderRepository.findByAgentIdAndStatus(id, status.toUpperCase());
+        else if (hasNet)
+            orders = orderRepository.findByNetwork(network.toLowerCase()).stream().filter(o -> id.equals(o.getAgentId())).toList();
+        else
+            orders = orderRepository.findByAgentId(id);
+
+        return ResponseEntity.ok(ApiResponse.success(orders.stream().map(AdminOrderView::from).toList()));
     }
 
     @GetMapping("/agents/{id}/withdrawals")
@@ -122,6 +202,34 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(
             adminWithdrawalService.getByAgentProfileId(id)
         ));
+    }
+
+    @GetMapping("/agents/{id}/wallet")
+    public ResponseEntity<ApiResponse<com.space.space_bundle.dto.WalletBalanceResponse>> getAgentWallet(@PathVariable String id) {
+        AgentProfile agent = agentProfileRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + id));
+        java.math.BigDecimal balance = walletService.getBalance(agent.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(
+                com.space.space_bundle.dto.WalletBalanceResponse.builder()
+                        .balance(balance).currency("GHS").build()));
+    }
+
+    @PostMapping("/agents/{id}/wallet/topup")
+    public ResponseEntity<ApiResponse<com.space.space_bundle.dto.WalletBalanceResponse>> topUpAgentWallet(
+            @PathVariable String id, @RequestBody AdminTopUpRequest req) {
+        if (req.getAmount() == null) throw new IllegalArgumentException("amount is required");
+        if (req.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) throw new IllegalArgumentException("amount must be > 0");
+        AgentProfile agent = agentProfileRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + id));
+        // Use admin provided note if present, otherwise fall back to default description
+        String desc = req.getNote() != null && !req.getNote().isBlank()
+                ? req.getNote()
+                : "Admin top-up for agent " + agent.getBusinessName();
+        walletService.credit(agent.getUserId(), req.getAmount(), desc);
+        java.math.BigDecimal balance = walletService.getBalance(agent.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(
+                com.space.space_bundle.dto.WalletBalanceResponse.builder()
+                        .balance(balance).currency("GHS").build()));
     }
 
     // ── Withdrawals ────────────────────────────────────────────────────────
@@ -188,92 +296,194 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Bundle deleted", null));
     }
 
-    // ── Orders ─────────────────────────────────────────────────────────────
+     // ── Orders ─────────────────────────────────────────────────────────────
 
-    @GetMapping("/orders")
-    public ResponseEntity<ApiResponse<List<AdminOrderView>>> getAllOrders(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String network,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+     @GetMapping("/orders")
+     public ResponseEntity<ApiResponse<List<AdminOrderView>>> getAllOrders(
+             @RequestParam(required = false) String status,
+             @RequestParam(required = false) String network,
+             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
-        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
-        LocalDateTime toDt   = to   != null ? to.plusDays(1).atStartOfDay() : null;
+         LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+         LocalDateTime toDt   = to   != null ? to.plusDays(1).atStartOfDay() : null;
 
-        boolean hasDate   = fromDt != null && toDt != null;
-        boolean hasStatus = status  != null;
-        boolean hasNet    = network != null;
+         boolean hasDate   = fromDt != null && toDt != null;
+         boolean hasStatus = status  != null;
+         boolean hasNet    = network != null;
 
-        List<Order> orders;
-        if (hasDate && hasStatus && hasNet)
-            orders = orderRepository.findByStatusAndNetworkAndCreatedAtBetween(status.toUpperCase(), network.toLowerCase(), fromDt, toDt);
-        else if (hasDate && hasStatus)
-            orders = orderRepository.findByStatusAndCreatedAtBetween(status.toUpperCase(), fromDt, toDt);
-        else if (hasDate && hasNet)
-            orders = orderRepository.findByNetworkAndCreatedAtBetween(network.toLowerCase(), fromDt, toDt);
-        else if (hasDate)
-            orders = orderRepository.findByCreatedAtBetween(fromDt, toDt);
-        else if (hasStatus && hasNet)
-            orders = orderRepository.findByStatusAndNetwork(status.toUpperCase(), network.toLowerCase());
-        else if (hasStatus)
-            orders = orderRepository.findByStatus(status.toUpperCase());
-        else if (hasNet)
-            orders = orderRepository.findByNetwork(network.toLowerCase());
-        else
-            orders = orderRepository.findAll();
+         List<Order> orders;
+         if (hasDate && hasStatus && hasNet)
+             orders = orderRepository.findByStatusAndNetworkAndCreatedAtBetween(status.toUpperCase(), network.toLowerCase(), fromDt, toDt);
+         else if (hasDate && hasStatus)
+             orders = orderRepository.findByStatusAndCreatedAtBetween(status.toUpperCase(), fromDt, toDt);
+         else if (hasDate && hasNet)
+             orders = orderRepository.findByNetworkAndCreatedAtBetween(network.toLowerCase(), fromDt, toDt);
+         else if (hasDate)
+             orders = orderRepository.findByCreatedAtBetween(fromDt, toDt);
+         else if (hasStatus && hasNet)
+             orders = orderRepository.findByStatusAndNetwork(status.toUpperCase(), network.toLowerCase());
+         else if (hasStatus)
+             orders = orderRepository.findByStatus(status.toUpperCase());
+         else if (hasNet)
+             orders = orderRepository.findByNetwork(network.toLowerCase());
+         else
+             orders = orderRepository.findAll();
 
-        return ResponseEntity.ok(ApiResponse.success(orders.stream().map(AdminOrderView::from).toList()));
-    }
+         return ResponseEntity.ok(ApiResponse.success(
+                 orders.stream()
+                         .sorted(Comparator.comparing(Order::getCreatedAt).reversed())
+                         .map(AdminOrderView::from)
+                         .toList()
+         ));
+     }
 
-    // ── Analytics ──────────────────────────────────────────────────────────
+     @PostMapping("/orders/{id}/mark-complete")
+     public ResponseEntity<ApiResponse<AdminOrderView>> markOrderComplete(
+             @PathVariable String id,
+             @RequestBody(required = false) Map<String, String> body) {
+         Order order = orderRepository.findById(id)
+                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
 
-    @GetMapping("/analytics/daily")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDailyAnalytics(
-            @RequestParam(defaultValue = "30") int days) {
+         if (!"PROCESSING".equals(order.getStatus())) {
+             throw new IllegalArgumentException("Only orders in PROCESSING status can be marked as complete. Current status: " + order.getStatus());
+         }
 
-        LocalDateTime from = LocalDateTime.now().minusDays(days).toLocalDate().atStartOfDay();
-        LocalDateTime to   = LocalDateTime.now().plusDays(1).toLocalDate().atStartOfDay();
+         String providerReference = body != null && body.containsKey("providerReference")
+                 ? body.get("providerReference")
+                 : "MANUAL_" + UUID.randomUUID().toString().substring(0, 8);
 
-        List<Order> orders = orderRepository.findByCreatedAtBetween(from, to);
+         order.markCompleted(providerReference);
+         orderRepository.save(order);
 
-        Map<String, List<Order>> byDate = orders.stream().collect(
-                Collectors.groupingBy(o -> o.getCreatedAt().toLocalDate().toString()));
+      return ResponseEntity.ok(ApiResponse.success("Order marked as complete", AdminOrderView.from(order)));
+      }
 
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (int i = days - 1; i >= 0; i--) {
-            String date = LocalDateTime.now().minusDays(i).toLocalDate().toString();
-            List<Order> dayOrders = byDate.getOrDefault(date, List.of());
+      @PostMapping("/orders/{id}/mark-complete-by-admin")
+      public ResponseEntity<ApiResponse<AdminOrderView>> markOrderCompleteByAdmin(
+              @PathVariable String id,
+              @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+          Order order = orderRepository.findById(id)
+                  .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
 
-            long totalOrders     = dayOrders.size();
-            long completedOrders = dayOrders.stream().filter(o -> "COMPLETED".equals(o.getStatus())).count();
+          String adminId = userDetails != null ? userDetails.getUsername() : "unknown-admin";
 
-            // revenue = sum of sellingPrice (baseAmount) for completed orders
-            // (Paystack fee is excluded — it goes directly to Paystack)
-            BigDecimal revenue = dayOrders.stream()
-                    .filter(o -> "COMPLETED".equals(o.getStatus()))
-                    .map(o -> o.getBaseAmount() != null ? o.getBaseAmount() : BigDecimal.ZERO)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+          try {
+              order.markCompleteByAdmin(adminId);
+              orderRepository.save(order);
+              return ResponseEntity.ok(ApiResponse.success("Order marked as COMPLETE_BY_ADMIN by admin", AdminOrderView.from(order)));
+          } catch (IllegalStateException e) {
+              throw new IllegalArgumentException(e.getMessage());
+          }
+      }
 
-            // profit = sellingPrice - costPrice  (agentCommission is added ON TOP of sellingPrice, so it doesn't reduce platform profit)
-            BigDecimal profit = dayOrders.stream()
-                    .filter(o -> "COMPLETED".equals(o.getStatus()))
-                    .map(o -> {
-                        BigDecimal selling = o.getBaseAmount()       != null ? o.getBaseAmount()       : BigDecimal.ZERO;
-                        BigDecimal cost    = o.getCostPrice()        != null ? o.getCostPrice()        : BigDecimal.ZERO;
-                        return selling.subtract(cost);
-                    })
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+      // ── Analytics ──────────────────────────────────────────────────────────
 
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("date",            date);
-            row.put("orders",          totalOrders);
-            row.put("completedOrders", completedOrders);
-            row.put("revenue",         revenue);
-            row.put("profit",          profit);
-            result.add(row);
-        }
-        return ResponseEntity.ok(ApiResponse.success(result));
-    }
+     @GetMapping("/analytics/daily")
+     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDailyAnalytics(
+             @RequestParam(defaultValue = "30") int days) {
+
+         LocalDateTime from = LocalDateTime.now().minusDays(days).toLocalDate().atStartOfDay();
+         LocalDateTime to   = LocalDateTime.now().plusDays(1).toLocalDate().atStartOfDay();
+
+         List<Order> orders = orderRepository.findByCreatedAtBetween(from, to);
+
+         Map<String, List<Order>> byDate = orders.stream().collect(
+                 Collectors.groupingBy(o -> o.getCreatedAt().toLocalDate().toString()));
+
+         List<Map<String, Object>> result = new ArrayList<>();
+         for (int i = days - 1; i >= 0; i--) {
+             String date = LocalDateTime.now().minusDays(i).toLocalDate().toString();
+             List<Order> dayOrders = byDate.getOrDefault(date, List.of());
+
+             long totalOrders     = dayOrders.size();
+             long completedOrders = dayOrders.stream().filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus())).count();
+
+             // revenue = sum of sellingPrice (baseAmount) for completed orders
+             // (Paystack fee is excluded — it goes directly to Paystack)
+             BigDecimal revenue = dayOrders.stream()
+                     .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus()))
+                     .map(o -> o.getBaseAmount() != null ? o.getBaseAmount() : BigDecimal.ZERO)
+                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+             // profit = sellingPrice - costPrice  (agentCommission is added ON TOP of sellingPrice, so it doesn't reduce platform profit)
+             BigDecimal profit = dayOrders.stream()
+                     .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus()))
+                     .map(o -> {
+                         BigDecimal selling = o.getBaseAmount()       != null ? o.getBaseAmount()       : BigDecimal.ZERO;
+                         BigDecimal cost    = o.getCostPrice()        != null ? o.getCostPrice()        : BigDecimal.ZERO;
+                         return selling.subtract(cost);
+                     })
+                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+             Map<String, Object> row = new LinkedHashMap<>();
+             row.put("date",            date);
+             row.put("orders",          totalOrders);
+             row.put("completedOrders", completedOrders);
+             row.put("revenue",         revenue);
+             row.put("profit",          profit);
+             result.add(row);
+         }
+         return ResponseEntity.ok(ApiResponse.success(result));
+     }
+
+     @GetMapping("/analytics/agent-commissions")
+     public ResponseEntity<ApiResponse<Map<String, Object>>> getAgentCommissionsSummary(
+             @RequestParam(required = false) String agentId,
+             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+         LocalDateTime fromDt = from != null ? from.atStartOfDay() : LocalDateTime.now().minusDays(30).toLocalDate().atStartOfDay();
+         LocalDateTime toDt   = to   != null ? to.plusDays(1).atStartOfDay() : LocalDateTime.now().plusDays(1).toLocalDate().atStartOfDay();
+
+         List<Commission> commissions;
+         if (agentId != null && !agentId.isBlank()) {
+             commissions = commissionRepository.findByAgentIdAndCreatedAtBetween(agentId, fromDt, toDt);
+         } else {
+             commissions = commissionRepository.findByCreatedAtBetween(fromDt, toDt);
+         }
+
+         // Group by date
+         Map<String, List<Commission>> byDate = commissions.stream()
+                 .collect(Collectors.groupingBy(c -> c.getCreatedAt().toLocalDate().toString()));
+
+         // Build daily summary
+         List<Map<String, Object>> dailySummary = new ArrayList<>();
+         LocalDate current = fromDt.toLocalDate();
+         LocalDate end = toDt.toLocalDate();
+
+         while (!current.isAfter(end)) {
+             String dateStr = current.toString();
+             List<Commission> dayCommissions = byDate.getOrDefault(dateStr, List.of());
+
+             BigDecimal totalCommission = dayCommissions.stream()
+                     .map(c -> c.getProfit() != null ? c.getProfit() : BigDecimal.ZERO)
+                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+             if (!dayCommissions.isEmpty() || !dailySummary.isEmpty()) {
+                 Map<String, Object> day = new LinkedHashMap<>();
+                 day.put("date", dateStr);
+                 day.put("count", dayCommissions.size());
+                 day.put("totalCommission", totalCommission);
+                 dailySummary.add(day);
+             }
+             current = current.plusDays(1);
+         }
+
+         // Overall totals
+         BigDecimal grandTotal = commissions.stream()
+                 .map(c -> c.getProfit() != null ? c.getProfit() : BigDecimal.ZERO)
+                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+         return ResponseEntity.ok(ApiResponse.success(Map.of(
+                 "dailySummary", dailySummary,
+                 "totalCommissions", grandTotal,
+                 "totalOrders", commissions.size(),
+                 "fromDate", from != null ? from.toString() : fromDt.toLocalDate().toString(),
+                 "toDate", to != null ? to.toString() : toDt.toLocalDate().toString(),
+                 "agentId", agentId != null ? agentId : "all"
+         )));
+     }
 
     // ── Stats ──────────────────────────────────────────────────────────────
 
@@ -283,11 +493,14 @@ public class AdminController {
         long totalAgents        = agentProfileRepository.count();
         long totalBundles       = bundleService.getAll().size();
         long totalOrders        = orderRepository.count();
-        long completedOrders    = orderRepository.findByStatus("COMPLETED").size();
+        long completedOrders    = orderRepository.findAll().stream()
+                .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus())).count();
         long failedOrders       = orderRepository.findByStatus("FAILED").size();
         long pendingWithdrawals = adminWithdrawalService.getByStatus("PENDING").size();
 
-        List<Order> completed = orderRepository.findByStatus("COMPLETED");
+        List<Order> completed = orderRepository.findAll().stream()
+                .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus()))
+                .toList();
 
         BigDecimal totalRevenue = completed.stream()
                 .map(o -> o.getBaseAmount() != null ? o.getBaseAmount() : BigDecimal.ZERO)
@@ -341,6 +554,13 @@ public class AdminController {
         private BigDecimal costPrice;
         private BigDecimal sellingPrice;
         private String description;
+    }
+
+    @Data
+    public static class AdminTopUpRequest {
+        private java.math.BigDecimal amount;
+        // Optional admin note to be saved with the wallet transaction
+        private String note;
     }
 
     @Data

@@ -148,8 +148,11 @@
 #
 #
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> alaye
 spring:
   application:
     name: space-bundle
@@ -299,4 +302,8 @@ mashup:
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:8081}
   support-email: ${SUPPORT_EMAIL:support@tapdata.com}
+<<<<<<< HEAD
   storefront-base-url: ${STOREFRONT_BASE_URL:https://tapdata.vercel.app/store}
+=======
+  storefront-base-url: ${STOREFRONT_BASE_URL:https://tapdata.vercel.app/store}
+>>>>>>> alaye

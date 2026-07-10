@@ -109,10 +109,12 @@ public class SecurityConfig {
             "http://localhost:4200",
             "http://localhost:8081",
             "http://localhost:3000",
-            "http://localhost:3001"
+            "http://localhost:3001",
+                "https://admin-dashboard-six-rho-17.vercel.app",
+                "http://localhost:5176"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "x-paystack-signature"));
+        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "x-paystack-signature", "ngrok-skip-browser-warning"));
         config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
