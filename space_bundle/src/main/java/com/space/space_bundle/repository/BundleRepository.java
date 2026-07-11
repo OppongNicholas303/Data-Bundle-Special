@@ -11,7 +11,7 @@ import java.util.Optional;
 @Repository
 public interface BundleRepository extends MongoRepository<Bundle, String> {
     List<Bundle> findByCode(String code);
-    Optional<Bundle> findByCodeAndNetwork(String code, String network);
+    Optional<Bundle> findFirstByCodeAndNetwork(String code, String network);
     List<Bundle> findByNetwork(String network);
     List<Bundle> findByNetworkAndStatus(String network, String status);
 }

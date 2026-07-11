@@ -70,7 +70,7 @@ public class BundleService {
         }
 
         String finalNetwork = network;
-        return bundleRepository.findByCodeAndNetwork(code, network)
+        return bundleRepository.findFirstByCodeAndNetwork(code, network)
                 .orElseThrow(() -> new IllegalArgumentException("Bundle not found: " + code + "/" + finalNetwork));
     }
 

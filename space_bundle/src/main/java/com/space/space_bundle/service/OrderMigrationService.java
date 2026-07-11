@@ -46,12 +46,12 @@ public class OrderMigrationService {
             }
 
             Optional<Bundle> bundleOpt = bundleRepository
-                    .findByCodeAndNetwork(order.getBundleCode(), order.getNetwork().toLowerCase());
+                    .findFirstByCodeAndNetwork(order.getBundleCode(), order.getNetwork().toLowerCase());
 
             if (bundleOpt.isEmpty()) {
                 // Try uppercase network fallback
                 bundleOpt = bundleRepository
-                        .findByCodeAndNetwork(order.getBundleCode(), order.getNetwork().toUpperCase());
+                        .findFirstByCodeAndNetwork(order.getBundleCode(), order.getNetwork().toUpperCase());
             }
 
             if (bundleOpt.isEmpty()) {
