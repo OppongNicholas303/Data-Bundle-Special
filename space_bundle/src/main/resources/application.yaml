@@ -135,12 +135,13 @@ mashup:
 
 # Moolre configuration
 moolre:
-  api-user: ${MOOLRE_API_USER:default_user}
-  pub-key: ${MOOLRE_PUB_KEY:default_pub_key}
-  account-number: ${MOOLRE_ACCOUNT_NUMBER:default_account}
-  webhook-secret: ${MOOLRE_WEBHOOK_SECRET:default_secret}
+  api-user: ${MOOLRE_API_USER:YOUR_MOOLRE_USERNAME}
+  pub-key: ${MOOLRE_PUB_KEY:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOjEwNzkzMCwiZXhwIjoxOTU2NTQ1OTk5fQ.S7lP17aOqbyZETCUWITrn4E0chXiJ2aReg1a-9zRr8E}
+  private-key: ${MOOLRE_PRIVATE_KEY:72tszSwQwjC6qwYHRLSFhlKjHZlDN38x2ou7RXFn8e6RBRESI9vW7Ag1d5p2HuFt}
+  account-number: ${MOOLRE_ACCOUNT_NUMBER:YOUR_ACCOUNT_NUMBER}
+  webhook-secret: ${MOOLRE_WEBHOOK_SECRET:7150c99a-e388-47b4-8358-c2661422c2c3}
   callback-url: ${MOOLRE_CALLBACK_URL:http://localhost:8080/api/webhook/moolre}
-  redirect-url: ${MOOLRE_REDIRECT_URL:http://localhost:3000/payment/callback}
+  redirect-url: ${MOOLRE_REDIRECT_URL:http://localhost:8081/orders}
 
 # Frontend Configuration
 app:
