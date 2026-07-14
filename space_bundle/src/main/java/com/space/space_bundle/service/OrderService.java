@@ -7,7 +7,7 @@ import com.space.space_bundle.entity.Order;
 import com.space.space_bundle.entity.Wallet;
 import com.space.space_bundle.repository.OrderRepository;
 import com.space.space_bundle.repository.WalletRepository;
-import com.space.space_bundle.security.PaystackAdapter;
+import com.space.space_bundle.security.MoolreAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,13 +41,16 @@ public class OrderService {
     private final AgentService agentService;
     private final CommissionService commissionService;
     private final TransactionService transactionService;
-    private final PaystackAdapter paystackAdapter;
+    private final MoolreAdapter moolreAdapter;
     private final AutomationService automationService;
     private final com.space.space_bundle.feature.FeatureFlagService featureFlagService;
     private final MongoTemplate mongoTemplate;
 
-    @Value("${paystack.callback-url:http://localhost:3000/payment/callback}")
-    private String callbackUrl;
+    @Value("${moolre.callback-url:http://localhost:8080/api/webhook/moolre}")
+    private String moolreCallbackUrl;
+
+    @Value("${moolre.redirect-url:http://localhost:3000/payment/callback}")
+    private String moolreRedirectUrl;
 
     // runtime flag is read from DB via FeatureFlagService (default true)
 
@@ -149,7 +152,7 @@ public class OrderService {
                 return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork);
         }
 
-        return initPaystack(order, email);
+        return initMoolre(order, email);
     }
 
     private Order placeMashupOrder(String network, String phoneNumber, String bundleCode,
@@ -212,7 +215,7 @@ public class OrderService {
             }
         }
 
-        return initPaystack(order, email);
+        return initMoolre(order, email);
     }
 
     public List<Order> getByUserId(String userId, String orderId, String phoneNumber, String status) {
@@ -243,7 +246,7 @@ public class OrderService {
 
     /**
      * Get order by ID without authentication (used for payment verification callback).
-     * Used when verifying payment status after Paystack redirects.
+     * Used when verifying payment status after Moolre redirects.
      */
     public Order getOrderById(String orderId) {
         return orderRepository.findById(orderId)
@@ -294,19 +297,18 @@ public class OrderService {
         return bundleType != null && "MASHUP".equalsIgnoreCase(bundleType.trim());
     }
 
-    private Order initPaystack(Order order, String email) {
+    private Order initMoolre(Order order, String email) {
         try {
             String reference = "ORDER_" + order.getId();
-            var response = paystackAdapter.initializeTransaction(
-                    email, order.getAmount().multiply(BigDecimal.valueOf(100)).intValue(),
-                    reference, callbackUrl);
+            var responseData = moolreAdapter.generatePaymentLink(
+                    order.getAmount().doubleValue(), email,
+                    reference, moolreCallbackUrl, moolreRedirectUrl);
 
-            if (!response.isStatus() || response.getData() == null)
-                throw new RuntimeException("Paystack init failed: " + response.getMessage());
+            String authUrl = (String) responseData.get("authorization_url");
+            String moolreRef = (String) responseData.get("reference");
+            if (moolreRef == null) moolreRef = reference;
 
-            order.setPendingPayment(reference,
-                    response.getData().getAuthorization_url(),
-                    response.getData().getAccess_code());
+            order.setPendingPayment(moolreRef, authUrl, moolreRef);
             return orderRepository.save(order);
         } catch (Exception ex) {
             order.markFailed("Payment init failed: " + ex.getMessage());
@@ -323,7 +325,7 @@ public class OrderService {
 
         if (wallet.getBalance().compareTo(amount) <= 0) {
             transactionService.fail(debitTx.getId());
-            return initPaystack(order, email);
+            return initMoolre(order, email);
         }
 
         try {
@@ -357,7 +359,7 @@ public class OrderService {
             order.markRefunded();
             orderRepository.save(order);
 
-            return initPaystack(order, email);
+            return initMoolre(order, email);
         }
     }
 
@@ -365,7 +367,7 @@ public class OrderService {
         if (order.getAgentId() != null
                 && order.getCommissionAmount() != null
                 && order.getCommissionAmount().compareTo(BigDecimal.ZERO) > 0) {
-            // Do not include Paystack fee (2%) in agent commission.
+            // Do not include Moolre fee in agent commission.
             // The stored commissionAmount = customerAmount - baseAmount (excludes fee).
             // Pass sellingAmount = baseAmount + commissionAmount so profit = commissionAmount.
             commissionService.settle(order.getAgentId(), order.getId(),

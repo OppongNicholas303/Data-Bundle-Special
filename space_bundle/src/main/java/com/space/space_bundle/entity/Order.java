@@ -32,7 +32,7 @@ public class Order {
     private String bundleType;
     private String packageId;
 
-    private BigDecimal amount;        // total customer pays (includes Paystack fee)
+    private BigDecimal amount;        // total customer pays (includes Moolre fee)
 
     @JsonIgnore  // Internal — never expose platform base price or agent margin to customers
     private BigDecimal baseAmount;     // bundle sellingPrice (platform charge before fee)

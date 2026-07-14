@@ -14,7 +14,7 @@ public class AgentWithdrawalRequest {
 
     /**
      * MoMo provider: MTN, VODAFONE (Telecel), AIRTELTIGO
-     * Maps to Paystack mobile_money subtype
+     * Maps to provider mobile_money subtype
      */
     @NotBlank(message = "MoMo provider is required")
     @Pattern(regexp = "(?i)^(mtn|vodafone|telecel|airteltigo)$", message = "Invalid MoMo provider")

@@ -15,27 +15,21 @@ public class WebhookController {
 
     private final WebhookService webhookService;
 
-    @PostMapping({"/webhook/paystack", "/webhooks/paystack"})
-    public ResponseEntity<Void> paystack(
+    @PostMapping({"/webhook/moolre", "/webhooks/moolre"})
+    public ResponseEntity<Void> moolre(
             @RequestBody String payload,
-            @RequestHeader(value = "x-paystack-signature", required = false) String signature,
             HttpServletRequest request) {
 
-        System.out.println("recieve");
+        System.out.println("receive moolre webhook");
 
-        if (signature == null || signature.isBlank()) {
-            log.warn("[WEBHOOK] Rejected — missing x-paystack-signature header");
+        if (!webhookService.isValidMoolreWebhook(payload)) {
+            log.warn("[WEBHOOK] Rejected — invalid secret or payload");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        if (!webhookService.isValidSignature(payload, signature)) {
-            log.warn("[WEBHOOK] Rejected — invalid signature");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        log.info("[WEBHOOK] Received valid webhook from Paystack");
-        log.info("[WEBHOOK] Signature verified, processing");
-        webhookService.processPaystack(payload);
+        log.info("[WEBHOOK] Received valid webhook from Moolre");
+        log.info("[WEBHOOK] Secret verified, processing");
+        webhookService.processMoolre(payload);
         return ResponseEntity.ok().build();
     }
 }

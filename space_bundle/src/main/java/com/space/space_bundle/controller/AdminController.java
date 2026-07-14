@@ -400,7 +400,7 @@ public class AdminController {
              long completedOrders = dayOrders.stream().filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus())).count();
 
              // revenue = sum of sellingPrice (baseAmount) for completed orders
-             // (Paystack fee is excluded — it goes directly to Paystack)
+             // (Moolre fee is excluded — it goes directly to Moolre)
              BigDecimal revenue = dayOrders.stream()
                      .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus()))
                      .map(o -> o.getBaseAmount() != null ? o.getBaseAmount() : BigDecimal.ZERO)

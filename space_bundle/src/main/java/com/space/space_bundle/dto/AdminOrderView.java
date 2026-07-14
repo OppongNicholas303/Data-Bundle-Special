@@ -20,10 +20,10 @@ public class AdminOrderView {
     private String bundleType;
     private String packageId;
 
-    /** Total amount the customer paid (sellingPrice + 2% Paystack fee) */
+    /** Total amount the customer paid (sellingPrice + 2% Moolre fee) */
     private BigDecimal amount;
 
-    /** Bundle selling price — what TapData charges before the Paystack fee */
+    /** Bundle selling price — what TapData charges before the Moolre fee */
     private BigDecimal baseAmount;
 
     /** Bundle cost price — what TapData pays the provider */
@@ -35,7 +35,7 @@ public class AdminOrderView {
     /**
      * TapData platform profit:
      *   sellingPrice (baseAmount) - costPrice - agentCommission
-     * The Paystack fee is excluded — that goes entirely to Paystack.
+     * The Moolre fee is excluded — that goes entirely to Moolre.
      */
     private BigDecimal platformProfit;
 
