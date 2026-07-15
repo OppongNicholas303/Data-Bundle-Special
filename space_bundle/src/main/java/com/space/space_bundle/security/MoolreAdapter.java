@@ -47,7 +47,7 @@ public class MoolreAdapter {
         if (callbackUrl != null) body.put("callback", callbackUrl);
         if (redirectUrl != null) body.put("redirect", redirectUrl);
         
-        body.put("reusable", "Non-reusable");
+        body.put("reusable", false);
 
         log.info("Moolre init: email={}, amount={}, ref={}", email, amount, externalRef);
         
@@ -57,9 +57,14 @@ public class MoolreAdapter {
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .bodyValue(body)
                 .retrieve()
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                        clientResponse -> clientResponse.bodyToMono(String.class)
+                                .flatMap(errorBody -> {
+                                    log.error("Moolre API Error: status={}, body={}", clientResponse.statusCode(), errorBody);
+                                    return reactor.core.publisher.Mono.error(new RuntimeException("Moolre API Error: " + errorBody));
+                                }))
                 .bodyToMono(Map.class)
                 .timeout(Duration.ofSeconds(15))
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
                 .block();
 
         if (response == null || !Integer.valueOf(1).equals(response.get("status"))) {
