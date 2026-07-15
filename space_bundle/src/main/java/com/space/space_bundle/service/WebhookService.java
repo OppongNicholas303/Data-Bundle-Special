@@ -67,7 +67,7 @@ public class WebhookService {
     }
 
     private void processOrderPayment(String reference) {
-        var verification = moolreAdapter.checkPaymentStatus(reference);
+        var verification = moolreAdapter.checkPaymentStatus(reference, 1);
         if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) return;
 
         String orderId = reference.replace("ORDER_", "");
@@ -76,6 +76,27 @@ public class WebhookService {
 
         if (!Order.OrderStatus.PENDING_PAYMENT.name().equals(order.getStatus())) return;
 
+        fulfillVerifiedOrder(order);
+    }
+
+    public boolean verifyOrderWithMoolreId(String orderId, String moolreId) {
+        var verification = moolreAdapter.checkPaymentStatus(moolreId, 2);
+        log.info("[MANUAL_VERIFY] Parsed verification: {}", verification);
+        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
+            return false;
+        }
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+
+        if (!Order.OrderStatus.PENDING_PAYMENT.name().equals(order.getStatus())) {
+            return true; // Already processed
+        }
+
+        return fulfillVerifiedOrder(order);
+    }
+
+    public boolean fulfillVerifiedOrder(Order order) {
         try {
             order.markPaid();
             orderRepository.save(order);
@@ -93,12 +114,11 @@ public class WebhookService {
             boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", true);
             if (useRandyOnly) {
                 order.setByFrom("randy");
-                providerRef = order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
+                providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
             } else {
-                // Preserve prior behavior: MTN => Randy, others => legacy bot
                 if ("MTN".equalsIgnoreCase(order.getNetwork())) {
                     order.setByFrom("randy");
-                    providerRef = order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
+                    providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
                 } else {
                     providerRef = automationService.buy(order);
                 }
@@ -108,18 +128,20 @@ public class WebhookService {
             orderRepository.save(order);
 
             orderService.settleCommission(order);
-            log.info("[WEBHOOK] Order completed: {}", orderId);
+            log.info("[FULFILLMENT] Order completed: {}", order.getId());
+            return true;
 
         } catch (Exception ex) {
-            log.error("[WEBHOOK] Order failed: {}", orderId, ex);
-            emailService.send(supportEmail, "Order Failed: " + orderId, ex.getMessage());
+            log.error("[FULFILLMENT] Order failed: {}", order.getId(), ex);
+            emailService.send(supportEmail, "Order Failed: " + order.getId(), ex.getMessage());
             order.markFailed("Processing failed: " + ex.getMessage());
             orderRepository.save(order);
+            return false;
         }
     }
 
     private void processTopUp(String reference) {
-        var verification = moolreAdapter.checkPaymentStatus(reference);
+        var verification = moolreAdapter.checkPaymentStatus(reference, 1);
         if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) return;
         BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(String.valueOf(verification.get("amount"))));
         try {

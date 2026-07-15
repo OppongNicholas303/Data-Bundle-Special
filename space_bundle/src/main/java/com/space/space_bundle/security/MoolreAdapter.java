@@ -85,14 +85,14 @@ public class MoolreAdapter {
     /**
      * Checks the status of a Moolre transaction manually.
      */
-    public Map<String, Object> checkPaymentStatus(String externalRef) {
+    public Map<String, Object> checkPaymentStatus(String id, int idType) {
         Map<String, Object> body = new HashMap<>();
         body.put("type", 1);
-        body.put("idtype", 1); // 1 = externalref
-        body.put("id", externalRef);
+        body.put("idtype", idType); // 1 = externalref, 2 = Moolre ID
+        body.put("id", id);
         body.put("accountnumber", accountNumber);
 
-        log.info("Moolre check status: ref={}", externalRef);
+        log.info("Moolre check status: id={}, idType={}", id, idType);
 
         Map response = webClient.post().uri("/open/transact/status")
                 .header("X-API-USER", apiUser)
@@ -102,6 +102,7 @@ public class MoolreAdapter {
                 .retrieve()
                 .bodyToMono(String.class)
                 .map(bodyStr -> {
+                    log.info("Moolre raw status response: {}", bodyStr);
                     try {
                         return new com.fasterxml.jackson.databind.ObjectMapper().readValue(bodyStr, Map.class);
                     } catch (Exception e) {
