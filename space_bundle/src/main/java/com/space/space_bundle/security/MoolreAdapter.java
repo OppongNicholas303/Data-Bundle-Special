@@ -63,7 +63,15 @@ public class MoolreAdapter {
                                     log.error("Moolre API Error: status={}, body={}", clientResponse.statusCode(), errorBody);
                                     return reactor.core.publisher.Mono.error(new RuntimeException("Moolre API Error: " + errorBody));
                                 }))
-                .bodyToMono(Map.class)
+                .bodyToMono(String.class)
+                .map(bodyStr -> {
+                    try {
+                        return new com.fasterxml.jackson.databind.ObjectMapper().readValue(bodyStr, Map.class);
+                    } catch (Exception e) {
+                        log.error("Failed to parse Moolre init response. Body: {}", bodyStr);
+                        throw new RuntimeException("Moolre response parse error", e);
+                    }
+                })
                 .timeout(Duration.ofSeconds(15))
                 .block();
 
@@ -92,7 +100,15 @@ public class MoolreAdapter {
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(Map.class)
+                .bodyToMono(String.class)
+                .map(bodyStr -> {
+                    try {
+                        return new com.fasterxml.jackson.databind.ObjectMapper().readValue(bodyStr, Map.class);
+                    } catch (Exception e) {
+                        log.error("Failed to parse Moolre status response. Body: {}", bodyStr);
+                        throw new RuntimeException("Moolre response parse error", e);
+                    }
+                })
                 .timeout(Duration.ofSeconds(15))
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
                 .block();
