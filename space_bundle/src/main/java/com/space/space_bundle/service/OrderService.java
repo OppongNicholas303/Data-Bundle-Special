@@ -119,8 +119,7 @@ public class OrderService {
             commissionAmount = customerAmount.subtract(baseAmount);
         }
 
-        BigDecimal fee = customerAmount.multiply(BigDecimal.valueOf(0.02));
-        BigDecimal total = customerAmount.add(fee);
+        BigDecimal total = customerAmount;
 
         String resolvedPkg = resolvePackageId(bundleCode, normalizedNetwork, packageId);
 
@@ -183,8 +182,7 @@ public class OrderService {
             commissionAmount = customerAmount.subtract(baseAmount);
         }
 
-        BigDecimal fee = customerAmount.multiply(BigDecimal.valueOf(0.02));
-        BigDecimal total = customerAmount.add(fee);
+        BigDecimal total = customerAmount;
         String resolvedPkg = String.valueOf(mashupBundle.getSpecialOfferPackageId());
 
         Order order = orderRepository.save(Order.builder()
