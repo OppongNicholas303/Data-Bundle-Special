@@ -114,6 +114,7 @@ logging:
   level:
     root: ${LOG_LEVEL_ROOT:INFO}
     com.space: ${LOG_LEVEL_APP:INFO}
+    org.mongodb.driver.cluster: WARN
 
 # Bot Configuration
 bot:
