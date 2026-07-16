@@ -118,7 +118,7 @@ public class SecurityConfig {
             "http://localhost:3001",
                 "https://admin-dashboard-six-rho-17.vercel.app",
                 "http://localhost:5176",
-                "http://localhost:5174/"
+                "http://localhost:5173/"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "ngrok-skip-browser-warning"));

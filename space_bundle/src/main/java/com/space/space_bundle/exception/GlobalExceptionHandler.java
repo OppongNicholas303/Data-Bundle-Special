@@ -76,6 +76,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Invalid value for parameter: " + ex.getName()));
     }
 
+    @ExceptionHandler(com.space.space_bundle.exception.CheckerPortException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCheckerPort(com.space.space_bundle.exception.CheckerPortException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
         // Log full details internally but NEVER expose them to the client

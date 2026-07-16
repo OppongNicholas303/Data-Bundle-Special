@@ -81,7 +81,7 @@ public class AdminController {
     @PutMapping("/results-checker/pricing/{serviceName}")
     public ResponseEntity<ApiResponse<ResultCheckerPricing>> updateCheckerRetailPrice(
             @PathVariable String serviceName,
-            @RequestBody Map<String, BigDecimal> request) {
+            @RequestBody Map<String, Object> request) {
         
         ResultCheckerPricing pricing = resultCheckerPricingRepository.findById(serviceName)
                 .orElse(ResultCheckerPricing.builder()
@@ -90,7 +90,12 @@ public class AdminController {
                         .build());
 
         if (request.containsKey("retailPrice")) {
-            pricing.setRetailPrice(request.get("retailPrice"));
+            Object val = request.get("retailPrice");
+            if (val != null) {
+                pricing.setRetailPrice(new BigDecimal(val.toString()));
+            } else {
+                pricing.setRetailPrice(null);
+            }
         }
         pricing.setUpdatedAt(LocalDateTime.now());
         resultCheckerPricingRepository.save(pricing);

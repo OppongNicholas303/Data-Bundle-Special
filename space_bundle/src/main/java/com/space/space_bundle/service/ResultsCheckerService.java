@@ -355,8 +355,12 @@ public class ResultsCheckerService {
                 ResultCheckerPricing.builder()
                     .serviceName(s)
                     .amount(BigDecimal.ZERO)
+                    .retailPrice(new BigDecimal("30.00"))
                     .build()
             );
+            if (pricing.getRetailPrice() == null) {
+                pricing.setRetailPrice(new BigDecimal("30.00"));
+            }
             pricingRepository.save(pricing);
 
             try {
