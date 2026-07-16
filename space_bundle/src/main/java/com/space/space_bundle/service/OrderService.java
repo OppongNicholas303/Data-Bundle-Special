@@ -69,22 +69,22 @@ public class OrderService {
     @Transactional
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId) {
-        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, null);
+        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, null, null, null);
     }
 
     @Transactional
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId, String agentCode) {
-        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, null);
+        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, null, null);
     }
 
     @Transactional
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId, String agentCode,
-                            String bundleType) {
+                            String bundleType, String redirectUrl) {
 
         if (isMashupBundle(bundleType)) {
-            return placeMashupOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode);
+            return placeMashupOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, redirectUrl);
         }
 
         // Normalize network to lowercase to match DB storage ("mtn", "telecel", "airteltigo")
@@ -147,15 +147,16 @@ public class OrderService {
         // Try wallet payment first
         if (userId != null) {
             Optional<Wallet> wallet = walletRepository.findByUserId(userId);
-            if (wallet.isPresent() && wallet.get().getBalance().compareTo(total) >= 0)
-                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork);
+            if (wallet.isPresent() && wallet.get().getBalance().compareTo(total) >= 0) {
+                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork, redirectUrl);
+            }
         }
 
-        return initMoolre(order, email);
+        return initMoolre(order, email, redirectUrl);
     }
 
     private Order placeMashupOrder(String network, String phoneNumber, String bundleCode,
-                                   String email, String userId, String packageId, String agentCode) {
+                                   String email, String userId, String packageId, String agentCode, String redirectUrl) {
         MashupBundle mashupBundle = mashupService.getPurchasablePackage(bundleCode, packageId);
         String normalizedNetwork = mashupBundle.getNetwork() != null
                 ? mashupBundle.getNetwork().toUpperCase(Locale.ROOT)
@@ -209,11 +210,11 @@ public class OrderService {
         if (userId != null) {
             Optional<Wallet> wallet = walletRepository.findByUserId(userId);
             if (wallet.isPresent() && wallet.get().getBalance().compareTo(total) >= 0) {
-                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork);
+                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork, redirectUrl);
             }
         }
 
-        return initMoolre(order, email);
+        return initMoolre(order, email, redirectUrl);
     }
 
     public List<Order> getByUserId(String userId, String orderId, String phoneNumber, String status) {
@@ -295,12 +296,13 @@ public class OrderService {
         return bundleType != null && "MASHUP".equalsIgnoreCase(bundleType.trim());
     }
 
-    private Order initMoolre(Order order, String email) {
+    private Order initMoolre(Order order, String email, String redirectUrl) {
         try {
             String reference = "ORDER_" + order.getId();
+            String finalRedirectUrl = (redirectUrl != null && !redirectUrl.isBlank()) ? redirectUrl : moolreRedirectUrl;
             var responseData = moolreAdapter.generatePaymentLink(
                     order.getAmount().doubleValue(), email,
-                    reference, moolreCallbackUrl, moolreRedirectUrl);
+                    reference, moolreCallbackUrl, finalRedirectUrl);
 
             String authUrl = (String) responseData.get("authorization_url");
             String moolreRef = (String) responseData.get("reference");
@@ -316,14 +318,14 @@ public class OrderService {
     }
 
     private Order processWithWallet(Order order, Wallet wallet, BigDecimal amount,
-                                    String userId, String email, String network) {
+                                    String userId, String email, String network, String redirectUrl) {
         BigDecimal before = wallet.getBalance();
         var debitTx = transactionService.createDebit(userId, order.getId(), amount,
                 before, before.subtract(amount), "Order payment for " + order.getBundleCode());
 
         if (wallet.getBalance().compareTo(amount) <= 0) {
             transactionService.fail(debitTx.getId());
-            return initMoolre(order, email);
+            return initMoolre(order, email, redirectUrl);
         }
 
         try {
