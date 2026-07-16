@@ -37,4 +37,6 @@ public class PlaceOrderRequest {
 
     @Size(max = 20, message = "Invalid agent code")
     private String agentCode;
+
+    private String redirectUrl;
 }
