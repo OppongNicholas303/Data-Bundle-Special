@@ -34,7 +34,7 @@ public class TransactionController {
 
     /**
      * Verify payment status by order ID.
-     * Called by frontend after Paystack redirects back.
+     * Called by frontend after Moolre redirects back.
      * Handles both "ORDER_id" format and plain "id" format.
      * Returns order amount, reference, and status (success/pending/failed).
      */
@@ -58,7 +58,7 @@ public class TransactionController {
             response.put("status", paymentStatus);
             response.put("amount", order.getAmount().doubleValue());
             response.put("reference", "ORDER_" + order.getId());
-            response.put("channel", "paystack");
+            response.put("channel", "moolre");
             response.put("orderId", order.getId());
             
             return ResponseEntity.ok(response);

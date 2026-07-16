@@ -2,6 +2,7 @@ package com.space.space_bundle.controller;
 
 import com.space.space_bundle.dto.AgentStorefrontBundle;
 import com.space.space_bundle.entity.AgentBundlePricing;
+import com.space.space_bundle.entity.AgentCheckerPricing;
 import com.space.space_bundle.entity.AgentMashupPricing;
 import com.space.space_bundle.entity.AgentProfile;
 import com.space.space_bundle.entity.Commission;
@@ -103,6 +104,24 @@ public class AgentController {
                 agentService.setMashupPrice(userDetails.getUserId(), mashupBundleId, request.getSellingPrice())));
     }
 
+    @GetMapping("/checker/pricing")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<ApiResponse<List<AgentCheckerPricing>>> checkerPricings(
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(
+                agentService.getAgentCheckerPricingsByUserId(userDetails.getUserId())));
+    }
+
+    @PutMapping("/checker/{serviceName}/price")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<ApiResponse<AgentCheckerPricing>> setCheckerPrice(
+            @PathVariable String serviceName,
+            @Valid @RequestBody SetBundlePriceRequest request,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Checker price updated",
+                agentService.setAgentCheckerSellingPrice(userDetails.getUserId(), serviceName, request.getSellingPrice())));
+    }
+
     @GetMapping("/orders")
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<ApiResponse<List<?>>> orders(
@@ -151,10 +170,12 @@ public class AgentController {
         log.info("[STOREFRONT] Request agentCode='{}'", agentCode);
         AgentProfile profile = agentService.resolveByCode(agentCode);
         List<AgentStorefrontBundle> bundles = agentService.getStorefrontByProfile(profile, agentCode);
+        List<AgentCheckerPricing> checkerPricings = agentService.adminGetCheckerPricingsForAgent(profile.getId());
         return ResponseEntity.ok(ApiResponse.success(StorefrontResponse.builder()
                 .agentCode(agentCode)
                 .businessName(profile.getBusinessName())
                 .bundles(bundles)
+                .checkerPricings(checkerPricings)
                 .build()));
     }
 
@@ -163,5 +184,6 @@ public class AgentController {
         private String agentCode;
         private String businessName;
         private List<AgentStorefrontBundle> bundles;
+        private List<AgentCheckerPricing> checkerPricings;
     }
 }

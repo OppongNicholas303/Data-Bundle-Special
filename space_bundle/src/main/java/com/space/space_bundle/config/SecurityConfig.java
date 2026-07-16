@@ -53,6 +53,11 @@ public class SecurityConfig {
                 .requestMatchers("/bot/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/agents/storefront/**").permitAll()
+                .requestMatchers("/results-checker/vouchers").permitAll()
+                .requestMatchers("/results-checker/checks").permitAll()
+                .requestMatchers("/results-checker/checks/*/correction").permitAll()
+                .requestMatchers("/results-checker/transactions/*").permitAll()
+                .requestMatchers("/results-checker/pricing").permitAll()
                 .requestMatchers("/agents/register").authenticated()
                 .requestMatchers("/agents/**").hasRole("AGENT")
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
@@ -111,10 +116,11 @@ public class SecurityConfig {
             "http://localhost:3000",
             "http://localhost:3001",
                 "https://admin-dashboard-six-rho-17.vercel.app",
-                "http://localhost:5176"
+                "http://localhost:5176",
+                "http://localhost:5174/"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "x-paystack-signature", "ngrok-skip-browser-warning"));
+        config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "ngrok-skip-browser-warning"));
         config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

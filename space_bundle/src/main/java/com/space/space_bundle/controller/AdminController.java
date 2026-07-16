@@ -36,6 +36,9 @@ public class AdminController {
     private final AdminWithdrawalService adminWithdrawalService;
     private final OrderMigrationService orderMigrationService;
     private final com.space.space_bundle.service.WalletService walletService;
+    private final com.space.space_bundle.repository.ResultsTransactionRepository resultsTransactionRepository;
+    private final com.space.space_bundle.repository.ResultCheckerPricingRepository resultCheckerPricingRepository;
+    private final com.space.space_bundle.service.ResultsCheckerService resultsCheckerService;
 
     // ── Users ──────────────────────────────────────────────────────────────
 
@@ -49,6 +52,50 @@ public class AdminController {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
         return ResponseEntity.ok(ApiResponse.success(user));
+    }
+
+    @GetMapping("/results-checker/transactions")
+    public ResponseEntity<ApiResponse<List<ResultsTransaction>>> getAllCheckerTransactions() {
+        // Return all transactions sorted by creation date descending
+        List<ResultsTransaction> transactions = resultsTransactionRepository.findAll();
+        transactions.sort((a, b) -> {
+            if (a.getCreatedAt() == null) return 1;
+            if (b.getCreatedAt() == null) return -1;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+        return ResponseEntity.ok(ApiResponse.success(transactions));
+    }
+
+    @PostMapping("/results-checker/transactions/{referenceId}/retry")
+    public ResponseEntity<ApiResponse<ResultsTransaction>> retryCheckerTransaction(@PathVariable String referenceId) {
+        return resultsCheckerService.forceSyncTransaction(referenceId)
+                .map(tx -> ResponseEntity.ok(ApiResponse.success(tx)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/results-checker/pricing")
+    public ResponseEntity<ApiResponse<List<ResultCheckerPricing>>> getAllCheckerPricing() {
+        return ResponseEntity.ok(ApiResponse.success(resultCheckerPricingRepository.findAll()));
+    }
+
+    @PutMapping("/results-checker/pricing/{serviceName}")
+    public ResponseEntity<ApiResponse<ResultCheckerPricing>> updateCheckerRetailPrice(
+            @PathVariable String serviceName,
+            @RequestBody Map<String, BigDecimal> request) {
+        
+        ResultCheckerPricing pricing = resultCheckerPricingRepository.findById(serviceName)
+                .orElse(ResultCheckerPricing.builder()
+                        .serviceName(serviceName)
+                        .amount(BigDecimal.ZERO)
+                        .build());
+
+        if (request.containsKey("retailPrice")) {
+            pricing.setRetailPrice(request.get("retailPrice"));
+        }
+        pricing.setUpdatedAt(LocalDateTime.now());
+        resultCheckerPricingRepository.save(pricing);
+
+        return ResponseEntity.ok(ApiResponse.success(pricing));
     }
 
     @PutMapping("/users/{id}/toggle-lock")
@@ -400,7 +447,7 @@ public class AdminController {
              long completedOrders = dayOrders.stream().filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus())).count();
 
              // revenue = sum of sellingPrice (baseAmount) for completed orders
-             // (Paystack fee is excluded — it goes directly to Paystack)
+             // (Moolre fee is excluded — it goes directly to Moolre)
              BigDecimal revenue = dayOrders.stream()
                      .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus()))
                      .map(o -> o.getBaseAmount() != null ? o.getBaseAmount() : BigDecimal.ZERO)

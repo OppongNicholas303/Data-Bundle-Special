@@ -1,7 +1,6 @@
 package com.space.space_bundle.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -32,7 +31,7 @@ public class Order {
     private String bundleType;
     private String packageId;
 
-    private BigDecimal amount;        // total customer pays (includes Paystack fee)
+    private BigDecimal amount;        // total customer pays (includes Moolre fee)
 
     @JsonIgnore  // Internal — never expose platform base price or agent margin to customers
     private BigDecimal baseAmount;     // bundle sellingPrice (platform charge before fee)

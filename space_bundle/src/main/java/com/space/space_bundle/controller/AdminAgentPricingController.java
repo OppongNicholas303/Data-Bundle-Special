@@ -3,6 +3,7 @@ package com.space.space_bundle.controller;
 import com.space.space_bundle.dto.AdminAgentPricingRequest;
 import com.space.space_bundle.dto.ApiResponse;
 import com.space.space_bundle.entity.AgentBundlePricing;
+import com.space.space_bundle.entity.AgentCheckerPricing;
 import com.space.space_bundle.entity.AgentMashupPricing;
 import com.space.space_bundle.entity.AgentProfile;
 import com.space.space_bundle.repository.AgentProfileRepository;
@@ -163,16 +164,64 @@ public class AdminAgentPricingController {
     @PutMapping("/mashup/pricing/bulk")
     public ResponseEntity<ApiResponse<Map<String, Object>>> setBulkMashupBasePrice(
             @RequestBody BulkPricingRequest request) {
-        if (request.getBundleId() == null || request.getBasePrice() == null)
-            throw new IllegalArgumentException("bundleId and basePrice are required");
-
         int updated = agentService.adminSetMashupPriceForAllAgents(
                 request.getBundleId(), request.getBasePrice());
+        return ResponseEntity.ok(ApiResponse.success("Bulk update successful",
+                Map.of("agentsUpdated", updated)));
+    }
 
-        return ResponseEntity.ok(ApiResponse.success("Bulk Mashup update complete",
-                Map.of("bundleId", request.getBundleId(),
-                       "basePrice", request.getBasePrice(),
-                       "agentsUpdated", updated)));
+    // ── Checker Pricing Endpoints ──────────────────────────────────────────
+
+    @GetMapping("/{agentProfileId}/checker/pricing")
+    public ResponseEntity<ApiResponse<List<AgentCheckerPricing>>> getAgentCheckerPricing(
+            @PathVariable String agentProfileId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                agentService.adminGetCheckerPricingsForAgent(agentProfileId)));
+    }
+
+    @GetMapping("/checker/pricing/service/{serviceName}")
+    public ResponseEntity<ApiResponse<List<AgentCheckerPricing>>> getCheckerPricingForService(
+            @PathVariable String serviceName) {
+        return ResponseEntity.ok(ApiResponse.success(
+                agentService.adminGetCheckerPricingsForService(serviceName)));
+    }
+
+    @PutMapping("/checker/pricing")
+    public ResponseEntity<ApiResponse<AgentCheckerPricing>> setAgentCheckerBasePrice(
+            @Valid @RequestBody AdminAgentPricingRequest request) {
+        AgentCheckerPricing result = agentService.adminSetAgentCheckerPrice(
+                request.getAgentProfileId(),
+                request.getBundleId(), // we use bundleId field to carry serviceName
+                request.getBasePrice(),
+                request.getSellingPrice());
+        return ResponseEntity.ok(ApiResponse.success("Checker base price updated for agent", result));
+    }
+
+    @PutMapping("/{agentProfileId}/checker/{serviceName}/price")
+    public ResponseEntity<ApiResponse<AgentCheckerPricing>> setAgentCheckerSellingPrice(
+            @PathVariable String agentProfileId,
+            @PathVariable String serviceName,
+            @RequestBody AdminAgentPricingRequest request) {
+        BigDecimal sellingPrice = request.getSellingPrice();
+        if (sellingPrice == null)
+            throw new IllegalArgumentException("sellingPrice is required");
+
+        AgentCheckerPricing result = agentService.adminSetAgentCheckerPrice(
+                agentProfileId,
+                serviceName,
+                request.getBasePrice() != null ? request.getBasePrice() : sellingPrice,
+                sellingPrice);
+        return ResponseEntity.ok(ApiResponse.success("Agent Checker selling price updated", result));
+    }
+
+    @PutMapping("/checker/pricing/bulk")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> setBulkCheckerBasePrice(
+            @RequestBody BulkPricingRequest request) {
+        int updated = agentService.adminSetCheckerBasePriceForAllAgents(
+                request.getBundleId(), // we use bundleId field to carry serviceName
+                request.getBasePrice());
+        return ResponseEntity.ok(ApiResponse.success("Bulk update successful",
+                Map.of("agentsUpdated", updated)));
     }
 
     /**

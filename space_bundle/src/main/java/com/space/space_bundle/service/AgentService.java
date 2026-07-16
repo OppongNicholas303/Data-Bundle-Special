@@ -21,6 +21,8 @@ public class AgentService {
 
     private final AgentProfileRepository agentProfileRepository;
     private final AgentBundlePricingRepository agentBundlePricingRepository;
+    private final AgentCheckerPricingRepository agentCheckerPricingRepository;
+    private final ResultCheckerPricingRepository resultCheckerPricingRepository;
     private final UserRepository userRepository;
     private final BundleRepository bundleRepository;
     private final WalletRepository walletRepository;
@@ -225,6 +227,101 @@ public class AgentService {
     /** Admin view: all pricings for one agent. */
     public List<AgentBundlePricing> adminGetPricingsForAgent(String agentProfileId) {
         return agentBundlePricingRepository.findByAgentId(agentProfileId);
+    }
+
+    // ── Checker Pricing Management ─────────────────────────────────────────
+
+    public AgentCheckerPricing adminSetAgentCheckerPrice(String agentProfileId, String serviceName,
+                                                         BigDecimal basePrice, BigDecimal sellingPrice) {
+        AgentProfile profile = agentProfileRepository.findById(agentProfileId)
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found"));
+
+        ResultCheckerPricing globalPricing = resultCheckerPricingRepository.findById(serviceName)
+                .orElseThrow(() -> new IllegalArgumentException("Checker service not found: " + serviceName));
+
+        // Use global retail price as fallback if basePrice isn't provided
+        BigDecimal newBase = basePrice != null ? basePrice : globalPricing.getRetailPrice();
+        if (newBase == null) {
+            throw new IllegalArgumentException("Global Retail Price is not set. Please set it first.");
+        }
+
+        // Base price cannot be below the global retail price OR amount (cost)
+        if (newBase.compareTo(globalPricing.getAmount()) < 0) {
+            throw new IllegalArgumentException("Agent base price cannot be below platform cost price");
+        }
+
+        AgentCheckerPricing pricing = agentCheckerPricingRepository.findByAgentIdAndServiceName(agentProfileId, serviceName)
+                .orElse(AgentCheckerPricing.builder()
+                        .id(UUID.randomUUID().toString())
+                        .agentId(agentProfileId)
+                        .serviceName(serviceName)
+                        .active(true)
+                        .createdAt(LocalDateTime.now())
+                        .build());
+
+        pricing.setBasePrice(newBase);
+
+        if (sellingPrice != null) {
+            if (sellingPrice.compareTo(pricing.getBasePrice()) < 0) {
+                throw new IllegalArgumentException("Selling price cannot be below base price");
+            }
+            pricing.setSellingPrice(sellingPrice);
+        } else if (pricing.getSellingPrice() == null || pricing.getSellingPrice().compareTo(pricing.getBasePrice()) < 0) {
+            // Default selling price
+            pricing.setSellingPrice(pricing.getBasePrice());
+        }
+
+        pricing.setUpdatedAt(LocalDateTime.now());
+        return agentCheckerPricingRepository.save(pricing);
+    }
+
+    @Transactional
+    public int adminSetCheckerBasePriceForAllAgents(String serviceName, BigDecimal basePrice) {
+        ResultCheckerPricing globalPricing = resultCheckerPricingRepository.findById(serviceName)
+                .orElseThrow(() -> new IllegalArgumentException("Checker service not found: " + serviceName));
+
+        if (basePrice.compareTo(globalPricing.getAmount()) < 0)
+            throw new IllegalArgumentException("Base price cannot be below platform cost price");
+
+        List<AgentProfile> allAgents = agentProfileRepository.findAll();
+        int updated = 0;
+        for (AgentProfile agent : allAgents) {
+            try {
+                adminSetAgentCheckerPrice(agent.getId(), serviceName, basePrice, null);
+                updated++;
+            } catch (Exception e) {
+                log.warn("[ADMIN] Could not update checker pricing agentId={}: {}", agent.getId(), e.getMessage());
+            }
+        }
+        return updated;
+    }
+
+    public List<AgentCheckerPricing> adminGetCheckerPricingsForAgent(String agentProfileId) {
+        return agentCheckerPricingRepository.findByAgentId(agentProfileId);
+    }
+
+    public List<AgentCheckerPricing> adminGetCheckerPricingsForService(String serviceName) {
+        return agentCheckerPricingRepository.findByServiceName(serviceName);
+    }
+
+    public List<AgentCheckerPricing> getAgentCheckerPricingsByUserId(String userId) {
+        AgentProfile profile = getProfileByUserId(userId);
+        return agentCheckerPricingRepository.findByAgentId(profile.getId());
+    }
+
+    public AgentCheckerPricing setAgentCheckerSellingPrice(String userId, String serviceName, BigDecimal sellingPrice) {
+        AgentProfile profile = getProfileByUserId(userId);
+
+        AgentCheckerPricing pricing = agentCheckerPricingRepository.findByAgentIdAndServiceName(profile.getId(), serviceName)
+                .orElseThrow(() -> new IllegalStateException("Pricing override not found. Wait for admin to set base price."));
+
+        if (sellingPrice.compareTo(pricing.getBasePrice()) < 0) {
+            throw new IllegalArgumentException("Selling price cannot be lower than base price: " + pricing.getBasePrice());
+        }
+
+        pricing.setSellingPrice(sellingPrice);
+        pricing.setUpdatedAt(LocalDateTime.now());
+        return agentCheckerPricingRepository.save(pricing);
     }
 
     @Transactional

@@ -14,28 +14,41 @@ import org.springframework.web.bind.annotation.*;
 public class WebhookController {
 
     private final WebhookService webhookService;
+    private final com.space.space_bundle.service.ResultsCheckerService resultsCheckerService;
 
-    @PostMapping({"/webhook/paystack", "/webhooks/paystack"})
-    public ResponseEntity<Void> paystack(
+    @org.springframework.beans.factory.annotation.Value("${checkerport.api-key}")
+    private String checkerportApiKey;
+
+    @PostMapping({"/webhook/moolre", "/webhooks/moolre"})
+    public ResponseEntity<Void> moolre(
             @RequestBody String payload,
-            @RequestHeader(value = "x-paystack-signature", required = false) String signature,
             HttpServletRequest request) {
 
-        System.out.println("recieve");
+        System.out.println("receive moolre webhook");
 
-        if (signature == null || signature.isBlank()) {
-            log.warn("[WEBHOOK] Rejected — missing x-paystack-signature header");
+        if (!webhookService.isValidMoolreWebhook(payload)) {
+            log.warn("[WEBHOOK] Rejected — invalid secret or payload");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        if (!webhookService.isValidSignature(payload, signature)) {
-            log.warn("[WEBHOOK] Rejected — invalid signature");
+        log.info("[WEBHOOK] Received valid webhook from Moolre");
+        log.info("[WEBHOOK] Secret verified, processing");
+        webhookService.processMoolre(payload);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping({"/webhook/checkerport", "/webhooks/checkerport"})
+    public ResponseEntity<Void> checkerport(
+            @RequestBody java.util.Map<String, Object> payload,
+            @RequestHeader(value = "x-api-key", required = false) String apiKey) {
+        
+        if (apiKey == null || !apiKey.equals(checkerportApiKey)) {
+            log.warn("[WEBHOOK] Rejected CheckerPort webhook — invalid or missing API key");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        log.info("[WEBHOOK] Received valid webhook from Paystack");
-        log.info("[WEBHOOK] Signature verified, processing");
-        webhookService.processPaystack(payload);
+        log.info("[WEBHOOK] Received valid webhook from CheckerPort");
+        resultsCheckerService.handleWebhook(payload);
         return ResponseEntity.ok().build();
     }
 }

@@ -2,7 +2,7 @@ package com.space.space_bundle.service;
 
 import com.space.space_bundle.entity.Order;
 import com.space.space_bundle.repository.OrderRepository;
-import com.space.space_bundle.security.PaystackAdapter;
+import com.space.space_bundle.security.MoolreAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,12 +10,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 
 @Slf4j
 @Service
@@ -23,7 +18,7 @@ import java.security.NoSuchAlgorithmException;
 public class WebhookService {
 
     private final OrderRepository orderRepository;
-    private final PaystackAdapter paystackAdapter;
+    private final MoolreAdapter moolreAdapter;
     private final AutomationService automationService;
     private final TransactionService transactionService;
     private final WalletService walletService;
@@ -34,44 +29,34 @@ public class WebhookService {
     @Value("${app.support-email:support@tapdata.com}")
     private String supportEmail;
 
-    @Value("${paystack.secret-key}")
-    private String paystackSecretKey;
+    @Value("${moolre.webhook-secret:default_secret}")
+    private String moolreWebhookSecret;
 
     // runtime flag read from DB via FeatureFlagService
 
-    /**
-     * Verifies the x-paystack-signature header.
-     * Paystack signs the raw request body with HMAC-SHA512 using your secret key.
-     * We must compute the same hash and compare — reject if they don't match.
-     */
-    public boolean isValidSignature(String payload, String signature) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA512");
-            mac.init(new SecretKeySpec(paystackSecretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
-            byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
-            String computed = bytesToHex(hash);
-            return computed.equalsIgnoreCase(signature);
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            log.error("[WEBHOOK] Signature verification error: {}", e.getMessage());
+    public boolean isValidMoolreWebhook(String payload) {
+        String secret = extractValue(payload, "secret");
+        if (secret == null || !secret.equals(moolreWebhookSecret)) {
+            log.error("[WEBHOOK] Moolre secret mismatch. Expected={}, Got={}", moolreWebhookSecret, secret);
             return false;
         }
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) sb.append(String.format("%02x", b));
-        return sb.toString();
+        return true;
     }
 
     @Async
     @Transactional
-    public void processPaystack(String payload) {
-        log.info("[WEBHOOK] Processing");
+    public void processMoolre(String payload) {
+        log.info("[WEBHOOK] Processing Moolre payload");
         try {
-            String clean = payload.replaceAll("\\s+", "");
-            if (!clean.contains("\"event\":\"charge.success\"")) return;
-            String reference = extractValue(payload, "reference");
-            if (!"success".equals(extractValue(payload, "status"))) return;
+            String statusStr = extractValue(payload, "status");
+            if (!"1".equals(statusStr)) return;
+
+            String txstatusStr = extractValue(payload, "txstatus");
+            if (!"1".equals(txstatusStr)) return;
+
+            String reference = extractValue(payload, "externalref");
+            if (reference == null) return;
+            
             if (reference.startsWith("TOPUP_")) processTopUp(reference);
             else processOrderPayment(reference);
         } catch (Exception e) {
@@ -82,8 +67,8 @@ public class WebhookService {
     }
 
     private void processOrderPayment(String reference) {
-        var verification = paystackAdapter.verifyTransaction(reference);
-        if (!verification.isStatus() || !"success".equals(verification.getData().getStatus())) return;
+        var verification = moolreAdapter.checkPaymentStatus(reference, 1);
+        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) return;
 
         String orderId = reference.replace("ORDER_", "");
         Order order = orderRepository.findById(orderId)
@@ -91,6 +76,27 @@ public class WebhookService {
 
         if (!Order.OrderStatus.PENDING_PAYMENT.name().equals(order.getStatus())) return;
 
+        fulfillVerifiedOrder(order);
+    }
+
+    public boolean verifyOrderWithMoolreId(String orderId, String moolreId) {
+        var verification = moolreAdapter.checkPaymentStatus(moolreId, 2);
+        log.info("[MANUAL_VERIFY] Parsed verification: {}", verification);
+        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
+            return false;
+        }
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+
+        if (!Order.OrderStatus.PENDING_PAYMENT.name().equals(order.getStatus())) {
+            return true; // Already processed
+        }
+
+        return fulfillVerifiedOrder(order);
+    }
+
+    public boolean fulfillVerifiedOrder(Order order) {
         try {
             order.markPaid();
             orderRepository.save(order);
@@ -108,12 +114,11 @@ public class WebhookService {
             boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", true);
             if (useRandyOnly) {
                 order.setByFrom("randy");
-                providerRef = order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
+                providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
             } else {
-                // Preserve prior behavior: MTN => Randy, others => legacy bot
                 if ("MTN".equalsIgnoreCase(order.getNetwork())) {
                     order.setByFrom("randy");
-                    providerRef = order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
+                    providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
                 } else {
                     providerRef = automationService.buy(order);
                 }
@@ -123,21 +128,22 @@ public class WebhookService {
             orderRepository.save(order);
 
             orderService.settleCommission(order);
-            log.info("[WEBHOOK] Order completed: {}", orderId);
+            log.info("[FULFILLMENT] Order completed: {}", order.getId());
+            return true;
 
         } catch (Exception ex) {
-            log.error("[WEBHOOK] Order failed: {}", orderId, ex);
-            emailService.send(supportEmail, "Order Failed: " + orderId, ex.getMessage());
+            log.error("[FULFILLMENT] Order failed: {}", order.getId(), ex);
+            emailService.send(supportEmail, "Order Failed: " + order.getId(), ex.getMessage());
             order.markFailed("Processing failed: " + ex.getMessage());
             orderRepository.save(order);
+            return false;
         }
     }
 
     private void processTopUp(String reference) {
-        var verification = paystackAdapter.verifyTransaction(reference);
-        if (!verification.isStatus() || !"success".equals(verification.getData().getStatus())) return;
-        BigDecimal amount = BigDecimal.valueOf(verification.getData().getAmount())
-                .divide(BigDecimal.valueOf(100));
+        var verification = moolreAdapter.checkPaymentStatus(reference, 1);
+        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) return;
+        BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(String.valueOf(verification.get("amount"))));
         try {
             walletService.processTopUpById(reference.replace("TOPUP_", ""), amount);
         } catch (Exception ex) {

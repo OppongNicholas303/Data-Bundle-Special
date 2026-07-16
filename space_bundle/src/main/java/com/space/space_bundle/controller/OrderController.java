@@ -14,6 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import com.space.space_bundle.service.WebhookService;
+import java.util.Map;
 import java.util.List;
 import java.util.Random;
 
@@ -24,6 +26,7 @@ import java.util.Random;
 public class OrderController {
 
     private final OrderService orderService;
+    private final WebhookService webhookService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<Order>> placeOrder(
@@ -77,5 +80,25 @@ public class OrderController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<SingleOrderUserDTO>> getUsersWithSingleCompletedOrder() {
         return ResponseEntity.ok(orderService.getUsersWithSingleCompletedOrder());
+    }
+
+    @PostMapping("/{id}/verify-payment")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>> verifyPayment(
+            @PathVariable String id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        String moolreId = body.get("moolreId");
+        if (moolreId == null || moolreId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Moolre ID is required"));
+        }
+
+        boolean verified = webhookService.verifyOrderWithMoolreId(id, moolreId);
+
+        if (verified) {
+            return ResponseEntity.ok(ApiResponse.success("Payment verified and order is processing"));
+        } else {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Payment could not be verified"));
+        }
     }
 }

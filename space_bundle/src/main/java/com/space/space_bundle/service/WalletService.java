@@ -5,7 +5,7 @@ import com.space.space_bundle.entity.Transaction;
 import com.space.space_bundle.entity.Wallet;
 import com.space.space_bundle.repository.UserRepository;
 import com.space.space_bundle.repository.WalletRepository;
-import com.space.space_bundle.security.PaystackAdapter;
+import com.space.space_bundle.security.MoolreAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,11 +23,14 @@ public class WalletService {
 
     private final WalletRepository walletRepository;
     private final TransactionService transactionService;
-    private final PaystackAdapter paystackAdapter;
+    private final MoolreAdapter moolreAdapter;
     private final UserRepository userRepository;
 
-    @Value("${paystack.callback-url:http://localhost:3000/payment/callback}")
-    private String paystackCallbackUrl;
+    @Value("${moolre.callback-url:http://localhost:8080/api/webhook/moolre}")
+    private String moolreCallbackUrl;
+
+    @Value("${moolre.redirect-url:http://localhost:3000/payment/callback}")
+    private String moolreRedirectUrl;
 
     @Transactional
     public Wallet createWallet(String userId) {
@@ -85,17 +88,17 @@ public class WalletService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
                 .getEmail();
 
-        var response = paystackAdapter.initializeTransaction(
-                email, amount.multiply(BigDecimal.valueOf(100)).intValue(), reference, paystackCallbackUrl);
+        var responseData = moolreAdapter.generatePaymentLink(
+                amount.doubleValue(), email, reference, moolreCallbackUrl, moolreRedirectUrl);
 
-        if (!response.isStatus() || response.getData() == null)
-            throw new RuntimeException("Failed to initialize top-up: " + response.getMessage());
+        String moolreRef = (String) responseData.get("reference");
+        if (moolreRef == null) moolreRef = reference;
 
         return TopUpResponse.builder()
                 .topUpId(topUpId)
                 .reference(reference)
-                .authorizationUrl(response.getData().getAuthorization_url())
-                .accessCode(response.getData().getAccess_code())
+                .authorizationUrl((String) responseData.get("authorization_url"))
+                .accessCode(moolreRef)
                 .build();
     }
 
