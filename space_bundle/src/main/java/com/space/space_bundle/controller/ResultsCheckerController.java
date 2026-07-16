@@ -63,4 +63,15 @@ public class ResultsCheckerController {
     public ResponseEntity<Iterable<ResultCheckerPricing>> getPricing() {
         return ResponseEntity.ok(resultsCheckerService.getAllPricing());
     }
+
+    @GetMapping("/my-ip")
+    public ResponseEntity<java.util.Map<String, String>> getServerIp() {
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            String ip = restTemplate.getForObject("https://api.ipify.org", String.class);
+            return ResponseEntity.ok(java.util.Map.of("ip", ip, "message", "Provide this IP to Moolre for whitelisting."));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Failed to fetch IP: " + e.getMessage()));
+        }
+    }
 }
