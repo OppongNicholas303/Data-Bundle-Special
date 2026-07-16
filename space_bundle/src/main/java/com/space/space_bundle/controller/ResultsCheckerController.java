@@ -9,6 +9,8 @@ import com.space.space_bundle.service.ResultsCheckerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.space.space_bundle.security.CustomUserDetailsService.CustomUserDetails;
 
 @RestController
 @RequestMapping("/results-checker")
@@ -19,13 +21,19 @@ public class ResultsCheckerController {
 
     // Ideally extract userId from SecurityContext, for now we can pass null or parse it
     @PostMapping("/vouchers")
-    public ResponseEntity<ResultsTransaction> buyVoucher(@RequestBody CheckerPortVoucherRequest request) {
-        return ResponseEntity.ok(resultsCheckerService.buyVoucher(request, null));
+    public ResponseEntity<ResultsTransaction> buyVoucher(
+            @RequestBody CheckerPortVoucherRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        String userId = userDetails != null ? userDetails.getUserId() : null;
+        return ResponseEntity.ok(resultsCheckerService.buyVoucher(request, userId));
     }
 
     @PostMapping("/checks")
-    public ResponseEntity<ResultsTransaction> checkResult(@RequestBody CheckerPortArcRequest request) {
-        return ResponseEntity.ok(resultsCheckerService.checkResult(request, null));
+    public ResponseEntity<ResultsTransaction> checkResult(
+            @RequestBody CheckerPortArcRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        String userId = userDetails != null ? userDetails.getUserId() : null;
+        return ResponseEntity.ok(resultsCheckerService.checkResult(request, userId));
     }
 
     @PostMapping("/checks/{referenceId}/correction")
@@ -40,6 +48,15 @@ public class ResultsCheckerController {
         return resultsCheckerService.getTransaction(referenceId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/transactions")
+    public ResponseEntity<Iterable<ResultsTransaction>> getUserTransactions(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.space.space_bundle.security.CustomUserDetailsService.CustomUserDetails userDetails) {
+        if (userDetails == null || userDetails.getUserId() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(resultsCheckerService.getTransactionsByUserId(userDetails.getUserId()));
     }
 
     @GetMapping("/pricing")

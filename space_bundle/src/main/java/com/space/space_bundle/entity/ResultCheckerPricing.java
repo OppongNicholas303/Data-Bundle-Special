@@ -16,8 +16,9 @@ public class ResultCheckerPricing {
 
     @Id
     private String serviceName; // e.g. VoucherPricePlatformWaecNew
-
-    private BigDecimal amount;
+    private BigDecimal amount; // Cost price from CheckerPort API
+    
+    private BigDecimal retailPrice; // Retail price set by the Admin
 
     private LocalDateTime updatedAt;
 }

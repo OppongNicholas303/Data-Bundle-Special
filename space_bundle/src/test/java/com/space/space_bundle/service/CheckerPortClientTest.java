@@ -61,12 +61,12 @@ class CheckerPortClientTest {
         
         when(webClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.bodyValue(any())).thenReturn((org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec) requestBodySpec);
         when(requestBodySpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.bodyToMono(any(ParameterizedTypeReference.class)))
                 .thenReturn(Mono.just(mockResp));
 
-        CheckerPortVoucherRequest req = new CheckerPortVoucherRequest("PlatformWaecNew", 1, "0240000000", BigDecimal.valueOf(20), "url", null);
+        CheckerPortVoucherRequest req = new CheckerPortVoucherRequest("PlatformWaecNew", 1, "0240000000", "email@test.com", BigDecimal.valueOf(20), "url", null, null);
         CheckerPortResponse<Map<String, Object>> response = client.buyVoucher(req);
 
         assertEquals("SUCCESS", response.getStatus());
@@ -82,7 +82,7 @@ class CheckerPortClientTest {
 
         when(webClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.bodyValue(any())).thenReturn((org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec) requestBodySpec);
         when(requestBodySpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.bodyToMono(any(ParameterizedTypeReference.class)))
                 .thenReturn(Mono.just(mockResp));

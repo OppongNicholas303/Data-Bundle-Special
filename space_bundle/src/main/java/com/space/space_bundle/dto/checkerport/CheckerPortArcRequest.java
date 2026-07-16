@@ -15,9 +15,11 @@ public class CheckerPortArcRequest {
     private String type; // Bece, WassceSchool, WasscePrivate, ShsPlacement
     private String indexNumber;
     private String phoneNumber;
+    private String email;
     private BigDecimal price;
     private String webhookCallbackUrl;
     private String referenceId;
     private String year;
     private String dob;
+    private String agentCode;
 }

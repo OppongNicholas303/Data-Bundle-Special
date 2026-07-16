@@ -15,7 +15,9 @@ public class CheckerPortVoucherRequest {
     private String platform; // PlatformWaecNew, PlatformWaecOld
     private Integer qty;
     private String phoneNumber;
+    private String email;
     private BigDecimal price;
     private String webhookCallbackUrl;
     private String referenceId;
+    private String agentCode;
 }

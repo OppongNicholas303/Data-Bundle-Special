@@ -16,7 +16,10 @@ import reactor.util.retry.Retry;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 
+@Slf4j
 @Service
 public class CheckerPortClient {
 
@@ -80,6 +83,11 @@ public class CheckerPortClient {
                     .retryWhen(Retry.fixedDelay(1, Duration.ofSeconds(2)).filter(this::isConnectionError))
                     .block();
             checkResponseForError(response);
+            try {
+                log.info("CheckerPort API POST response from {}: {}", uri, objectMapper.writeValueAsString(response));
+            } catch (JsonProcessingException e) {
+                log.info("CheckerPort API POST response from {}: {}", uri, response);
+            }
             return response;
         } catch (WebClientResponseException e) {
             return handleHttpError(e);
@@ -96,6 +104,11 @@ public class CheckerPortClient {
                     .retryWhen(Retry.fixedDelay(1, Duration.ofSeconds(2)).filter(this::isConnectionError))
                     .block();
             checkResponseForError(response);
+            try {
+                log.info("CheckerPort API GET response from {}: {}", uri, objectMapper.writeValueAsString(response));
+            } catch (JsonProcessingException e) {
+                log.info("CheckerPort API GET response from {}: {}", uri, response);
+            }
             return response;
         } catch (WebClientResponseException e) {
             return handleHttpError(e);

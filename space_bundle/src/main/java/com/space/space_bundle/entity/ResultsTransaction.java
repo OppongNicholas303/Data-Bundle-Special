@@ -27,12 +27,18 @@ public class ResultsTransaction {
     @Indexed
     private String userId; // Optional, if logged in
 
+    @Indexed
+    private String agentId; // The agent who referred this transaction
+    private BigDecimal agentProfit; // How much commission the agent earned
+    private boolean commissionPaid; // True if the agent's wallet has been credited
+
     private ResultsTransactionType type; // VOUCHER, ARC_BECE, etc.
 
     @Indexed
     private ServiceStatus status; // PENDING, PENDING_INPUT, COMPLETE, FAILED
 
     private String phoneNumber;
+    private String email; // Optional email for delivery
     private BigDecimal price; // Price charged to the user
     private BigDecimal costPrice; // Cost price from CheckerPort
     private Integer qty; // For vouchers
