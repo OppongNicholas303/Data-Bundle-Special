@@ -109,7 +109,6 @@ public class SecurityConfig {
                 "https://tapdata-store.vercel.app",
             "https://tapdata-agent-store.vercel.app",
             "https://bundle-buddy-99.vercel.app",
-            "http://localhost:5173",
             "http://localhost:5174",
             "http://localhost:5175",
             "http://localhost:4200",
@@ -118,7 +117,7 @@ public class SecurityConfig {
             "http://localhost:3001",
                 "https://admin-dashboard-six-rho-17.vercel.app",
                 "http://localhost:5176",
-                "http://localhost:5173/"
+                "http://localhost:5173"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "ngrok-skip-browser-warning"));

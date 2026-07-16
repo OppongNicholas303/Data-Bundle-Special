@@ -151,4 +151,4 @@ app:
 checkerport:
   base-url: ${CHECKERPORT_BASE_URL:https://api.checkerport.com}
   api-key: ${CHECKERPORT_API_KEY:NLvbtL_W3TjtIDgW-1fXsJaXdILKtZ7hpYcgk6f0gd8}
-  webhook-callback-url: ${CHECKERPORT_WEBHOOK_URL:https://api.checkerport.com}
+  webhook-callback-url: ${CHECKERPORT_WEBHOOK_URL:https://data-bundle-special-ulkt.onrender.com/api/webhook/checkerport}
