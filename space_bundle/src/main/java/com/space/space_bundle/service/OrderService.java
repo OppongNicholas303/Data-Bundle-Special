@@ -359,7 +359,7 @@ public class OrderService {
             order.markRefunded();
             orderRepository.save(order);
 
-            return initMoolre(order, email);
+            return initMoolre(order, email, redirectUrl);
         }
     }
 
