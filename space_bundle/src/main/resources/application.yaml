@@ -3,22 +3,19 @@ spring:
     name: space-bundle
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: nicholas.oppong@stu.ucc.edu.gh
-    password: youdkvfjtbxvstgp
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:nicholas.oppong@stu.ucc.edu.gh}
+    password: ${MAIL_PASSWORD:youdkvfjtbxvstgp}
     properties:
       mail:
+        debug: true
         smtp:
           auth: true
-          starttls:
-            enable: true
-            required: true
           ssl:
+            enable: true
+          starttls:
             enable: false
-          connectiontimeout: 10000
-          timeout: 10000
-          writetimeout: 10000
 
   # MongoDB Configuration
   data:
