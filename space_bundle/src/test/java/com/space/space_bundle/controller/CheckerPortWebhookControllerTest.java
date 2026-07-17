@@ -1,10 +1,6 @@
 package com.space.space_bundle.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.space.space_bundle.dto.checkerport.CheckerPortResponse;
-import com.space.space_bundle.entity.ResultsTransaction;
-import com.space.space_bundle.entity.ServiceStatus;
-import com.space.space_bundle.repository.ResultsTransactionRepository;
+import com.space.space_bundle.service.ResultsCheckerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,7 +13,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,7 +22,7 @@ import static org.mockito.Mockito.*;
 class CheckerPortWebhookControllerTest {
 
     @Mock
-    private ResultsTransactionRepository transactionRepository;
+    private ResultsCheckerService resultsCheckerService;
 
     @InjectMocks
     private CheckerPortWebhookController webhookController;
@@ -41,53 +36,31 @@ class CheckerPortWebhookControllerTest {
 
     @Test
     void handleWebhook_Unauthorized_Returns401() {
-        CheckerPortResponse<Map<String, Object>> payload = new CheckerPortResponse<>();
+        Map<String, Object> payload = new HashMap<>();
         ResponseEntity<Void> response = webhookController.handleWebhook("wrong-key", payload);
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        verify(resultsCheckerService, never()).handleWebhook(any());
     }
 
     @Test
-    void handleWebhook_Valid_UpdatesTransaction() {
-        String refId = "REF123";
-        CheckerPortResponse<Map<String, Object>> payload = new CheckerPortResponse<>();
-        payload.setStatus("SUCCESS");
-        Map<String, Object> data = new HashMap<>();
-        data.put("referenceId", refId);
-        data.put("serviceStatus", "complete");
-        payload.setData(data);
-
-        ResultsTransaction tx = new ResultsTransaction();
-        tx.setReferenceId(refId);
-        tx.setStatus(ServiceStatus.PENDING);
-
-        when(transactionRepository.findByReferenceId(refId)).thenReturn(Optional.of(tx));
+    void handleWebhook_Valid_CallsService() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("status", "SUCCESS");
 
         ResponseEntity<Void> response = webhookController.handleWebhook(API_KEY, payload);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(ServiceStatus.COMPLETE, tx.getStatus());
-        verify(transactionRepository).save(tx);
+        verify(resultsCheckerService).handleWebhook(payload);
     }
 
     @Test
-    void handleWebhook_Idempotent_DoesNotUpdateIfAlreadyComplete() {
-        String refId = "REF123";
-        CheckerPortResponse<Map<String, Object>> payload = new CheckerPortResponse<>();
-        Map<String, Object> data = new HashMap<>();
-        data.put("referenceId", refId);
-        data.put("serviceStatus", "complete");
-        payload.setData(data);
-
-        ResultsTransaction tx = new ResultsTransaction();
-        tx.setReferenceId(refId);
-        tx.setStatus(ServiceStatus.COMPLETE);
-        tx.setWebhookReceived(true); // Already received
-
-        when(transactionRepository.findByReferenceId(refId)).thenReturn(Optional.of(tx));
+    void handleWebhook_ServiceThrowsException_Returns500() {
+        Map<String, Object> payload = new HashMap<>();
+        doThrow(new RuntimeException("Test Exception")).when(resultsCheckerService).handleWebhook(payload);
 
         ResponseEntity<Void> response = webhookController.handleWebhook(API_KEY, payload);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(transactionRepository, never()).save(any());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        verify(resultsCheckerService).handleWebhook(payload);
     }
 }
