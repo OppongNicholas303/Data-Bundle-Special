@@ -480,8 +480,9 @@ public class ResultsCheckerService {
         htmlBody.append("<br/><p>Thank you for using TapData!</p>");
         
         try {
-            emailService.sendHtml(tx.getEmail(), subject, textBody.toString(), htmlBody.toString());
-            log.info("Delivery email sent to {}", tx.getEmail());
+            // emailService.sendHtml(tx.getEmail(), subject, textBody.toString(), htmlBody.toString());
+            // log.info("Delivery email sent to {}", tx.getEmail());
+            log.info("Delivery email sending is temporarily disabled for {}", tx.getEmail());
         } catch (Exception e) {
             log.error("Failed to send delivery email to {}: {}", tx.getEmail(), e.getMessage());
         }
