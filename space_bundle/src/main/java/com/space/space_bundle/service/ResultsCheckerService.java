@@ -482,7 +482,7 @@ public class ResultsCheckerService {
         try {
             // emailService.sendHtml(tx.getEmail(), subject, textBody.toString(), htmlBody.toString());
             // log.info("Delivery email sent to {}", tx.getEmail());
-            log.info("Delivery email sending is temporarily disabled for {}", tx.getEmail());
+            log.info("Delivery email sending is temporarily disabled for {}. Email Subject: '{}', Body:\n{}", tx.getEmail(), subject, textBody.toString());
         } catch (Exception e) {
             log.error("Failed to send delivery email to {}: {}", tx.getEmail(), e.getMessage());
         }
