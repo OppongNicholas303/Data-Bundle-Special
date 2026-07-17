@@ -108,6 +108,43 @@ logging:
     name: ${LOG_FILE:logs/space-bundle.log}
     max-size: ${LOG_MAX_SIZE:10MB}
     max-history: ${LOG_MAX_HISTORY:30}
+    total-size-cap: ${LOG_TOTAL_SIZE:1GB}
+
+# Moolre SMS Configuration
+moolre:
+  sms:
+    api-key: ${MOOLRE_SMS_API_KEY:YOUR_X_API_VASKEY}
+    api-url: ${MOOLRE_SMS_API_URL:https://api.moolre.com/open/sms/send}
+    price-per-page: ${MOOLRE_SMS_PRICE_PER_PAGE:0.04}
+    sender-ids: ${MOOLRE_SMS_SENDER_IDS:Moolre,SpaceBundle}
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/space_bundle_dev
+
+jwt:
+  secret: dev-secret-key-change-in-production-minimum-256-bits-required-for-hs256
+  expiration: 86400000
+  refresh-expiration: 604800000
+
+server:
+  error:
+    include-stacktrace: on_param
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+
+logging:
   level:
     root: ${LOG_LEVEL_ROOT:INFO}
     com.space: ${LOG_LEVEL_APP:INFO}
