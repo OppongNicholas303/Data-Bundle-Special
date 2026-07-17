@@ -116,6 +116,14 @@ logging:
     max-history: ${LOG_MAX_HISTORY:30}
     total-size-cap: ${LOG_TOTAL_SIZE:1GB}
 
+# Moolre SMS Configuration
+moolre:
+  sms:
+    api-key: ${MOOLRE_SMS_API_KEY:YOUR_X_API_VASKEY}
+    api-url: ${MOOLRE_SMS_API_URL:https://api.moolre.com/open/sms/send}
+    price-per-page: ${MOOLRE_SMS_PRICE_PER_PAGE:0.04}
+    sender-ids: ${MOOLRE_SMS_SENDER_IDS:Moolre,SpaceBundle}
+
 ---
 # Development Profile
 spring:
