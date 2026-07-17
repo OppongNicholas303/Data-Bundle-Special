@@ -24,14 +24,13 @@ public class WebhookController {
             @RequestBody String payload,
             HttpServletRequest request) {
 
-        System.out.println("receive moolre webhook");
+        log.info("[WEBHOOK] Received Moolre webhook payload: {}", payload);
 
         if (!webhookService.isValidMoolreWebhook(payload)) {
             log.warn("[WEBHOOK] Rejected — invalid secret or payload");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        log.info("[WEBHOOK] Received valid webhook from Moolre");
         log.info("[WEBHOOK] Secret verified, processing");
         webhookService.processMoolre(payload);
         return ResponseEntity.ok().build();
@@ -42,6 +41,8 @@ public class WebhookController {
             @RequestBody java.util.Map<String, Object> payload,
             @RequestHeader(value = "x-api-key", required = false) String apiKey) {
         
+        log.info("[WEBHOOK] Received CheckerPort webhook payload: {}", payload);
+
         String cleanExpected = checkerportApiKey != null ? checkerportApiKey.replace("\"", "").trim() : "";
         String cleanReceived = apiKey != null ? apiKey.replace("\"", "").trim() : "";
 
@@ -50,7 +51,7 @@ public class WebhookController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        log.info("[WEBHOOK] Received valid webhook from CheckerPort");
+        log.info("[WEBHOOK] API key verified, processing CheckerPort webhook");
         resultsCheckerService.handleWebhook(payload);
         return ResponseEntity.ok().build();
     }
