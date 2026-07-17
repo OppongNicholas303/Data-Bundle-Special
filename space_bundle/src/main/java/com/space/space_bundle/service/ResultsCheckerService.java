@@ -223,16 +223,22 @@ public class ResultsCheckerService {
         return transactionRepository.save(tx);
     }
 
-    public Optional<ResultsTransaction> getTransaction(String referenceId) {
-        Optional<ResultsTransaction> txOpt = transactionRepository.findByReferenceId(referenceId);
+    public Optional<ResultsTransaction> getTransaction(String referenceIdOrPhone) {
+        Optional<ResultsTransaction> txOpt = transactionRepository.findByReferenceId(referenceIdOrPhone);
+        if (txOpt.isEmpty()) {
+            txOpt = transactionRepository.findFirstByPhoneNumberOrderByCreatedAtDesc(referenceIdOrPhone);
+        }
+
         if (txOpt.isPresent()) {
             ResultsTransaction tx = txOpt.get();
+            String actualReferenceId = tx.getReferenceId();
+            
             if (tx.getStatus() == ServiceStatus.PENDING &&
                 tx.getCreatedAt() != null &&
                 tx.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
                 
                 try {
-                    CheckerPortResponse<Map<String, Object>> resp = checkerPortClient.getStatus(referenceId);
+                    CheckerPortResponse<Map<String, Object>> resp = checkerPortClient.getStatus(actualReferenceId);
                     if ("SUCCESS".equalsIgnoreCase(resp.getStatus()) && resp.getData() != null) {
                         Map<String, Object> data = resp.getData();
                         String serviceStatus = (String) data.get("serviceStatus");
@@ -273,7 +279,7 @@ public class ResultsCheckerService {
                         return Optional.of(tx);
                     }
                 } catch (Exception e) {
-                    log.error("JIT status check failed for {}: {}", referenceId, e.getMessage());
+                    log.error("JIT status check failed for {}: {}", actualReferenceId, e.getMessage());
                 }
             }
             return Optional.of(tx);
