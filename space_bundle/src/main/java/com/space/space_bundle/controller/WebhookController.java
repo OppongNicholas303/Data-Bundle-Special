@@ -42,8 +42,11 @@ public class WebhookController {
             @RequestBody java.util.Map<String, Object> payload,
             @RequestHeader(value = "x-api-key", required = false) String apiKey) {
         
-        if (apiKey == null || !apiKey.equals(checkerportApiKey)) {
-            log.warn("[WEBHOOK] Rejected CheckerPort webhook — invalid or missing API key");
+        String cleanExpected = checkerportApiKey != null ? checkerportApiKey.replace("\"", "").trim() : "";
+        String cleanReceived = apiKey != null ? apiKey.replace("\"", "").trim() : "";
+
+        if (cleanReceived.isEmpty() || !cleanReceived.equals(cleanExpected)) {
+            log.warn("[WEBHOOK] Rejected CheckerPort webhook — invalid or missing API key. Received: '{}', Expected: '{}'", apiKey, checkerportApiKey);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
