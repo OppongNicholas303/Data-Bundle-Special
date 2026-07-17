@@ -454,8 +454,9 @@ public class ResultsCheckerService {
             java.util.List<Map<String, Object>> vouchers = (java.util.List<Map<String, Object>>) tx.getVouchers();
             textBody.append("Vouchers:\n");
             for (Map<String, Object> v : vouchers) {
-                textBody.append("Serial: ").append(v.get("serial")).append(" | PIN: ").append(v.get("pin")).append("\n");
-                htmlBody.append("<p><b>Serial:</b> ").append(v.get("serial")).append(" <br/><b>PIN:</b> ").append(v.get("pin")).append("</p>");
+                String serial = v.containsKey("serialNumber") ? String.valueOf(v.get("serialNumber")) : String.valueOf(v.get("serial"));
+                textBody.append("Serial: ").append(serial).append(" | PIN: ").append(v.get("pin")).append("\n");
+                htmlBody.append("<p><b>Serial:</b> ").append(serial).append(" <br/><b>PIN:</b> ").append(v.get("pin")).append("</p>");
             }
         } else if (tx.getResultData() != null) {
             Map<String, Object> resultContent = (Map<String, Object>) tx.getResultData().get("resultContent");
