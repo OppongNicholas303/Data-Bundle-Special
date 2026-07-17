@@ -31,7 +31,11 @@ public class CheckerPortPollingJob {
 
         for (ResultsTransaction tx : staleTransactions) {
             if (tx.getPollAttempts() >= 10) {
-                log.warn("Max poll attempts reached for tx {}", tx.getReferenceId());
+                log.warn("Max poll attempts reached for tx {}. Marking as FAILED.", tx.getReferenceId());
+                tx.setStatus(ServiceStatus.FAILED);
+                tx.setMessage("Transaction timed out after max poll attempts.");
+                tx.setUpdatedAt(LocalDateTime.now());
+                transactionRepository.save(tx);
                 continue;
             }
 
