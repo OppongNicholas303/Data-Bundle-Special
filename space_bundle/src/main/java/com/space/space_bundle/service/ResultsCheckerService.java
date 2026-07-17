@@ -223,16 +223,22 @@ public class ResultsCheckerService {
         return transactionRepository.save(tx);
     }
 
-    public Optional<ResultsTransaction> getTransaction(String referenceId) {
-        Optional<ResultsTransaction> txOpt = transactionRepository.findByReferenceId(referenceId);
+    public Optional<ResultsTransaction> getTransaction(String referenceIdOrPhone) {
+        Optional<ResultsTransaction> txOpt = transactionRepository.findByReferenceId(referenceIdOrPhone);
+        if (txOpt.isEmpty()) {
+            txOpt = transactionRepository.findFirstByPhoneNumberOrderByCreatedAtDesc(referenceIdOrPhone);
+        }
+
         if (txOpt.isPresent()) {
             ResultsTransaction tx = txOpt.get();
+            String actualReferenceId = tx.getReferenceId();
+            
             if (tx.getStatus() == ServiceStatus.PENDING &&
                 tx.getCreatedAt() != null &&
                 tx.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
                 
                 try {
-                    CheckerPortResponse<Map<String, Object>> resp = checkerPortClient.getStatus(referenceId);
+                    CheckerPortResponse<Map<String, Object>> resp = checkerPortClient.getStatus(actualReferenceId);
                     if ("SUCCESS".equalsIgnoreCase(resp.getStatus()) && resp.getData() != null) {
                         Map<String, Object> data = resp.getData();
                         String serviceStatus = (String) data.get("serviceStatus");
@@ -273,7 +279,7 @@ public class ResultsCheckerService {
                         return Optional.of(tx);
                     }
                 } catch (Exception e) {
-                    log.error("JIT status check failed for {}: {}", referenceId, e.getMessage());
+                    log.error("JIT status check failed for {}: {}", actualReferenceId, e.getMessage());
                 }
             }
             return Optional.of(tx);
@@ -454,8 +460,9 @@ public class ResultsCheckerService {
             java.util.List<Map<String, Object>> vouchers = (java.util.List<Map<String, Object>>) tx.getVouchers();
             textBody.append("Vouchers:\n");
             for (Map<String, Object> v : vouchers) {
-                textBody.append("Serial: ").append(v.get("serial")).append(" | PIN: ").append(v.get("pin")).append("\n");
-                htmlBody.append("<p><b>Serial:</b> ").append(v.get("serial")).append(" <br/><b>PIN:</b> ").append(v.get("pin")).append("</p>");
+                String serial = v.containsKey("serialNumber") ? String.valueOf(v.get("serialNumber")) : String.valueOf(v.get("serial"));
+                textBody.append("Serial: ").append(serial).append(" | PIN: ").append(v.get("pin")).append("\n");
+                htmlBody.append("<p><b>Serial:</b> ").append(serial).append(" <br/><b>PIN:</b> ").append(v.get("pin")).append("</p>");
             }
         } else if (tx.getResultData() != null) {
             Map<String, Object> resultContent = (Map<String, Object>) tx.getResultData().get("resultContent");
