@@ -9,7 +9,7 @@ spring:
     password: ${MAIL_PASSWORD:youdkvfjtbxvstgp}
     properties:
       mail:
-        debug: true
+        debug: false
         smtp:
           auth: true
           ssl:
