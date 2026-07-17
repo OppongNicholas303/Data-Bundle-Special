@@ -110,13 +110,50 @@ logging:
     max-history: ${LOG_MAX_HISTORY:30}
     total-size-cap: ${LOG_TOTAL_SIZE:1GB}
 
-# Moolre SMS Configuration
+# Moolre configuration
 moolre:
   sms:
     api-key: ${MOOLRE_SMS_API_KEY:YOUR_X_API_VASKEY}
     api-url: ${MOOLRE_SMS_API_URL:https://api.moolre.com/open/sms/send}
     price-per-page: ${MOOLRE_SMS_PRICE_PER_PAGE:0.04}
     sender-ids: ${MOOLRE_SMS_SENDER_IDS:Moolre,SpaceBundle}
+  api-user: ${MOOLRE_API_USER:adamssaeed}
+  pub-key: ${MOOLRE_PUB_KEY:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOjEwNzkzMCwiZXhwIjoxOTU2NTQ1OTk5fQ.S7lP17aOqbyZETCUWITrn4E0chXiJ2aReg1a-9zRr8E}
+  private-key: ${MOOLRE_PRIVATE_KEY:72tszSwQwjC6qwYHRLSFhlKjHZlDN38x2ou7RXFn8e6RBRESI9vW7Ag1d5p2HuFt}
+  account-number: ${MOOLRE_ACCOUNT_NUMBER:10793006063230}
+  webhook-secret: ${MOOLRE_WEBHOOK_SECRET:7150c99a-e388-47b4-8358-c2661422c2c3}
+  callback-url: ${MOOLRE_CALLBACK_URL:https://data-bundle-special-ulkt.onrender.com/api/webhook/moolre}
+  redirect-url: ${MOOLRE_REDIRECT_URL:http://localhost:8081/orders}
+
+# Bot Configuration
+bot:
+  api:
+    url: https://mydatagigs.com/wp-json/custom/v1/place-order
+    urlRandy: https://myspaceserver.com/api
+    token: tera_live_d7a798a4790c08e51366d0580276835b
+    tokenRandy: sk_4975646ef9cc4a5a2bcfd62c0f60f8a0a713de8114df7c47965b2703a9d555f7
+    timeout: 30000
+    login:
+      url: https://mydatagigs.com/login/
+      username: nicholas.oppong2623@gmail.com
+      password: Vida0243911336@
+
+mashup:
+  offers:
+    url: https://myspaceserver.com/api/external/special-offers/mashup/orders
+    timeout-seconds: ${MASHUP_OFFERS_TIMEOUT_SECONDS:8}
+
+# Frontend Configuration
+app:
+  frontend-url: http://localhost:8081
+  support-email: support@tapdata.com
+  storefront-base-url: https://tapdata-agent-store.vercel.app/store
+
+# CheckerPort Configuration
+checkerport:
+  base-url: ${CHECKERPORT_BASE_URL:https://api.checkerport.com}
+  api-key: ${CHECKERPORT_API_KEY:r_qiGMfyzK02d-uCjJJXrL1Xzt9pSenP-Nv8w9ZVWMw}
+  webhook-callback-url: ${CHECKERPORT_WEBHOOK_URL:https://data-bundle-special-ulkt.onrender.com/api/webhook/checkerport}
 
 ---
 # Development Profile
@@ -149,43 +186,3 @@ logging:
     root: ${LOG_LEVEL_ROOT:INFO}
     com.space: ${LOG_LEVEL_APP:INFO}
     org.mongodb.driver.cluster: WARN
-
-# Bot Configuration
-bot:
-  api:
-    url: https://mydatagigs.com/wp-json/custom/v1/place-order
-    urlRandy: https://myspaceserver.com/api
-    token: tera_live_d7a798a4790c08e51366d0580276835b
-    tokenRandy: sk_4975646ef9cc4a5a2bcfd62c0f60f8a0a713de8114df7c47965b2703a9d555f7
-    timeout: 30000
-    login:
-      url: https://mydatagigs.com/login/
-      username: nicholas.oppong2623@gmail.com
-      password: Vida0243911336@
-
-mashup:
-  offers:
-    url: https://myspaceserver.com/api/external/special-offers/mashup/orders
-    timeout-seconds: ${MASHUP_OFFERS_TIMEOUT_SECONDS:8}
-
-# Moolre configuration
-moolre:
-  api-user: ${MOOLRE_API_USER:adamssaeed}
-  pub-key: ${MOOLRE_PUB_KEY:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOjEwNzkzMCwiZXhwIjoxOTU2NTQ1OTk5fQ.S7lP17aOqbyZETCUWITrn4E0chXiJ2aReg1a-9zRr8E}
-  private-key: ${MOOLRE_PRIVATE_KEY:72tszSwQwjC6qwYHRLSFhlKjHZlDN38x2ou7RXFn8e6RBRESI9vW7Ag1d5p2HuFt}
-  account-number: ${MOOLRE_ACCOUNT_NUMBER:10793006063230}
-  webhook-secret: ${MOOLRE_WEBHOOK_SECRET:7150c99a-e388-47b4-8358-c2661422c2c3}
-  callback-url: ${MOOLRE_CALLBACK_URL:https://data-bundle-special-ulkt.onrender.com/api/webhook/moolre}
-  redirect-url: ${MOOLRE_REDIRECT_URL:http://localhost:8081/orders}
-
-# Frontend Configuration
-app:
-  frontend-url: http://localhost:8081
-  support-email: support@tapdata.com
-  storefront-base-url: https://tapdata-agent-store.vercel.app/store
-
-# CheckerPort Configuration
-checkerport:
-  base-url: ${CHECKERPORT_BASE_URL:https://api.checkerport.com}
-  api-key: ${CHECKERPORT_API_KEY:r_qiGMfyzK02d-uCjJJXrL1Xzt9pSenP-Nv8w9ZVWMw}
-  webhook-callback-url: ${CHECKERPORT_WEBHOOK_URL:https://data-bundle-special-ulkt.onrender.com/api/webhook/checkerport}
