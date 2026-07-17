@@ -393,7 +393,7 @@ public class ResultsCheckerService {
     public void handleWebhook(Map<String, Object> payload) {
         if (payload == null) return;
 
-        log.error("Received payload webhook from CheckerPort: {}", payload);
+        log.info("Received payload webhook from CheckerPort: {}", payload);
 
         String status = (String) payload.get("status");
         if ("FAILED".equalsIgnoreCase(status)) {
@@ -453,9 +453,9 @@ public class ResultsCheckerService {
         tx = transactionRepository.save(tx);
         log.info("Successfully processed webhook for referenceId: {}, new status: {}", referenceId, serviceStatus);
         
-        // if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null && !tx.getEmail().isEmpty()) {
-        //     sendDeliveryEmail(tx);
-        // }
+        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null && !tx.getEmail().isEmpty()) {
+            sendDeliveryEmail(tx);
+        }
 
         if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null && !tx.isCommissionPaid() && tx.getAgentProfit() != null && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
             try {
