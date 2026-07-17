@@ -24,14 +24,13 @@ public class WebhookController {
             @RequestBody String payload,
             HttpServletRequest request) {
 
-        System.out.println("receive moolre webhook");
+        log.info("[WEBHOOK] Received Moolre webhook payload: {}", payload);
 
         if (!webhookService.isValidMoolreWebhook(payload)) {
             log.warn("[WEBHOOK] Rejected — invalid secret or payload");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        log.info("[WEBHOOK] Received valid webhook from Moolre");
         log.info("[WEBHOOK] Secret verified, processing");
         webhookService.processMoolre(payload);
         return ResponseEntity.ok().build();
@@ -42,12 +41,17 @@ public class WebhookController {
             @RequestBody java.util.Map<String, Object> payload,
             @RequestHeader(value = "x-api-key", required = false) String apiKey) {
         
-        if (apiKey == null || !apiKey.equals(checkerportApiKey)) {
-            log.warn("[WEBHOOK] Rejected CheckerPort webhook — invalid or missing API key");
+        log.info("[WEBHOOK] Received CheckerPort webhook payload: {}", payload);
+
+        String cleanExpected = checkerportApiKey != null ? checkerportApiKey.replace("\"", "").trim() : "";
+        String cleanReceived = apiKey != null ? apiKey.replace("\"", "").trim() : "";
+
+        if (cleanReceived.isEmpty() || !cleanReceived.equals(cleanExpected)) {
+            log.warn("[WEBHOOK] Rejected CheckerPort webhook — invalid or missing API key. Received: '{}', Expected: '{}'", apiKey, checkerportApiKey);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        log.info("[WEBHOOK] Received valid webhook from CheckerPort");
+        log.info("[WEBHOOK] API key verified, processing CheckerPort webhook");
         resultsCheckerService.handleWebhook(payload);
         return ResponseEntity.ok().build();
     }
