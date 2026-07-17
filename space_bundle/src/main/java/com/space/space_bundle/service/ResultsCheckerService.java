@@ -393,10 +393,13 @@ public class ResultsCheckerService {
     public void handleWebhook(Map<String, Object> payload) {
         if (payload == null) return;
 
+        log.error("Received payload webhook from CheckerPort: {}", payload);
+
         String status = (String) payload.get("status");
         if ("FAILED".equalsIgnoreCase(status)) {
             log.error("Received FAILED webhook from CheckerPort: {}", payload);
-            return;
+            // Even if failed, we should try to mark the transaction as failed
+            // But we need the referenceId which might be inside the data object
         }
 
         Map<String, Object> data = (Map<String, Object>) payload.get("data");
@@ -412,6 +415,13 @@ public class ResultsCheckerService {
         }
 
         ResultsTransaction tx = txOpt.get();
+
+        // Idempotency check
+        if (tx.isWebhookReceived() && (tx.getStatus() == ServiceStatus.COMPLETE || tx.getStatus() == ServiceStatus.FAILED)) {
+            log.info("Ignoring duplicate webhook for already completed/failed referenceId: {}", referenceId);
+            return;
+        }
+
         String serviceStatus = (String) data.get("serviceStatus");
         
         if ("complete".equalsIgnoreCase(serviceStatus)) {
@@ -431,13 +441,21 @@ public class ResultsCheckerService {
             tx.setVouchers(data.get("vouchers"));
         }
 
+        tx.setWebhookReceived(true);
+        if (payload.containsKey("message")) {
+            tx.setMessage((String) payload.get("message"));
+        }
+        if (payload.containsKey("errorCode")) {
+            tx.setErrorCode((String) payload.get("errorCode"));
+        }
+
         tx.setUpdatedAt(LocalDateTime.now());
         tx = transactionRepository.save(tx);
         log.info("Successfully processed webhook for referenceId: {}, new status: {}", referenceId, serviceStatus);
         
-        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null && !tx.getEmail().isEmpty()) {
-            sendDeliveryEmail(tx);
-        }
+        // if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null && !tx.getEmail().isEmpty()) {
+        //     sendDeliveryEmail(tx);
+        // }
 
         if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null && !tx.isCommissionPaid() && tx.getAgentProfit() != null && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
             try {
