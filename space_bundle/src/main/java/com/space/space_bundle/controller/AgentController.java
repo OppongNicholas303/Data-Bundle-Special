@@ -12,6 +12,8 @@ import com.space.space_bundle.service.AgentService;
 import com.space.space_bundle.service.CommissionService;
 import com.space.space_bundle.service.OrderService;
 import com.space.space_bundle.service.WalletService;
+import com.space.space_bundle.repository.UserRepository;
+import com.space.space_bundle.entity.User;
 import jakarta.validation.Valid;
 import lombok.Builder;
 import lombok.Data;
@@ -36,6 +38,7 @@ public class AgentController {
     private final CommissionService commissionService;
     private final OrderService orderService;
     private final WalletService walletService;
+    private final UserRepository userRepository;
 
     @Value("${app.storefront-base-url:https://tapdata.vercel.app/store}")
     private String storefrontBaseUrl;
@@ -171,9 +174,15 @@ public class AgentController {
         AgentProfile profile = agentService.resolveByCode(agentCode);
         List<AgentStorefrontBundle> bundles = agentService.getStorefrontByProfile(profile, agentCode);
         List<AgentCheckerPricing> checkerPricings = agentService.adminGetCheckerPricingsForAgent(profile.getId());
+        
+        String phone = userRepository.findById(profile.getUserId())
+                .map(User::getPhoneNumber)
+                .orElse(null);
+
         return ResponseEntity.ok(ApiResponse.success(StorefrontResponse.builder()
                 .agentCode(agentCode)
                 .businessName(profile.getBusinessName())
+                .agentPhone(phone)
                 .bundles(bundles)
                 .checkerPricings(checkerPricings)
                 .build()));
@@ -183,6 +192,7 @@ public class AgentController {
     public static class StorefrontResponse {
         private String agentCode;
         private String businessName;
+        private String agentPhone;
         private List<AgentStorefrontBundle> bundles;
         private List<AgentCheckerPricing> checkerPricings;
     }
