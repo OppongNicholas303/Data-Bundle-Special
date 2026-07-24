@@ -376,18 +376,15 @@ public class OrderService {
     }
 
     private String buyBundle(Order order, String network) {
-        boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", true);
+        boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", false); // Admin toggle
         if (useRandyOnly) {
             // Route all orders through Randy when the feature flag is enabled
             order.setByFrom("randy");
             return order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
         }
 
-        // Default behaviour: MTN uses Randy, others use the legacy bot
-        if ("MTN".equalsIgnoreCase(network)) {
-            order.setByFrom("randy");
-            return order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
-        }
+        // Default behaviour: Route everything to MyDataGigs via buy()
+        order.setByFrom("mydatagigs");
         return automationService.buy(order);
     }
 
