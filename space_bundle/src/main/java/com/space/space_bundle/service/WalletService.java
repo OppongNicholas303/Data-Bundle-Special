@@ -105,6 +105,12 @@ public class WalletService {
     @Transactional
     public void processTopUpById(String topUpId, BigDecimal amount) {
         Transaction pending = transactionService.getFirstByOrderId(topUpId);
+        
+        if (!"PENDING".equalsIgnoreCase(pending.getStatus())) {
+            log.warn("TopUp transaction {} is already in status: {}", topUpId, pending.getStatus());
+            return;
+        }
+
         Wallet wallet = getByUserId(pending.getUserId());
         BigDecimal before = wallet.getBalance();
         wallet.credit(amount);
