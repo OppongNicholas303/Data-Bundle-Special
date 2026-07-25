@@ -140,6 +140,23 @@ public class WebhookService {
         }
     }
 
+    public boolean verifyTopUpWithMoolreId(String topUpId, String moolreId) {
+        var verification = moolreAdapter.checkPaymentStatus(moolreId, 2);
+        log.info("[MANUAL_VERIFY_TOPUP] Parsed verification: {}", verification);
+        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
+            return false;
+        }
+
+        BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(String.valueOf(verification.get("amount"))));
+        try {
+            walletService.processTopUpById(topUpId, amount);
+            return true;
+        } catch (Exception ex) {
+            log.error("[TOPUP] Manual verification failed: {}", topUpId, ex);
+            return false;
+        }
+    }
+
     private void processTopUp(String reference) {
         var verification = moolreAdapter.checkPaymentStatus(reference, 1);
         if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) return;
