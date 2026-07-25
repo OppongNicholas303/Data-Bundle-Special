@@ -2,7 +2,7 @@ import { apiClient } from "./api";
 import type {
   AdminStats, AdminUser, AdminAgent, Bundle, AdminOrder,
   Commission, CreateBundlePayload, UpdateBundlePayload, WithdrawalRequest, DailyAnalytics,
-  AdminMashupPackage, MashupSyncResult, AgentBundlePricing, AgentMashupPricing,
+  AdminMashupPackage, MashupSyncResult, AgentBundlePricing, AgentMashupPricing, AdminTransaction,
 } from "@/types";
 
 type ApiWrap<T> = { data: T };
@@ -29,6 +29,22 @@ export const adminService = {
   },
   updateUserRoles: async (id: string, roles: string[]): Promise<AdminUser> => {
     const res = await apiClient.put(`/admin/users/${id}/roles`, { roles }) as ApiWrap<AdminUser>;
+    return res.data;
+  },
+  getUserWallet: async (id: string): Promise<{ balance: number; currency: string }> => {
+    const res = await apiClient.get(`/admin/users/${id}/wallet`) as ApiWrap<{ balance: number; currency: string }>;
+    return res.data;
+  },
+  getUserTransactions: async (id: string): Promise<any[]> => {
+    const res = await apiClient.get(`/admin/users/${id}/transactions`) as ApiWrap<any[]>;
+    return res.data;
+  },
+  creditUserWallet: async (id: string, amount: number, description: string): Promise<string> => {
+    const res = await apiClient.post(`/admin/users/${id}/wallet/credit`, { amount, description }) as ApiWrap<string>;
+    return res.data;
+  },
+  debitUserWallet: async (id: string, amount: number, description: string): Promise<string> => {
+    const res = await apiClient.post(`/admin/users/${id}/wallet/debit`, { amount, description }) as ApiWrap<string>;
     return res.data;
   },
 
@@ -113,6 +129,23 @@ export const adminService = {
    },
    markOrderCompleteByAdmin: async (orderId: string): Promise<AdminOrder> => {
      const res = await apiClient.post(`/admin/orders/${orderId}/mark-complete-by-admin`) as ApiWrap<AdminOrder>;
+     return res.data;
+   },
+   reprocessOrder: async (orderId: string): Promise<AdminOrder> => {
+     const res = await apiClient.post(`/admin/orders/${orderId}/reprocess`) as ApiWrap<AdminOrder>;
+     return res.data;
+   },
+
+   // Transactions
+   getAllTransactions: async (status?: string, type?: string, search?: string, fromDate?: string, toDate?: string): Promise<AdminTransaction[]> => {
+     const params = new URLSearchParams();
+     if (status) params.set("status", status);
+     if (type) params.set("type", type);
+     if (search) params.set("search", search);
+     if (fromDate) params.set("fromDate", fromDate);
+     if (toDate) params.set("toDate", toDate);
+     const query = params.toString();
+     const res = await apiClient.get(`/admin/transactions${query ? `?${query}` : ""}`) as ApiWrap<AdminTransaction[]>;
      return res.data;
    },
 

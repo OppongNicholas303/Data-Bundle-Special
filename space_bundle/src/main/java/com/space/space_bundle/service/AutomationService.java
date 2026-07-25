@@ -41,6 +41,7 @@ public class AutomationService {
                 .build();
 
         try {
+            log.info("Sending request to bot: {}", request);
             BotPurchaseResponse response = webClient.post()
                     .uri(botUrl)
                     .header("Authorization", "Bearer " + botToken)

@@ -72,7 +72,7 @@ public class AdminWithdrawalService {
         wallet.credit(req.getAmount());
         walletRepository.save(wallet);
 
-        transactionService.createRefund(req.getAgentUserId(), req.getReference(),
+        transactionService.createCompletedRefund(req.getAgentUserId(), req.getReference(),
                 req.getAmount(), before, wallet.getBalance(),
                 "Refund — withdrawal rejected by admin: " + (adminNote != null ? adminNote : ""));
 

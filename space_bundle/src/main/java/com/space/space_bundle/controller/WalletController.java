@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class WalletController {
 
     private final WalletService walletService;
+    private final com.space.space_bundle.service.WebhookService webhookService;
 
     @GetMapping("/balance")
     @PreAuthorize("isAuthenticated()")
@@ -37,5 +38,25 @@ public class WalletController {
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
         return ResponseEntity.ok(ApiResponse.success(
                 walletService.initializeTopUp(userDetails.getUserId(), request.getAmount())));
+    }
+
+    @PostMapping("/topup/{id}/verify-payment")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>> verifyPayment(
+            @PathVariable String id,
+            @RequestBody java.util.Map<String, String> body,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        String moolreId = body.get("moolreId");
+        if (moolreId == null || moolreId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Moolre ID is required"));
+        }
+
+        boolean verified = webhookService.verifyTopUpWithMoolreId(id, moolreId);
+
+        if (verified) {
+            return ResponseEntity.ok(ApiResponse.success("Payment verified and top-up processed"));
+        } else {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Payment could not be verified"));
+        }
     }
 }

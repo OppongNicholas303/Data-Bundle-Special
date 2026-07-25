@@ -51,16 +51,19 @@ public class WalletService {
         BigDecimal before = wallet.getBalance();
         wallet.credit(amount);
         walletRepository.save(wallet);
-        transactionService.createCredit(userId, wallet.getId(), amount, before, wallet.getBalance(), description);
+        transactionService.createCompletedCredit(userId, wallet.getId(), amount, before, wallet.getBalance(), description);
     }
 
     @Transactional
     public void debit(String userId, BigDecimal amount, String orderId, String description) {
         Wallet wallet = getByUserId(userId);
         BigDecimal before = wallet.getBalance();
+        if (before.compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient wallet balance");
+        }
         wallet.debit(amount);
         walletRepository.save(wallet);
-        transactionService.createDebit(userId, orderId, amount, before, wallet.getBalance(), description);
+        transactionService.createCompletedDebit(userId, orderId, amount, before, wallet.getBalance(), description);
     }
 
     public BigDecimal getBalance(String userId) {
@@ -113,9 +116,18 @@ public class WalletService {
 
         Wallet wallet = getByUserId(pending.getUserId());
         BigDecimal before = wallet.getBalance();
+        BigDecimal after = before.add(amount);
+        
+        // Atomically claim the transaction first to prevent race conditions
+        boolean claimed = transactionService.atomicComplete(pending.getId(), before, after);
+        if (!claimed) {
+            log.warn("TopUp transaction {} was already claimed by another thread", topUpId);
+            return; // Another thread already processed it!
+        }
+        
         wallet.credit(amount);
         walletRepository.save(wallet);
-        transactionService.complete(pending.getId(), before, wallet.getBalance());
+        
         log.info("Wallet topped up: userId={}, amount={}", pending.getUserId(), amount);
     }
 }

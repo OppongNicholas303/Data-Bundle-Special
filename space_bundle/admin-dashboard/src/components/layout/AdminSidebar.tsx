@@ -21,6 +21,7 @@ const navItems = [
   { icon: Zap,             label: "Mashup",      path: "/mashup" },
   { icon: FileText,        label: "CheckerPort", path: "/checkerport" },
   { icon: Megaphone,       label: "Announcements", path: "/announcements" },
+  { icon: Store,           label: "Transactions", path: "/transactions" },
   { icon: Settings,        label: "Settings",    path: "/settings" },
 ];
 
