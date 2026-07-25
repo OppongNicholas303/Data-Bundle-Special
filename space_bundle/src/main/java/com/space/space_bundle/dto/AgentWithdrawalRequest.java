@@ -24,7 +24,7 @@ public class AgentWithdrawalRequest {
      * Ghana mobile number that receives the MoMo transfer
      */
     @NotBlank(message = "MoMo number is required")
-    @Pattern(regexp = "^(0|\\+233)[0-9]{9}$", message = "Invalid Ghana phone number")
+    @Pattern(regexp = "^0[0-9]{9}$", message = "Invalid Ghana phone number")
     private String momoNumber;
 
     /**

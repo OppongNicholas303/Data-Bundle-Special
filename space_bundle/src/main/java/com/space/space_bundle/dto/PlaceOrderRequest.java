@@ -19,7 +19,7 @@ public class PlaceOrderRequest {
     private String network;
 
     @NotBlank(message = "Phone number is required")
-    @Pattern(regexp = "^(0|\\+233)[0-9]{9}$", message = "Invalid Ghana phone number")
+    @Pattern(regexp = "^0[0-9]{9}$", message = "Invalid Ghana phone number")
     private String phoneNumber;
 
     @NotBlank(message = "Bundle code is required")
