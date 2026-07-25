@@ -4,6 +4,7 @@ import com.space.space_bundle.entity.Order;
 import com.space.space_bundle.dto.BotPurchaseRequest;
 import com.space.space_bundle.dto.BotPurchaseResponse;
 import com.space.space_bundle.dto.BotPurchaseResponseRandy;
+import com.space.space_bundle.dto.MyDataGigsStatusResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -130,6 +131,29 @@ public class AutomationService {
         } catch (Exception e) {
             log.error("Status check failed: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to check order status", e);
+        }
+    }
+
+    public MyDataGigsStatusResponse checkMyDataGigsStatus(String orderId) {
+        try {
+            // botUrl is something like https://mydatagigs.com/wp-json/custom/v1/place-order
+            // So we can extract the base or just construct the URL manually if they differ
+            String statusUrl = "https://mydatagigs.com/wp-json/custom/v1/order-status?order_id=" + orderId;
+            
+            MyDataGigsStatusResponse response = webClient.get()
+                    .uri(statusUrl)
+                    .header("Authorization", "Bearer " + botToken)
+                    .retrieve()
+                    .bodyToMono(MyDataGigsStatusResponse.class)
+                    .block();
+
+            if (response == null || !"success".equalsIgnoreCase(response.getStatus())) {
+                throw new RuntimeException("Invalid MyDataGigs status response");
+            }
+            return response;
+        } catch (Exception e) {
+            log.error("MyDataGigs status check failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to check MyDataGigs order status", e);
         }
     }
 

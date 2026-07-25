@@ -17,6 +17,8 @@ import AgentPricingPage from "@/pages/AgentPricingPage";
 import { CheckerPortPage } from "@/pages/CheckerPortPage";
 import SettingsPage from "@/pages/SettingsPage";
 
+import AnnouncementsPage from "@/pages/AnnouncementsPage";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 30000 },
@@ -49,6 +51,7 @@ export default function App() {
                 <Route path="/agent-pricing" element={<AgentPricingPage />} />
                 <Route path="/checkerport" element={<CheckerPortPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/announcements" element={<AnnouncementsPage />} />
               </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
