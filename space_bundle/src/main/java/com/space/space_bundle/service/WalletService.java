@@ -113,9 +113,18 @@ public class WalletService {
 
         Wallet wallet = getByUserId(pending.getUserId());
         BigDecimal before = wallet.getBalance();
+        BigDecimal after = before.add(amount);
+        
+        // Atomically claim the transaction first to prevent race conditions
+        boolean claimed = transactionService.atomicComplete(pending.getId(), before, after);
+        if (!claimed) {
+            log.warn("TopUp transaction {} was already claimed by another thread", topUpId);
+            return; // Another thread already processed it!
+        }
+        
         wallet.credit(amount);
         walletRepository.save(wallet);
-        transactionService.complete(pending.getId(), before, wallet.getBalance());
+        
         log.info("Wallet topped up: userId={}, amount={}", pending.getUserId(), amount);
     }
 }

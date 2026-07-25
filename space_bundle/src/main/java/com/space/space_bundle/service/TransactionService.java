@@ -15,6 +15,7 @@ import java.util.UUID;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
+    private final org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
 
     public Transaction createTransaction(String userId, String orderId, String type,
                                          BigDecimal amount, BigDecimal before, BigDecimal after,
@@ -87,6 +88,19 @@ public class TransactionService {
             tx.setUpdatedAt(LocalDateTime.now());
             transactionRepository.save(tx);
         });
+    }
+
+    public boolean atomicComplete(String transactionId, BigDecimal before, BigDecimal after) {
+        org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query(
+            org.springframework.data.mongodb.core.query.Criteria.where("id").is(transactionId).and("status").is(Transaction.Status.PENDING.name())
+        );
+        org.springframework.data.mongodb.core.query.Update update = new org.springframework.data.mongodb.core.query.Update()
+            .set("balanceBefore", before)
+            .set("balanceAfter", after)
+            .set("status", Transaction.Status.COMPLETED.name())
+            .set("updatedAt", LocalDateTime.now());
+        com.mongodb.client.result.UpdateResult result = mongoTemplate.updateFirst(query, update, Transaction.class);
+        return result.getModifiedCount() > 0;
     }
 
     public void fail(String transactionId) {
