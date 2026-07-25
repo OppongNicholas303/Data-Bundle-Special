@@ -80,14 +80,19 @@ public class WebhookService {
     }
 
     public boolean verifyOrderWithMoolreId(String orderId, String moolreId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+
+        if (!moolreId.equals(order.getPaymentReference())) {
+            log.warn("[MANUAL_VERIFY] Moolre ID {} does not match Order {} payment reference {}", moolreId, orderId, order.getPaymentReference());
+            return false;
+        }
+
         var verification = moolreAdapter.checkPaymentStatus(moolreId, 2);
         log.info("[MANUAL_VERIFY] Parsed verification: {}", verification);
         if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
             return false;
         }
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
 
         if (!Order.OrderStatus.PENDING_PAYMENT.name().equals(order.getStatus())) {
             return true; // Already processed
@@ -144,6 +149,12 @@ public class WebhookService {
         var verification = moolreAdapter.checkPaymentStatus(moolreId, 2);
         log.info("[MANUAL_VERIFY_TOPUP] Parsed verification: {}", verification);
         if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
+            return false;
+        }
+
+        String externalRef = (String) verification.get("externalref");
+        if (externalRef == null || !externalRef.equals("TOPUP_" + topUpId)) {
+            log.warn("[MANUAL_VERIFY_TOPUP] Moolre ID {} belongs to externalref {} but topUpId is {}", moolreId, externalRef, topUpId);
             return false;
         }
 
