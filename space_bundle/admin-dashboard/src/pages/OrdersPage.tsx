@@ -113,6 +113,64 @@ function MarkCompleteDialog({ orderId, currentStatus, onSuccess }: { orderId: st
   );
 }
 
+function ReprocessOrderDialog({ orderId, onSuccess }: { orderId: string; onSuccess: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleReprocess = async () => {
+    setIsLoading(true);
+    try {
+      await adminService.reprocessOrder(orderId);
+      setIsOpen(false);
+      onSuccess();
+      toast.success("Order reprocessed successfully");
+    } catch (error: any) {
+      console.error("Failed to reprocess order:", error);
+      toast.error(error.message || "Failed to reprocess order");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+        onClick={() => setIsOpen(true)}
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
+        Reprocess
+      </Button>
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle className="text-lg text-blue-700 flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" /> Reprocess Order
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This will query Moolre to verify if the payment was actually successful. If the payment was successful, the system will automatically attempt to deliver the bundle again.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
+                  Cancel
+                </Button>
+                <Button onClick={handleReprocess} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  {isLoading ? "Reprocessing..." : "Verify & Reprocess"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function OrdersPage() {
   const [search,        setSearch]        = useState("");
   const [filterStatus,  setFilterStatus]  = useState("ALL");
@@ -364,12 +422,18 @@ export default function OrdersPage() {
                         </td>
                         <td className="p-4"><StatusBadge status={order.status} /></td>
                         <td className="p-4 text-xs text-muted-foreground hidden lg:table-cell">{formatDate(order.createdAt)}</td>
-                        <td className="p-4">
+                        <td className="p-4 space-x-2">
                           <MarkCompleteDialog
                             orderId={order.id}
                             currentStatus={order.status}
                             onSuccess={() => refetch()}
                           />
+                          {(order.status === "FAILED" || order.status === "PROCESSING") && (
+                            <ReprocessOrderDialog
+                              orderId={order.id}
+                              onSuccess={() => refetch()}
+                            />
+                          )}
                         </td>
                       </tr>
                     ))}

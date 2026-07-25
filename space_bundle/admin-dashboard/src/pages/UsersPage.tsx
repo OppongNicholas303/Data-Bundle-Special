@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Lock, Unlock, UserCheck, UserX, Shield, RefreshCw } from "lucide-react";
+import { Search, Lock, Unlock, UserCheck, UserX, Shield, RefreshCw, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { adminService } from "@/lib/adminService";
 import { formatDate } from "@/lib/utils";
@@ -33,6 +33,49 @@ export default function UsersPage() {
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [rolesUser, setRolesUser] = useState<AdminUser | null>(null);
   const [pendingRoles, setPendingRoles] = useState<string[]>([]);
+
+  const [walletUser, setWalletUser] = useState<AdminUser | null>(null);
+  const [walletAction, setWalletAction] = useState<"credit" | "debit">("credit");
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletDescription, setWalletDescription] = useState("");
+  const [txFilter, setTxFilter] = useState("ALL");
+
+  const { data: walletData, isLoading: isLoadingWallet, refetch: refetchWallet } = useQuery({
+    queryKey: ["admin-user-wallet", walletUser?.id],
+    queryFn: () => walletUser ? adminService.getUserWallet(walletUser.id) : null,
+    enabled: !!walletUser,
+  });
+
+  const { data: transactionsData, refetch: refetchTransactions } = useQuery({
+    queryKey: ["admin-user-transactions", walletUser?.id],
+    queryFn: () => walletUser ? adminService.getUserTransactions(walletUser.id) : null,
+    enabled: !!walletUser,
+  });
+
+  const creditMutation = useMutation({
+    mutationFn: ({ id, amount, description }: { id: string, amount: number, description: string }) => adminService.creditUserWallet(id, amount, description),
+    onSuccess: () => {
+      toast.success("Wallet credited successfully");
+      refetchWallet();
+      refetchTransactions();
+      setWalletAmount("");
+      setWalletDescription("");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const debitMutation = useMutation({
+    mutationFn: ({ id, amount, description }: { id: string, amount: number, description: string }) => adminService.debitUserWallet(id, amount, description),
+    onSuccess: () => {
+      toast.success("Wallet debited successfully");
+      refetchWallet();
+      refetchTransactions();
+      setWalletAmount("");
+      setWalletDescription("");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
 
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ["admin-users"],
@@ -217,6 +260,16 @@ export default function UsersPage() {
                         >
                           <Shield className="h-3.5 w-3.5" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setWalletUser(user)}
+                          title="Manage wallet"
+                          aria-label="Manage wallet"
+                          className="h-8 px-2 text-xs text-primary"
+                        >
+                          <Wallet className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -262,6 +315,119 @@ export default function UsersPage() {
             >
               {rolesMutation.isPending ? "Saving..." : "Save Roles"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Wallet Dialog */}
+      <Dialog open={!!walletUser} onOpenChange={open => !open && setWalletUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Wallet — {walletUser?.username}</DialogTitle>
+            <DialogDescription>
+              Adjust user's wallet balance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <p className="text-sm text-muted-foreground mb-1">Current Balance</p>
+              {isLoadingWallet ? (
+                <p className="text-2xl font-bold animate-pulse">...</p>
+              ) : (
+                <p className="text-2xl font-bold">
+                  {walletData?.currency} {walletData?.balance?.toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant={walletAction === "credit" ? "default" : "outline"} 
+                className="flex-1"
+                onClick={() => setWalletAction("credit")}
+              >
+                Credit
+              </Button>
+              <Button 
+                variant={walletAction === "debit" ? "default" : "outline"} 
+                className="flex-1"
+                onClick={() => setWalletAction("debit")}
+              >
+                Debit
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Input 
+                type="number" 
+                placeholder="Amount (GHS)" 
+                value={walletAmount}
+                onChange={e => setWalletAmount(e.target.value)}
+              />
+              <Input 
+                type="text" 
+                placeholder="Description (Optional)" 
+                value={walletDescription}
+                onChange={e => setWalletDescription(e.target.value)}
+              />
+            </div>
+
+            <Button
+              className="w-full"
+              disabled={!walletAmount || Number(walletAmount) <= 0 || creditMutation.isPending || debitMutation.isPending}
+              onClick={() => {
+                if (!walletUser) return;
+                const amt = Number(walletAmount);
+                if (walletAction === "credit") {
+                  creditMutation.mutate({ id: walletUser.id, amount: amt, description: walletDescription });
+                } else {
+                  debitMutation.mutate({ id: walletUser.id, amount: amt, description: walletDescription });
+                }
+              }}
+            >
+              {(creditMutation.isPending || debitMutation.isPending) ? "Processing..." : `Confirm ${walletAction === "credit" ? "Credit" : "Debit"}`}
+            </Button>
+
+            <div className="pt-4 border-t mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-semibold">Recent Transactions</p>
+                <Select value={txFilter} onValueChange={setTxFilter}>
+                  <SelectTrigger className="w-[110px] h-7 text-xs">
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All</SelectItem>
+                    <SelectItem value="CREDIT">Credits</SelectItem>
+                    <SelectItem value="DEBIT">Debits</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                {!transactionsData ? (
+                  <p className="text-xs text-muted-foreground text-center">Loading transactions...</p>
+                ) : transactionsData.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center">No transactions found.</p>
+                ) : (
+                  transactionsData
+                    .filter((tx: any) => txFilter === "ALL" || tx.type === txFilter)
+                    .map((tx: any) => (
+                    <div key={tx.id} className="flex justify-between items-center bg-muted/30 p-2 rounded text-xs">
+                      <div>
+                        <p className="font-medium">{tx.type} <span className="text-muted-foreground font-normal">({tx.status})</span></p>
+                        <p className="text-[10px] text-muted-foreground">{tx.description || "No description"}</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5">{formatDate(tx.createdAt)}</p>
+                      </div>
+                      <div className={`font-bold ${tx.type === 'CREDIT' || tx.type === 'REFUND' || tx.type === 'COMMISSION' ? 'text-green-600' : 'text-red-600'}`}>
+                        {tx.type === 'CREDIT' || tx.type === 'REFUND' || tx.type === 'COMMISSION' ? '+' : '-'}{tx.currency} {tx.amount.toFixed(2)}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {transactionsData && transactionsData.filter((tx: any) => txFilter === "ALL" || tx.type === txFilter).length === 0 && transactionsData.length > 0 && (
+                  <p className="text-xs text-muted-foreground text-center">No transactions match the filter.</p>
+                )}
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

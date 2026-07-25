@@ -39,6 +39,8 @@ public class AdminController {
     private final com.space.space_bundle.repository.ResultsTransactionRepository resultsTransactionRepository;
     private final com.space.space_bundle.repository.ResultCheckerPricingRepository resultCheckerPricingRepository;
     private final com.space.space_bundle.service.ResultsCheckerService resultsCheckerService;
+    private final com.space.space_bundle.service.TransactionService transactionService;
+    private final com.space.space_bundle.service.OrderService orderService;
 
     // ── Users ──────────────────────────────────────────────────────────────
 
@@ -52,6 +54,48 @@ public class AdminController {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
         return ResponseEntity.ok(ApiResponse.success(user));
+    }
+
+    @GetMapping("/users/{id}/wallet")
+    public ResponseEntity<ApiResponse<com.space.space_bundle.dto.WalletBalanceResponse>> getUserWallet(@PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.success(
+                com.space.space_bundle.dto.WalletBalanceResponse.builder()
+                        .balance(walletService.getBalance(id))
+                        .currency("GHS")
+                        .build()));
+    }
+
+    @GetMapping("/users/{id}/transactions")
+    public ResponseEntity<ApiResponse<List<com.space.space_bundle.entity.Transaction>>> getUserTransactions(@PathVariable String id) {
+        List<com.space.space_bundle.entity.Transaction> transactions = transactionService.getByUserId(id);
+        // Sort descending by creation date
+        transactions.sort((a, b) -> {
+            if (a.getCreatedAt() == null) return 1;
+            if (b.getCreatedAt() == null) return -1;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+        return ResponseEntity.ok(ApiResponse.success(transactions));
+    }
+    @PostMapping("/users/{id}/wallet/credit")
+    public ResponseEntity<ApiResponse<String>> creditUserWallet(@PathVariable String id, @RequestBody com.space.space_bundle.dto.WalletAdjustmentRequest request) {
+        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Credit amount must be greater than zero");
+        }
+        String desc = request.getDescription();
+        if (desc == null || desc.isBlank()) desc = "Admin Credit";
+        walletService.credit(id, request.getAmount(), desc);
+        return ResponseEntity.ok(ApiResponse.success("Wallet credited successfully"));
+    }
+
+    @PostMapping("/users/{id}/wallet/debit")
+    public ResponseEntity<ApiResponse<String>> debitUserWallet(@PathVariable String id, @RequestBody com.space.space_bundle.dto.WalletAdjustmentRequest request) {
+        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Debit amount must be greater than zero");
+        }
+        String desc = request.getDescription();
+        if (desc == null || desc.isBlank()) desc = "Admin Debit";
+        walletService.debit(id, request.getAmount(), null, desc); // null orderId for generic debit
+        return ResponseEntity.ok(ApiResponse.success("Wallet debited successfully"));
     }
 
     @GetMapping("/results-checker/transactions")
@@ -390,6 +434,20 @@ public class AdminController {
          ));
      }
 
+     // ── Transactions ────────────────────────────────────────────────────────
+
+     @GetMapping("/transactions")
+     public ResponseEntity<ApiResponse<List<com.space.space_bundle.dto.AdminTransactionView>>> getAllTransactions(
+             @RequestParam(required = false) String status,
+             @RequestParam(required = false) String type,
+             @RequestParam(required = false) String search,
+             @RequestParam(required = false) String fromDate,
+             @RequestParam(required = false) String toDate) {
+         
+         List<com.space.space_bundle.dto.AdminTransactionView> transactions = transactionService.getAllTransactions(status, type, search, fromDate, toDate);
+         return ResponseEntity.ok(ApiResponse.success(transactions));
+     }
+
      @PostMapping("/orders/{id}/mark-complete")
      public ResponseEntity<ApiResponse<AdminOrderView>> markOrderComplete(
              @PathVariable String id,
@@ -409,6 +467,12 @@ public class AdminController {
          orderRepository.save(order);
 
       return ResponseEntity.ok(ApiResponse.success("Order marked as complete", AdminOrderView.from(order)));
+      }
+
+      @PostMapping("/orders/{id}/reprocess")
+      public ResponseEntity<ApiResponse<AdminOrderView>> reprocessOrder(@PathVariable String id) {
+          Order order = orderService.reprocessFailedOrder(id);
+          return ResponseEntity.ok(ApiResponse.success("Order reprocessed successfully", AdminOrderView.from(order)));
       }
 
       @PostMapping("/orders/{id}/mark-complete-by-admin")

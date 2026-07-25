@@ -18,6 +18,7 @@ import { CheckerPortPage } from "@/pages/CheckerPortPage";
 import SettingsPage from "@/pages/SettingsPage";
 
 import AnnouncementsPage from "@/pages/AnnouncementsPage";
+import TransactionsPage from "@/pages/TransactionsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +53,7 @@ export default function App() {
                 <Route path="/checkerport" element={<CheckerPortPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/announcements" element={<AnnouncementsPage />} />
+                <Route path="/transactions" element={<TransactionsPage />} />
               </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

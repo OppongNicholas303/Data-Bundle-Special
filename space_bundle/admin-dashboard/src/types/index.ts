@@ -11,6 +11,25 @@ export interface AdminUser {
   updatedAt: string;
 }
 
+export interface AdminTransaction {
+  id: string;
+  userId: string;
+  orderId: string;
+  type: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  currency: string;
+  status: string;
+  reference: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  userEmail: string;
+  userPhone: string;
+  username: string;
+}
+
 export interface AdminAgent {
   id: string;
   userId: string;

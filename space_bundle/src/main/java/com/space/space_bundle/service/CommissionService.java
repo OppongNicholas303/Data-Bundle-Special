@@ -57,7 +57,7 @@ public class CommissionService {
         wallet.credit(profit);
         walletRepository.save(wallet);
 
-        transactionService.createCommission(agentId, orderId, profit, before, wallet.getBalance(),
+        transactionService.createCommission(agentUserId, orderId, profit, before, wallet.getBalance(),
                 "Commission from order " + orderId);
 
         // Mark settled

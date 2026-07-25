@@ -262,6 +262,43 @@ public class OrderService {
         );
     }
 
+    public Order reprocessFailedOrder(String orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+
+        if (!Order.OrderStatus.FAILED.name().equals(order.getStatus()) && !Order.OrderStatus.PROCESSING.name().equals(order.getStatus())) {
+            throw new IllegalStateException("Only FAILED or PROCESSING orders can be reprocessed.");
+        }
+
+        if (order.getPaymentReference() == null || order.getPaymentReference().isBlank()) {
+            throw new IllegalStateException("Order lacks a payment reference. Cannot verify payment status with Moolre.");
+        }
+
+        var verification = moolreAdapter.checkPaymentStatus(order.getPaymentReference(), 2);
+        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
+            throw new IllegalStateException("Moolre payment verification failed. Payment was not successful.");
+        }
+
+        order.setStatus(Order.OrderStatus.PROCESSING.name());
+        orderRepository.save(order);
+
+        try {
+            String providerRef = buyBundle(order, order.getNetwork());
+            order.markCompleted(providerRef);
+            orderRepository.save(order);
+
+            settleCommission(order);
+            log.info("[REPROCESS] Order completed: {}", order.getId());
+            return order;
+
+        } catch (Exception ex) {
+            log.error("[REPROCESS] Order failed: {}", order.getId(), ex);
+            order.markFailed("Reprocessing failed: " + ex.getMessage());
+            orderRepository.save(order);
+            throw new RuntimeException("Reprocessing failed: " + ex.getMessage());
+        }
+    }
+
 
     public List<SingleOrderUserDTO> getUsersWithSingleCompletedOrder() {
 
