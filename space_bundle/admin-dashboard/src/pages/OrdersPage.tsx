@@ -145,7 +145,7 @@ export default function OrdersPage() {
       (o.bundleCode && o.bundleCode.toLowerCase().includes(s)) ||
       (o.id && o.id.includes(s)) || 
       (o.userId && o.userId.includes(s));
-  }), [orders, search]);
+  }).sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()), [orders, search]);
 
   const totalRevenue   = filtered.filter(o => o.status === "COMPLETED" || o.status === "COMPLETE_BY_ADMIN").reduce((s, o) => s + o.amount, 0);
   const totalProfit    = filtered.filter(o => o.status === "COMPLETED" || o.status === "COMPLETE_BY_ADMIN").reduce((s, o) => s + o.platformProfit, 0);
