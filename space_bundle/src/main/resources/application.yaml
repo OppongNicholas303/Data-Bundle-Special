@@ -162,11 +162,11 @@ paystack:
   callback-url: ${PAYSTACK_CALLBACK_URL}
 
 ---
-## Development Profile
-#spring:
-#  config:
-#    activate:
-#      on-profile: dev
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
 
   data:
     mongodb:
