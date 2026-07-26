@@ -116,17 +116,13 @@ public class WebhookService {
             orderRepository.save(order);
 
             String providerRef;
-            boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", true);
+            boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", false); // Align with OrderService (default false)
             if (useRandyOnly) {
                 order.setByFrom("randy");
                 providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
             } else {
-                if ("MTN".equalsIgnoreCase(order.getNetwork())) {
-                    order.setByFrom("randy");
-                    providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
-                } else {
-                    providerRef = automationService.buy(order);
-                }
+                order.setByFrom("mydatagigs");
+                providerRef = automationService.buy(order);
             }
 
             order.markCompleted(providerRef);
