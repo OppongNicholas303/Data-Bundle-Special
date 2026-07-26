@@ -52,9 +52,13 @@ public class AutomationService {
                     .block();
 
             if (response == null) throw new RuntimeException("No response from bot");
-            if (response.getCode() != null) throw new RuntimeException(response.getMessage());
-            if (!"success".equalsIgnoreCase(response.getStatus()) || response.getOrderId() == null)
-                throw new RuntimeException("Invalid bot response");
+            if (!"success".equalsIgnoreCase(response.getStatus())) {
+                String errMsg = response.getMessage() != null ? response.getMessage() : "Invalid bot response";
+                throw new RuntimeException(errMsg);
+            }
+            if (response.getOrderId() == null) {
+                throw new RuntimeException("No order_id in bot response");
+            }
 
             return String.valueOf(response.getOrderId());
         } catch (Exception e) {
