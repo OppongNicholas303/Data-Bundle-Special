@@ -105,7 +105,7 @@ export default function MashupPage() {
       || (filterAvailable === "YES" && p.available)
       || (filterAvailable === "NO"  && !p.available);
     return matchSearch && matchNetwork && matchStatus && matchAvail;
-  }), [packages, search, filterNetwork, filterStatus, filterAvailable]);
+  }).sort((a, b) => (a.price || 0) - (b.price || 0)), [packages, search, filterNetwork, filterStatus, filterAvailable]);
 
   // ── Summary stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => ({

@@ -39,4 +39,6 @@ public class PlaceOrderRequest {
     private String agentCode;
 
     private String redirectUrl;
+    
+    private String paymentMethod;
 }

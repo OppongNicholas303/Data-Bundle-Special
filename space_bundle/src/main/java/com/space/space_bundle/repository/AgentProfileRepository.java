@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface AgentProfileRepository extends MongoRepository<AgentProfile, String> {
-    Optional<AgentProfile> findByUserId(String userId);
+    Optional<AgentProfile> findFirstByUserId(String userId);
     Optional<AgentProfile> findByReferralCode(String referralCode);
     boolean existsByUserId(String userId);
     boolean existsByReferralCode(String referralCode);

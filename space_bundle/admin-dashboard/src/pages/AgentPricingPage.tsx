@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { adminService } from "@/lib/adminService";
-import { getCheckerPricing } from "@/lib/checkerport";
+// import { getCheckerPricing } from "@/lib/checkerport";
 import { formatCurrency } from "@/lib/utils";
 import type { AdminAgent, Bundle, AgentBundlePricing, AdminMashupPackage, AgentMashupPricing } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -498,8 +498,8 @@ export default function AgentPricingPage() {
   const { data: checkerConfigs = [], isLoading: loadingCheckerConfigs, refetch: refetchCheckerConfigs } = useQuery({
     queryKey: ["admin-checker-pricing"],
     queryFn: async () => {
-      const res = await getCheckerPricing();
-      return res.data;
+      const res = await adminService.getCheckerConfigs();
+      return res;
     },
   });
 
@@ -553,10 +553,10 @@ export default function AgentPricingPage() {
             config.serviceName === "UNIVERSITY" ? "University Forms" : `${config.serviceName} Vouchers`,
       dataSize: "Voucher",
       network: "WEB",
-      costPrice: config.costPrice ?? 0,
-      sellingPrice: config.retailPrice ?? 0,
+      costPrice: config.amount ?? 0,
+      sellingPrice: config.retailPrice ?? config.amount ?? 0,
       status: "ACTIVE",
-      minimumBasePrice: config.costPrice ?? 0,
+      minimumBasePrice: config.amount ?? 0,
     }));
 
     return [...standardItems, ...mashupItems, ...checkerItems];
@@ -767,10 +767,10 @@ export default function AgentPricingPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pricingItems.map(bundle => {
-                        const p = agentPricingMap[bundle.id];
-                        const base = p?.basePrice ?? bundle.sellingPrice;
-                        const selling = p?.sellingPrice ?? bundle.sellingPrice;
+                      {filteredBundles.map(bundle => {
+                    const p = agentPricingMap[bundle.type === "CHECKER" ? bundle.code : bundle.id];
+                    const base = p?.basePrice ?? bundle.sellingPrice;
+                    const selling = p?.sellingPrice ?? bundle.sellingPrice;
                         return (
                           <tr key={`${bundle.type}-${bundle.id}`} className="border-b last:border-0 hover:bg-muted/20">
                             <td className="p-4">

@@ -52,8 +52,8 @@ public class MoolreAdapter {
         log.info("Moolre init: email={}, amount={}, ref={}", email, amount, externalRef);
         
         Map response = webClient.post().uri("/embed/link")
-                .header("X-API-USER", apiUser)
-                .header("X-API-PUBKEY", pubKey)
+                .header("X-API-USER", apiUser != null ? apiUser.trim() : "")
+                .header("X-API-PUBKEY", pubKey != null ? pubKey.trim() : "")
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .bodyValue(body)
                 .retrieve()
@@ -95,8 +95,8 @@ public class MoolreAdapter {
         log.info("Moolre check status: id={}, idType={}", id, idType);
 
         Map response = webClient.post().uri("/open/transact/status")
-                .header("X-API-USER", apiUser)
-                .header("X-API-PUBKEY", pubKey)
+                .header("X-API-USER", apiUser != null ? apiUser.trim() : "")
+                .header("X-API-PUBKEY", pubKey != null ? pubKey.trim() : "")
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .bodyValue(body)
                 .retrieve()

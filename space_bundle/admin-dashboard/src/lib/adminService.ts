@@ -2,7 +2,7 @@ import { apiClient } from "./api";
 import type {
   AdminStats, AdminUser, AdminAgent, Bundle, AdminOrder,
   Commission, CreateBundlePayload, UpdateBundlePayload, WithdrawalRequest, DailyAnalytics,
-  AdminMashupPackage, MashupSyncResult, AgentBundlePricing, AgentMashupPricing, AdminTransaction,
+  AdminMashupPackage, MashupSyncResult, AgentBundlePricing, AgentMashupPricing, AgentCheckerPricing, AdminTransaction,
 } from "@/types";
 
 type ApiWrap<T> = { data: T };
@@ -220,16 +220,20 @@ export const adminService = {
   },
   
   // Checker Agent Pricing
-  getAgentCheckerPricing: async (agentProfileId: string): Promise<any[]> => {
-    const res = await apiClient.get(`/admin/agents/${agentProfileId}/checker/pricing`) as ApiWrap<any[]>;
+  getCheckerConfigs: async (): Promise<any[]> => {
+    const res = await apiClient.get("/admin/results-checker/pricing") as ApiWrap<any[]>;
     return res.data;
   },
-  getCheckerPricingForService: async (serviceName: string): Promise<any[]> => {
-    const res = await apiClient.get(`/admin/agents/checker/pricing/service/${serviceName}`) as ApiWrap<any[]>;
+  getAgentCheckerPricing: async (agentProfileId: string): Promise<AgentCheckerPricing[]> => {
+    const res = await apiClient.get(`/admin/agents/${agentProfileId}/checker/pricing`) as ApiWrap<AgentCheckerPricing[]>;
     return res.data;
   },
-  setAgentCheckerBasePrice: async (agentProfileId: string, serviceName: string, basePrice: number, sellingPrice?: number): Promise<any> => {
-    const res = await apiClient.put(`/admin/agents/checker/pricing`, { agentProfileId, bundleId: serviceName, basePrice, sellingPrice: sellingPrice ?? null }) as ApiWrap<any>;
+  getCheckerPricingForService: async (serviceName: string): Promise<AgentCheckerPricing[]> => {
+    const res = await apiClient.get(`/admin/agents/checker/pricing/service/${serviceName}`) as ApiWrap<AgentCheckerPricing[]>;
+    return res.data;
+  },
+  setAgentCheckerBasePrice: async (agentProfileId: string, serviceName: string, basePrice: number, sellingPrice?: number): Promise<AgentCheckerPricing> => {
+    const res = await apiClient.put(`/admin/agents/checker/pricing`, { agentProfileId, bundleId: serviceName, basePrice, sellingPrice: sellingPrice ?? null }) as ApiWrap<AgentCheckerPricing>;
     return res.data;
   },
   setBulkCheckerBasePrice: async (serviceName: string, basePrice: number): Promise<{ agentsUpdated: number }> => {

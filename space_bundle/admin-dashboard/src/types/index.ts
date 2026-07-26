@@ -174,6 +174,17 @@ export interface AgentMashupPricing {
   updatedAt: string;
 }
 
+export interface AgentCheckerPricing {
+  id?: string;
+  agentId: string;
+  serviceName: string;
+  basePrice: number;
+  sellingPrice: number;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface AdminMashupPackage {
   id: string;
   externalId: number | null;

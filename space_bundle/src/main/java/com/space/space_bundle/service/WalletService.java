@@ -3,9 +3,11 @@ package com.space.space_bundle.service;
 import com.space.space_bundle.dto.TopUpResponse;
 import com.space.space_bundle.entity.Transaction;
 import com.space.space_bundle.entity.Wallet;
+import com.space.space_bundle.feature.FeatureFlagService;
 import com.space.space_bundle.repository.UserRepository;
 import com.space.space_bundle.repository.WalletRepository;
 import com.space.space_bundle.security.MoolreAdapter;
+import com.space.space_bundle.security.PaystackAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +18,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,7 +31,10 @@ public class WalletService {
     private final WalletRepository walletRepository;
     private final TransactionService transactionService;
     private final MoolreAdapter moolreAdapter;
+    private final PaystackAdapter paystackAdapter;
     private final UserRepository userRepository;
+    private final FeatureFlagService featureFlagService;
+    private final MongoTemplate mongoTemplate;
 
     @Value("${moolre.callback-url:http://localhost:8080/api/webhook/moolre}")
     private String moolreCallbackUrl;
@@ -49,9 +59,14 @@ public class WalletService {
     public void credit(String userId, BigDecimal amount, String description) {
         Wallet wallet = getByUserId(userId);
         BigDecimal before = wallet.getBalance();
-        wallet.credit(amount);
-        walletRepository.save(wallet);
-        transactionService.createCompletedCredit(userId, wallet.getId(), amount, before, wallet.getBalance(), description);
+        atomicCredit(userId, amount);
+        transactionService.createCompletedCredit(userId, wallet.getId(), amount, before, before.add(amount), description);
+    }
+
+    public void atomicCredit(String userId, BigDecimal amount) {
+        Query query = new Query(Criteria.where("userId").is(userId));
+        Update update = new Update().inc("balance", amount).set("updatedAt", LocalDateTime.now());
+        mongoTemplate.updateFirst(query, update, Wallet.class);
     }
 
     @Transactional
@@ -61,9 +76,20 @@ public class WalletService {
         if (before.compareTo(amount) < 0) {
             throw new IllegalArgumentException("Insufficient wallet balance");
         }
-        wallet.debit(amount);
-        walletRepository.save(wallet);
-        transactionService.createCompletedDebit(userId, orderId, amount, before, wallet.getBalance(), description);
+        
+        boolean success = atomicDebit(userId, amount);
+        if (!success) {
+            throw new IllegalArgumentException("Insufficient wallet balance");
+        }
+        
+        transactionService.createCompletedDebit(userId, orderId, amount, before, before.subtract(amount), description);
+    }
+
+    public boolean atomicDebit(String userId, BigDecimal amount) {
+        Query query = new Query(Criteria.where("userId").is(userId).and("balance").gte(amount));
+        Update update = new Update().inc("balance", amount.negate()).set("updatedAt", LocalDateTime.now());
+        com.mongodb.client.result.UpdateResult result = mongoTemplate.updateFirst(query, update, Wallet.class);
+        return result.getModifiedCount() > 0;
     }
 
     public BigDecimal getBalance(String userId) {
@@ -71,7 +97,7 @@ public class WalletService {
     }
 
     public Wallet getByUserId(String userId) {
-        return walletRepository.findByUserId(userId)
+        return walletRepository.findFirstByUserId(userId)
                 .orElseThrow(() -> new IllegalStateException("Wallet not found for userId=" + userId));
     }
 
@@ -79,6 +105,13 @@ public class WalletService {
     public TopUpResponse initializeTopUp(String userId, BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ONE) < 0)
             throw new IllegalArgumentException("Minimum top-up amount is GHS 1.00");
+
+        boolean paystackEnabled = featureFlagService.isEnabled("payment.paystack.enabled", false);
+        boolean moolreEnabled = featureFlagService.isEnabled("payment.moolre.enabled", true);
+
+        if (!paystackEnabled && !moolreEnabled) {
+            throw new IllegalStateException("External checkout is disabled. Top-ups are currently unavailable.");
+        }
 
         String topUpId = UUID.randomUUID().toString();
         String reference = "TOPUP_" + topUpId;
@@ -91,17 +124,35 @@ public class WalletService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
                 .getEmail();
 
-        var responseData = moolreAdapter.generatePaymentLink(
-                amount.doubleValue(), email, reference, moolreCallbackUrl, moolreRedirectUrl);
+        String paymentAuthUrl;
+        String paymentRef;
 
-        String moolreRef = (String) responseData.get("reference");
-        if (moolreRef == null) moolreRef = reference;
+        if (moolreEnabled) {
+            var responseData = moolreAdapter.generatePaymentLink(
+                    amount.doubleValue(), email, reference, moolreCallbackUrl, moolreRedirectUrl);
+            paymentRef = (String) responseData.get("reference");
+            if (paymentRef == null) paymentRef = reference;
+            paymentAuthUrl = (String) responseData.get("authorization_url");
+        } else {
+            // Apply 2% surcharge for Paystack to cover fees
+            BigDecimal chargeMultiplier = BigDecimal.valueOf(1.02);
+            int paystackAmountInPesewas = amount.multiply(chargeMultiplier)
+                    .multiply(BigDecimal.valueOf(100)).intValue();
+
+            var responseData = paystackAdapter.initializeTransaction(
+                    email, paystackAmountInPesewas, reference, moolreRedirectUrl);
+            if (!responseData.isStatus() || responseData.getData() == null) {
+                throw new RuntimeException("Paystack init failed: " + responseData.getMessage());
+            }
+            paymentRef = responseData.getData().getAccess_code();
+            paymentAuthUrl = responseData.getData().getAuthorization_url();
+        }
 
         return TopUpResponse.builder()
                 .topUpId(topUpId)
+                .authorizationUrl(paymentAuthUrl)
                 .reference(reference)
-                .authorizationUrl((String) responseData.get("authorization_url"))
-                .accessCode(moolreRef)
+                .accessCode(paymentRef)
                 .build();
     }
 
@@ -115,8 +166,10 @@ public class WalletService {
         }
 
         Wallet wallet = getByUserId(pending.getUserId());
+        BigDecimal actualCreditAmount = pending.getAmount(); // Use original requested amount
+        
         BigDecimal before = wallet.getBalance();
-        BigDecimal after = before.add(amount);
+        BigDecimal after = before.add(actualCreditAmount);
         
         // Atomically claim the transaction first to prevent race conditions
         boolean claimed = transactionService.atomicComplete(pending.getId(), before, after);
@@ -125,9 +178,8 @@ public class WalletService {
             return; // Another thread already processed it!
         }
         
-        wallet.credit(amount);
-        walletRepository.save(wallet);
+        atomicCredit(pending.getUserId(), actualCreditAmount);
         
-        log.info("Wallet topped up: userId={}, amount={}", pending.getUserId(), amount);
+        log.info("Wallet topped up: userId={}, amount={}", pending.getUserId(), actualCreditAmount);
     }
 }

@@ -92,7 +92,7 @@ export default function BundlesPage() {
     const matchNetwork = filterNetwork === "ALL" || b.network === filterNetwork;
     const matchStatus = filterStatus === "ALL" || b.status === filterStatus;
     return matchSearch && matchNetwork && matchStatus;
-  }), [bundles, search, filterNetwork, filterStatus]);
+  }).sort((a, b) => (a.sellingPrice || 0) - (b.sellingPrice || 0)), [bundles, search, filterNetwork, filterStatus]);
 
   return (
     <div className="space-y-4">

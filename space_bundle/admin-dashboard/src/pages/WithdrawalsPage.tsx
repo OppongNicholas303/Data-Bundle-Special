@@ -68,7 +68,7 @@ export default function WithdrawalsPage() {
       w.accountName.toLowerCase().includes(s) ||
       w.momoNumber.includes(s) ||
       w.reference.toLowerCase().includes(s);
-  });
+  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const pendingCount = withdrawals.filter(w => w.status === "PENDING").length;
   const isActing = approveMutation.isPending || rejectMutation.isPending;

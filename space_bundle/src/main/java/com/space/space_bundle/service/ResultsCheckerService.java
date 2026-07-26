@@ -62,7 +62,7 @@ public class ResultsCheckerService {
                 agentId = agent.getId();
             }
         } else if (userId != null) {
-            Optional<AgentProfile> agentOpt = agentProfileRepository.findByUserId(userId);
+            Optional<AgentProfile> agentOpt = agentProfileRepository.findFirstByUserId(userId);
             if (agentOpt.isPresent()) {
                 AgentProfile agent = agentOpt.get();
                 agentId = agent.getId();
@@ -150,7 +150,7 @@ public class ResultsCheckerService {
                 agentId = agent.getId();
             }
         } else if (userId != null) {
-            Optional<AgentProfile> agentOpt = agentProfileRepository.findByUserId(userId);
+            Optional<AgentProfile> agentOpt = agentProfileRepository.findFirstByUserId(userId);
             if (agentOpt.isPresent()) {
                 AgentProfile agent = agentOpt.get();
                 agentId = agent.getId();

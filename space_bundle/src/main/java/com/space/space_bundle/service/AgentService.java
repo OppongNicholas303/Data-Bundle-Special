@@ -30,6 +30,18 @@ public class AgentService {
     private final TransactionService transactionService;
     private final AgentMashupPricingRepository agentMashupPricingRepository;
     private final MashupRepository mashupRepository;
+    private final org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+
+    public void atomicUpdateStats(String agentProfileId, BigDecimal sales, BigDecimal profit) {
+        org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query(
+                org.springframework.data.mongodb.core.query.Criteria.where("id").is(agentProfileId)
+        );
+        org.springframework.data.mongodb.core.query.Update update = new org.springframework.data.mongodb.core.query.Update()
+                .inc("totalSales", sales)
+                .inc("totalProfit", profit)
+                .set("updatedAt", LocalDateTime.now());
+        mongoTemplate.updateFirst(query, update, AgentProfile.class);
+    }
 
     @Transactional
     public AgentProfile register(String userId, String businessName) {
@@ -59,7 +71,7 @@ public class AgentService {
     }
 
     public AgentProfile getProfileByUserId(String userId) {
-        return agentProfileRepository.findByUserId(userId)
+        return agentProfileRepository.findFirstByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Agent profile not found for userId=" + userId));
     }
 
@@ -489,7 +501,7 @@ public class AgentService {
 
         AgentProfile profile = getProfileByUserId(agentUserId);
 
-        Wallet wallet = walletRepository.findByUserId(agentUserId)
+        Wallet wallet = walletRepository.findFirstByUserId(agentUserId)
                 .orElseThrow(() -> new IllegalStateException("Wallet not found"));
         if (wallet.getBalance().compareTo(amount) < 0)
             throw new IllegalStateException("Insufficient balance. Available: GHS " + wallet.getBalance());

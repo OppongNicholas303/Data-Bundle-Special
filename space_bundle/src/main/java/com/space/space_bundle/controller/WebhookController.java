@@ -55,4 +55,26 @@ public class WebhookController {
         resultsCheckerService.handleWebhook(payload);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping({"/webhook/paystack", "/webhooks/paystack"})
+    public ResponseEntity<Void> paystack(
+            @RequestBody String payload,
+            @RequestHeader(value = "x-paystack-signature", required = false) String signature,
+            HttpServletRequest request) {
+
+        if (signature == null || signature.isBlank()) {
+            log.warn("[WEBHOOK] Rejected — missing x-paystack-signature header");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (!webhookService.isValidSignature(payload, signature)) {
+            log.warn("[WEBHOOK] Rejected — invalid signature");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        log.info("[WEBHOOK] Received valid webhook from Paystack");
+        log.info("[WEBHOOK] Signature verified, processing");
+        webhookService.processPaystack(payload);
+        return ResponseEntity.ok().build();
+    }
 }

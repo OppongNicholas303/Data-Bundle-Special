@@ -44,6 +44,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/bundles/**").permitAll()
                 .requestMatchers("/mashup/**").permitAll()
                 .requestMatchers("/orders").permitAll()
@@ -59,7 +60,7 @@ public class SecurityConfig {
                 .requestMatchers("/results-checker/transactions/*").permitAll()
                 .requestMatchers("/results-checker/pricing").permitAll()
                 .requestMatchers("/results-checker/my-ip").permitAll()
-                .requestMatchers("/agents/register").authenticated()
+                .requestMatchers("/agents/register", "/agents/profile").authenticated()
                 .requestMatchers("/agents/**").hasRole("AGENT")
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")

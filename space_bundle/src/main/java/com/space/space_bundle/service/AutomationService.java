@@ -31,8 +31,14 @@ public class AutomationService {
     private String botTokenRandy;
 
     public String buy(Order order) {
-        String network = order.getNetwork().equalsIgnoreCase("VODAFONE")
-                ? "telecel" : order.getNetwork().toLowerCase();
+        String network;
+        if (order.getNetwork().equalsIgnoreCase("VODAFONE")) {
+            network = "telecel";
+        } else if (order.getNetwork().equalsIgnoreCase("AIRTELTIGO")) {
+            network = "ISHARE".equalsIgnoreCase(order.getBundleType()) ? "at_ishare" : "at_bigdata";
+        } else {
+            network = order.getNetwork().toLowerCase();
+        }
 
         BotPurchaseRequest request = BotPurchaseRequest.builder()
                 .network(network)

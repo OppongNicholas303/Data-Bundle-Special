@@ -24,6 +24,8 @@ public class CommissionService {
     private final WalletRepository walletRepository;
     private final TransactionService transactionService;
     private final AgentProfileRepository agentProfileRepository;
+    private final WalletService walletService;
+    private final AgentService agentService;
 
     @Transactional
     public Commission settle(String agentId, String orderId,
@@ -51,26 +53,21 @@ public class CommissionService {
                 .map(profile -> profile.getUserId())
                 .orElseThrow(() -> new IllegalStateException("Agent profile not found: " + agentId));
 
-        Wallet wallet = walletRepository.findByUserId(agentUserId)
+        Wallet wallet = walletRepository.findFirstByUserId(agentUserId)
                 .orElseThrow(() -> new IllegalStateException("Agent wallet not found for user: " + agentUserId));
         BigDecimal before = wallet.getBalance();
-        wallet.credit(profit);
-        walletRepository.save(wallet);
+        
+        walletService.atomicCredit(agentUserId, profit);
 
-        transactionService.createCommission(agentUserId, orderId, profit, before, wallet.getBalance(),
+        transactionService.createCommission(agentUserId, orderId, profit, before, before.add(profit),
                 "Commission from order " + orderId);
 
         // Mark settled
         commission.setStatus(Commission.Status.SETTLED.name());
         commission = commissionRepository.save(commission);
 
-        // Update agent profile totals (agentId is agentProfile id)
-        agentProfileRepository.findById(agentId).ifPresent(profile -> {
-            profile.setTotalSales(profile.getTotalSales().add(sellingAmount));
-            profile.setTotalProfit(profile.getTotalProfit().add(profit));
-            profile.setUpdatedAt(LocalDateTime.now());
-            agentProfileRepository.save(profile);
-        });
+        // Update agent profile totals atomically
+        agentService.atomicUpdateStats(agentId, sellingAmount, profit);
 
         log.info("[COMMISSION] Settled: agentId={}, orderId={}, profit={}", agentId, orderId, profit);
         return commission;

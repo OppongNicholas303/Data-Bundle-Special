@@ -19,6 +19,17 @@ public class WalletController {
 
     private final WalletService walletService;
     private final com.space.space_bundle.service.WebhookService webhookService;
+    private final com.space.space_bundle.service.TransactionService transactionService;
+
+    @GetMapping("/transactions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<java.util.List<com.space.space_bundle.entity.Transaction>>> getTransactions(
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        java.util.List<com.space.space_bundle.entity.Transaction> txs = transactionService.getByUserId(userDetails.getUserId());
+        // Sort by createdAt descending
+        txs.sort((t1, t2) -> t2.getCreatedAt().compareTo(t1.getCreatedAt()));
+        return ResponseEntity.ok(ApiResponse.success(txs));
+    }
 
     @GetMapping("/balance")
     @PreAuthorize("isAuthenticated()")
@@ -46,12 +57,15 @@ public class WalletController {
             @PathVariable String id,
             @RequestBody java.util.Map<String, String> body,
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        String moolreId = body.get("moolreId");
-        if (moolreId == null || moolreId.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Moolre ID is required"));
+        String reference = body.get("reference");
+        if (reference == null || reference.trim().isEmpty()) {
+            reference = body.get("moolreId"); // Fallback for backwards compatibility
+        }
+        if (reference == null || reference.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Payment reference is required"));
         }
 
-        boolean verified = webhookService.verifyTopUpWithMoolreId(id, moolreId);
+        boolean verified = webhookService.verifyTopUpPayment(id, reference);
 
         if (verified) {
             return ResponseEntity.ok(ApiResponse.success("Payment verified and top-up processed"));

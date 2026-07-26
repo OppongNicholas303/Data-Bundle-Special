@@ -130,7 +130,7 @@ export default function UsersPage() {
         (filterStatus === "DISABLED" && !u.enabled) ||
         (filterStatus === "LOCKED" && !u.accountNonLocked);
       return matchSearch && matchRole && matchStatus;
-    });
+    }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }, [users, search, filterRole, filterStatus]);
 
   return (

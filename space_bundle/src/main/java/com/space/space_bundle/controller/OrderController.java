@@ -45,7 +45,7 @@ public class OrderController {
                 request.getNetwork(), request.getPhoneNumber(), request.getBundleCode(),
                 email, userDetails != null ? userDetails.getUserId() : null,
                 request.getPackage_id(), request.getAgentCode(), request.getBundleType(),
-                request.getRedirectUrl());
+                request.getRedirectUrl(), request.getPaymentMethod());
 
         return ResponseEntity.ok(ApiResponse.success(order));
     }
@@ -89,12 +89,15 @@ public class OrderController {
             @PathVariable String id,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        String moolreId = body.get("moolreId");
-        if (moolreId == null || moolreId.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Moolre ID is required"));
+        String reference = body.get("reference");
+        if (reference == null || reference.trim().isEmpty()) {
+            reference = body.get("moolreId"); // Fallback for backwards compatibility
+        }
+        if (reference == null || reference.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Payment reference is required"));
         }
 
-        boolean verified = webhookService.verifyOrderWithMoolreId(id, moolreId);
+        boolean verified = webhookService.verifyOrderPayment(id, reference);
 
         if (verified) {
             return ResponseEntity.ok(ApiResponse.success("Payment verified and order is processing"));

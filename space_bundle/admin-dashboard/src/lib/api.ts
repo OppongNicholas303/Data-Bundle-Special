@@ -28,34 +28,34 @@ class ApiClient {
     return response.json();
   }
 
-  async get(endpoint: string): Promise<unknown> {
+  async get<T = unknown>(endpoint: string): Promise<T> {
     const res = await fetch(`${this.baseURL}${endpoint}`, {
       method: "GET", headers: this.getAuthHeaders(),
     });
-    return this.handleResponse(res);
+    return this.handleResponse(res) as Promise<T>;
   }
 
-  async post(endpoint: string, data?: unknown): Promise<unknown> {
+  async post<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
     const res = await fetch(`${this.baseURL}${endpoint}`, {
       method: "POST", headers: this.getAuthHeaders(),
       body: data ? JSON.stringify(data) : undefined,
     });
-    return this.handleResponse(res);
+    return this.handleResponse(res) as Promise<T>;
   }
 
-  async put(endpoint: string, data?: unknown): Promise<unknown> {
+  async put<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
     const res = await fetch(`${this.baseURL}${endpoint}`, {
       method: "PUT", headers: this.getAuthHeaders(),
       body: data ? JSON.stringify(data) : undefined,
     });
-    return this.handleResponse(res);
+    return this.handleResponse(res) as Promise<T>;
   }
 
-  async delete(endpoint: string): Promise<unknown> {
+  async delete<T = unknown>(endpoint: string): Promise<T> {
     const res = await fetch(`${this.baseURL}${endpoint}`, {
       method: "DELETE", headers: this.getAuthHeaders(),
     });
-    return this.handleResponse(res);
+    return this.handleResponse(res) as Promise<T>;
   }
 }
 

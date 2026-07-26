@@ -39,6 +39,7 @@ public class AgentController {
     private final OrderService orderService;
     private final WalletService walletService;
     private final UserRepository userRepository;
+    private final com.space.space_bundle.repository.AgentProfileRepository agentProfileRepository;
 
     @Value("${app.storefront-base-url:https://tapdata.vercel.app/store}")
     private String storefrontBaseUrl;
@@ -53,11 +54,11 @@ public class AgentController {
     }
 
     @GetMapping("/profile")
-    @PreAuthorize("hasRole('AGENT')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<AgentProfile>> profile(
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success(
-                agentService.getProfileByUserId(userDetails.getUserId())));
+        AgentProfile profile = agentProfileRepository.findFirstByUserId(userDetails.getUserId()).orElse(null);
+        return ResponseEntity.ok(ApiResponse.success(profile));
     }
 
     @GetMapping("/my-link")

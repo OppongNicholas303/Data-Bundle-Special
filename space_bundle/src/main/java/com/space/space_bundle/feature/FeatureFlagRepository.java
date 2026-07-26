@@ -1,9 +1,9 @@
 package com.space.space_bundle.feature;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 
-public interface FeatureFlagRepository extends JpaRepository<FeatureFlag, Long> {
+public interface FeatureFlagRepository extends MongoRepository<FeatureFlag, String> {
     Optional<FeatureFlag> findByKey(String key);
 }
 

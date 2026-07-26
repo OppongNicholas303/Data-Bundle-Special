@@ -65,7 +65,7 @@ public class AdminWithdrawalService {
             throw new IllegalStateException("Withdrawal is not PENDING — current status: " + req.getStatus());
 
         // Refund the agent's wallet
-        Wallet wallet = walletRepository.findByUserId(req.getAgentUserId())
+        Wallet wallet = walletRepository.findFirstByUserId(req.getAgentUserId())
                 .orElseThrow(() -> new IllegalStateException("Agent wallet not found"));
 
         BigDecimal before = wallet.getBalance();

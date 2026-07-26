@@ -42,9 +42,11 @@ public class OrderService {
     private final CommissionService commissionService;
     private final TransactionService transactionService;
     private final MoolreAdapter moolreAdapter;
+    private final com.space.space_bundle.security.PaystackAdapter paystackAdapter;
     private final AutomationService automationService;
     private final com.space.space_bundle.feature.FeatureFlagService featureFlagService;
     private final MongoTemplate mongoTemplate;
+    private final WalletService walletService;
 
     @Value("${moolre.callback-url:http://localhost:8080/api/webhook/moolre}")
     private String moolreCallbackUrl;
@@ -69,22 +71,22 @@ public class OrderService {
     @Transactional
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId) {
-        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, null, null, null);
+        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, null, null, null, null);
     }
 
     @Transactional
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId, String agentCode) {
-        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, null, null);
+        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, null, null, null);
     }
 
     @Transactional
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId, String agentCode,
-                            String bundleType, String redirectUrl) {
+                            String bundleType, String redirectUrl, String paymentMethod) {
 
         if (isMashupBundle(bundleType)) {
-            return placeMashupOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, redirectUrl);
+            return placeMashupOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, redirectUrl, paymentMethod);
         }
 
         // Normalize network to lowercase to match DB storage ("mtn", "telecel", "airteltigo")
@@ -146,17 +148,17 @@ public class OrderService {
 
         // Try wallet payment first
         if (userId != null) {
-            Optional<Wallet> wallet = walletRepository.findByUserId(userId);
+            Optional<Wallet> wallet = walletRepository.findFirstByUserId(userId);
             if (wallet.isPresent() && wallet.get().getBalance().compareTo(total) >= 0) {
-                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork, redirectUrl);
+                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork, redirectUrl, paymentMethod);
             }
         }
 
-        return initMoolre(order, email, redirectUrl);
+        return initializePayment(order, email, redirectUrl, paymentMethod);
     }
 
     private Order placeMashupOrder(String network, String phoneNumber, String bundleCode,
-                                   String email, String userId, String packageId, String agentCode, String redirectUrl) {
+                                   String email, String userId, String packageId, String agentCode, String redirectUrl, String paymentMethod) {
         MashupBundle mashupBundle = mashupService.getPurchasablePackage(bundleCode, packageId);
         String normalizedNetwork = mashupBundle.getNetwork() != null
                 ? mashupBundle.getNetwork().toUpperCase(Locale.ROOT)
@@ -208,13 +210,13 @@ public class OrderService {
                 order.getId(), resolvedPkg, baseAmount);
 
         if (userId != null) {
-            Optional<Wallet> wallet = walletRepository.findByUserId(userId);
+            Optional<Wallet> wallet = walletRepository.findFirstByUserId(userId);
             if (wallet.isPresent() && wallet.get().getBalance().compareTo(total) >= 0) {
-                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork, redirectUrl);
+                return processWithWallet(order, wallet.get(), total, userId, email, normalizedNetwork, redirectUrl, paymentMethod);
             }
         }
 
-        return initMoolre(order, email, redirectUrl);
+        return initializePayment(order, email, redirectUrl, paymentMethod);
     }
 
     public List<Order> getByUserId(String userId, String orderId, String phoneNumber, String status) {
@@ -262,6 +264,24 @@ public class OrderService {
         );
     }
 
+    public boolean atomicClaimOrderForFulfillment(String orderId) {
+        Query query = new Query(Criteria.where("id").is(orderId).and("status").is(Order.OrderStatus.PENDING_PAYMENT.name()));
+        org.springframework.data.mongodb.core.query.Update update = new org.springframework.data.mongodb.core.query.Update()
+                .set("status", Order.OrderStatus.PAID.name())
+                .set("updatedAt", LocalDateTime.now());
+        com.mongodb.client.result.UpdateResult result = mongoTemplate.updateFirst(query, update, Order.class);
+        return result.getModifiedCount() > 0;
+    }
+
+    public boolean atomicClaimFailedOrderForReprocessing(String orderId) {
+        Query query = new Query(Criteria.where("id").is(orderId).and("status").in(Order.OrderStatus.FAILED.name(), Order.OrderStatus.PROCESSING.name()));
+        org.springframework.data.mongodb.core.query.Update update = new org.springframework.data.mongodb.core.query.Update()
+                .set("status", Order.OrderStatus.PROCESSING.name())
+                .set("updatedAt", LocalDateTime.now());
+        com.mongodb.client.result.UpdateResult result = mongoTemplate.updateFirst(query, update, Order.class);
+        return result.getModifiedCount() > 0;
+    }
+
     public Order reprocessFailedOrder(String orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
@@ -270,17 +290,49 @@ public class OrderService {
             throw new IllegalStateException("Only FAILED or PROCESSING orders can be reprocessed.");
         }
 
-        if (order.getPaymentReference() == null || order.getPaymentReference().isBlank()) {
-            throw new IllegalStateException("Order lacks a payment reference. Cannot verify payment status with Moolre.");
+        boolean claimed = atomicClaimFailedOrderForReprocessing(orderId);
+        if (!claimed) {
+            throw new IllegalStateException("Order is currently being processed by another request.");
+        }
+        order.setStatus(Order.OrderStatus.PROCESSING.name()); // reflect in object
+
+        if (order.getPaymentReference() != null && !order.getPaymentReference().isBlank()) {
+            boolean isMoolre = order.getPaymentReference().equals(order.getPaymentAccessCode());
+            boolean verified = false;
+
+            try {
+                if (isMoolre) {
+                    var verification = moolreAdapter.checkPaymentStatus(order.getPaymentReference(), 2);
+                    if (verification.containsKey("txstatus") && Integer.valueOf(1).equals(verification.get("txstatus"))) {
+                        verified = true;
+                    }
+                } else {
+                    var verification = paystackAdapter.verifyTransaction(order.getPaymentReference());
+                    if (verification != null && verification.isStatus() && verification.getData() != null && "success".equalsIgnoreCase(verification.getData().getStatus())) {
+                        verified = true;
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Payment verification failed for order {}: {}", orderId, e.getMessage());
+            }
+
+            if (!verified) {
+                // Revert status to FAILED since we claimed it
+                order.setStatus(Order.OrderStatus.FAILED.name());
+                orderRepository.save(order);
+                throw new IllegalStateException("Payment verification failed. Payment was not successful.");
+            }
+        } else {
+            // Wallet order without external payment reference
+            if (Order.OrderStatus.FAILED.name().equals(order.getStatus())) {
+                // Revert status to FAILED since we claimed it
+                order.setStatus(Order.OrderStatus.FAILED.name());
+                orderRepository.save(order);
+                throw new IllegalStateException("FAILED wallet orders are typically already refunded. They cannot be reprocessed to avoid double issuing.");
+            }
         }
 
-        var verification = moolreAdapter.checkPaymentStatus(order.getPaymentReference(), 2);
-        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
-            throw new IllegalStateException("Moolre payment verification failed. Payment was not successful.");
-        }
-
-        order.setStatus(Order.OrderStatus.PROCESSING.name());
-        orderRepository.save(order);
+        // We already claimed it in the DB, so we don't need to save again here unless there's an error later
 
         try {
             String providerRef = buyBundle(order, order.getNetwork());
@@ -355,19 +407,21 @@ public class OrderService {
     }
 
     private Order processWithWallet(Order order, Wallet wallet, BigDecimal amount,
-                                    String userId, String email, String network, String redirectUrl) {
+                                    String userId, String email, String network, String redirectUrl, String paymentMethod) {
         BigDecimal before = wallet.getBalance();
+
+        if (wallet.getBalance().compareTo(amount) < 0) {
+            return initializePayment(order, email, redirectUrl, paymentMethod);
+        }
+
         var debitTx = transactionService.createDebit(userId, order.getId(), amount,
                 before, before.subtract(amount), "Order payment for " + order.getBundleCode());
 
-        if (wallet.getBalance().compareTo(amount) <= 0) {
-            transactionService.fail(debitTx.getId());
-            return initMoolre(order, email, redirectUrl);
-        }
-
         try {
-            wallet.debit(amount);
-            walletRepository.save(wallet);
+            boolean success = walletService.atomicDebit(userId, amount);
+            if (!success) {
+                throw new IllegalStateException("Insufficient wallet balance or concurrent update");
+            }
             transactionService.complete(debitTx.getId());
 
             order.markPaid();
@@ -388,15 +442,64 @@ public class OrderService {
             orderRepository.save(order);
 
             // Refund
-            BigDecimal afterFail = wallet.getBalance();
-            wallet.credit(amount);
-            walletRepository.save(wallet);
+            BigDecimal afterFail = walletService.getBalance(userId); // Get fresh balance just in case
+            walletService.atomicCredit(userId, amount);
             transactionService.createRefund(userId, order.getId(), amount,
-                    afterFail, wallet.getBalance(), "Refund for failed order " + order.getId());
+                    afterFail, afterFail.add(amount), "Refund for failed order " + order.getId());
             order.markRefunded();
             orderRepository.save(order);
 
+            return initializePayment(order, email, redirectUrl, paymentMethod);
+        }
+    }
+
+    private Order initializePayment(Order order, String email, String redirectUrl, String paymentMethod) {
+        boolean paystackEnabled = featureFlagService.isEnabled("payment.paystack.enabled", false);
+        boolean moolreEnabled = featureFlagService.isEnabled("payment.moolre.enabled", true);
+
+        if (!paystackEnabled && !moolreEnabled) {
+            throw new IllegalStateException("External checkout is disabled. Only wallet payments are allowed.");
+        }
+
+        if ("PAYSTACK".equalsIgnoreCase(paymentMethod) && paystackEnabled) {
+            return initPaystack(order, email, redirectUrl);
+        } else if ("MOOLRE".equalsIgnoreCase(paymentMethod) && moolreEnabled) {
             return initMoolre(order, email, redirectUrl);
+        }
+
+        // Fallback to whichever is enabled if paymentMethod is null or invalid
+        if (moolreEnabled) {
+            return initMoolre(order, email, redirectUrl);
+        } else {
+            return initPaystack(order, email, redirectUrl);
+        }
+    }
+
+    private Order initPaystack(Order order, String email, String callbackUrl) {
+        try {
+            String reference = "ORDER_" + order.getId();
+            if (callbackUrl == null) callbackUrl = moolreRedirectUrl;
+
+            // Apply 2% surcharge for Paystack to cover fees
+            BigDecimal chargeMultiplier = BigDecimal.valueOf(1.02);
+            int paystackAmountInPesewas = order.getAmount().multiply(chargeMultiplier)
+                    .multiply(BigDecimal.valueOf(100)).intValue();
+
+            var response = paystackAdapter.initializeTransaction(
+                    email, paystackAmountInPesewas,
+                    reference, callbackUrl);
+
+            if (!response.isStatus() || response.getData() == null)
+                throw new RuntimeException("Paystack init failed: " + response.getMessage());
+
+            order.setPendingPayment(reference,
+                    response.getData().getAuthorization_url(),
+                    response.getData().getAccess_code());
+            return orderRepository.save(order);
+        } catch (Exception ex) {
+            order.markFailed("Payment init failed: " + ex.getMessage());
+            orderRepository.save(order);
+            throw new RuntimeException(ex.getMessage());
         }
     }
 
