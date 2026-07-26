@@ -271,12 +271,21 @@ public class OrderService {
         }
 
         if (order.getPaymentReference() == null || order.getPaymentReference().isBlank()) {
-            throw new IllegalStateException("Order lacks a payment reference. Cannot verify payment status with Moolre.");
-        }
-
-        var verification = moolreAdapter.checkPaymentStatus(order.getPaymentReference(), 2);
-        if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
-            throw new IllegalStateException("Moolre payment verification failed. Payment was not successful.");
+            // This might be a wallet payment. Let's check transactions.
+            List<com.space.space_bundle.entity.Transaction> txs = transactionService.getTransactionsByOrderId(orderId);
+            boolean hasCompletedDebit = txs.stream().anyMatch(tx -> "DEBIT".equals(tx.getType()) && "COMPLETED".equals(tx.getStatus()));
+            boolean hasRefund = txs.stream().anyMatch(tx -> "REFUND".equals(tx.getType()) && "COMPLETED".equals(tx.getStatus()));
+            
+            if (!hasCompletedDebit || hasRefund) {
+                throw new IllegalStateException("Cannot reprocess: Wallet payment was not successful or has already been refunded.");
+            }
+            // Wallet payment was successful and not refunded. We can proceed!
+        } else {
+            // Check Moolre
+            var verification = moolreAdapter.checkPaymentStatus(order.getPaymentReference(), 2);
+            if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) {
+                throw new IllegalStateException("Moolre payment verification failed. Payment was not successful.");
+            }
         }
 
         order.setStatus(Order.OrderStatus.PROCESSING.name());

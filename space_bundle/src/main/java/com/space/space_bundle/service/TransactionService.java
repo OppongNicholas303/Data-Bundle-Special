@@ -98,6 +98,10 @@ public class TransactionService {
         });
     }
 
+    public List<Transaction> getTransactionsByOrderId(String orderId) {
+        return transactionRepository.findByOrderId(orderId);
+    }
+
     public void complete(String transactionId, BigDecimal before, BigDecimal after) {
         transactionRepository.findById(transactionId).ifPresent(tx -> {
             tx.setBalanceBefore(before);
