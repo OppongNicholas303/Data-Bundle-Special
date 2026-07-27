@@ -10,6 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +30,7 @@ public class CommissionService {
     private final AgentProfileRepository agentProfileRepository;
     private final WalletService walletService;
     private final AgentService agentService;
+    private final MongoTemplate mongoTemplate;
 
     @Transactional
     public Commission settle(String agentId, String orderId,
@@ -34,19 +39,28 @@ public class CommissionService {
         if (profit.compareTo(BigDecimal.ZERO) <= 0) return null;
 
         // Idempotency guard
-        List<Commission> existing = commissionRepository.findByOrderId(orderId);
-        if (!existing.isEmpty()) {
+        // Idempotency guard using atomic upsert without returnNew to know if it's fresh
+        Query query = new Query(Criteria.where("orderId").is(orderId));
+        Update update = new Update()
+                .setOnInsert("id", UUID.randomUUID().toString())
+                .setOnInsert("agentId", agentId)
+                .setOnInsert("baseAmount", baseAmount)
+                .setOnInsert("sellingAmount", sellingAmount)
+                .setOnInsert("profit", profit)
+                .setOnInsert("status", Commission.Status.PENDING.name())
+                .setOnInsert("_class", "com.space.space_bundle.entity.Commission")
+                .setOnInsert("createdAt", LocalDateTime.now());
+
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().upsert(true);
+        Commission oldCommission = mongoTemplate.findAndModify(query, update, options, Commission.class);
+
+        if (oldCommission != null) {
             log.warn("[COMMISSION] Already settled for orderId={}", orderId);
-            return existing.get(0);
+            return oldCommission; // It already existed
         }
 
-        Commission commission = commissionRepository.save(Commission.builder()
-                .id(UUID.randomUUID().toString())
-                .agentId(agentId).orderId(orderId)
-                .baseAmount(baseAmount).sellingAmount(sellingAmount).profit(profit)
-                .status(Commission.Status.PENDING.name())
-                .createdAt(LocalDateTime.now())
-                .build());
+        // We successfully inserted a fresh commission, let's load it for the rest of the flow
+        Commission commission = commissionRepository.findByOrderId(orderId).get(0);
 
         // Resolve agent profile -> userId, then credit agent wallet
         String agentUserId = agentProfileRepository.findById(agentId)
@@ -57,9 +71,9 @@ public class CommissionService {
                 .orElseThrow(() -> new IllegalStateException("Agent wallet not found for user: " + agentUserId));
         BigDecimal before = wallet.getBalance();
         
-        walletService.atomicCredit(agentUserId, profit);
+        BigDecimal after = walletService.atomicCredit(agentUserId, profit);
 
-        transactionService.createCommission(agentUserId, orderId, profit, before, before.add(profit),
+        transactionService.createCommission(agentUserId, orderId, profit, before, after != null ? after : before.add(profit),
                 "Commission from order " + orderId);
 
         // Mark settled

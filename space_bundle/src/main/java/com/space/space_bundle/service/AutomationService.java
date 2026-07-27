@@ -5,6 +5,8 @@ import com.space.space_bundle.dto.BotPurchaseRequest;
 import com.space.space_bundle.dto.BotPurchaseResponse;
 import com.space.space_bundle.dto.BotPurchaseResponseRandy;
 import com.space.space_bundle.dto.MyDataGigsStatusResponse;
+import com.space.space_bundle.dto.ExternalOrderStatusDto;
+import com.space.space_bundle.dto.RandyStatusResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,6 +69,16 @@ public class AutomationService {
             }
 
             return String.valueOf(response.getOrderId());
+        } catch (org.springframework.web.reactive.function.client.WebClientRequestException e) {
+            log.error("Bot API network timeout/error: {}", e.getMessage(), e);
+            throw new com.space.space_bundle.exception.ProviderTimeoutException("Provider network timeout: " + e.getMessage(), e);
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            if (e.getStatusCode().is5xxServerError()) {
+                log.error("Bot API 5xx error: {}", e.getMessage(), e);
+                throw new com.space.space_bundle.exception.ProviderTimeoutException("Provider 5xx error: " + e.getMessage(), e);
+            }
+            log.error("Bot API 4xx failed: {}", e.getMessage(), e);
+            throw new RuntimeException(e.getMessage(), e);
         } catch (Exception e) {
             log.error("Bot API failed: {}", e.getMessage(), e);
             throw new RuntimeException(e.getMessage(), e);
@@ -94,6 +106,16 @@ public class AutomationService {
                 throw new RuntimeException(body != null ? body.message() : "No response");
 
             return String.valueOf(body.order().order_number());
+        } catch (org.springframework.web.reactive.function.client.WebClientRequestException e) {
+            log.error("Randy bot network timeout/error: {}", e.getMessage(), e);
+            throw new com.space.space_bundle.exception.ProviderTimeoutException("Randy bot network timeout: " + e.getMessage(), e);
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            if (e.getStatusCode().is5xxServerError()) {
+                log.error("Randy bot 5xx error: {}", e.getMessage(), e);
+                throw new com.space.space_bundle.exception.ProviderTimeoutException("Randy bot 5xx error: " + e.getMessage(), e);
+            }
+            log.error("Randy bot 4xx failed: {}", e.getMessage(), e);
+            throw new RuntimeException(e.getMessage(), e);
         } catch (Exception e) {
             log.error("Randy bot failed: {}", e.getMessage(), e);
             throw new RuntimeException(e.getMessage(), e);
@@ -121,6 +143,16 @@ public class AutomationService {
                 throw new RuntimeException(body != null ? body.message() : "No response");
 
             return String.valueOf(body.order().order_number());
+        } catch (org.springframework.web.reactive.function.client.WebClientRequestException e) {
+            log.error("Randy bot network timeout/error: {}", e.getMessage(), e);
+            throw new com.space.space_bundle.exception.ProviderTimeoutException("Randy bot network timeout: " + e.getMessage(), e);
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            if (e.getStatusCode().is5xxServerError()) {
+                log.error("Randy bot 5xx error: {}", e.getMessage(), e);
+                throw new com.space.space_bundle.exception.ProviderTimeoutException("Randy bot 5xx error: " + e.getMessage(), e);
+            }
+            log.error("Randy bot 4xx failed: {}", e.getMessage(), e);
+            throw new RuntimeException(e.getMessage(), e);
         } catch (Exception e) {
             log.error("Randy bot failed: {}", e.getMessage(), e);
             throw new RuntimeException(e.getMessage(), e);
@@ -178,5 +210,60 @@ public class AutomationService {
             case "50GB" -> 50; case "100GB" -> 100;
             default -> 0;
         };
+    }
+
+    public ExternalOrderStatusDto checkExternalStatus(Order order) {
+        if ("randy".equalsIgnoreCase(order.getByFrom())) {
+            try {
+                RandyStatusResponse response = webClient.get()
+                        .uri(botUrlRandy + "/external/orders/status?order_number=" + order.getProviderReference())
+                        .header("X-API-Key", botTokenRandy)
+                        .retrieve()
+                        .bodyToMono(RandyStatusResponse.class)
+                        .block();
+
+                if (response != null && response.isSuccess() && response.getOrder() != null) {
+                    String status = response.getOrder().getStatus();
+                    if ("completed".equalsIgnoreCase(status)) {
+                        status = "Delivered";
+                    }
+                    return ExternalOrderStatusDto.builder()
+                            .provider("randy")
+                            .status(status)
+                            .providerOrderId(response.getOrder().getOrder_number())
+                            .amount(response.getOrder().getCost_price())
+                            .build();
+                }
+            } catch (Exception e) {
+                log.error("Failed to check status from Randy", e);
+            }
+        } else {
+            try {
+                MyDataGigsStatusResponse response = webClient.get()
+                        .uri("https://mydatagigs.com/wp-json/custom/v1/order-status?order_id=" + order.getProviderReference())
+                        .header("Authorization", "Bearer " + botToken)
+                        .retrieve()
+                        .bodyToMono(MyDataGigsStatusResponse.class)
+                        .block();
+
+                if (response != null && "success".equalsIgnoreCase(response.getStatus())) {
+                    return ExternalOrderStatusDto.builder()
+                            .provider("mydatagigs")
+                            .status(response.getOrder_status())
+                            .providerOrderId(String.valueOf(response.getOrder_id()))
+                            .amount(String.valueOf(response.getAmount()))
+                            .build();
+                }
+            } catch (Exception e) {
+                log.error("Failed to check status from MyDataGigs", e);
+            }
+        }
+        
+        return ExternalOrderStatusDto.builder()
+                .provider(order.getByFrom())
+                .status("Unknown")
+                .providerOrderId(order.getProviderReference())
+                .amount("0.00")
+                .build();
     }
 }

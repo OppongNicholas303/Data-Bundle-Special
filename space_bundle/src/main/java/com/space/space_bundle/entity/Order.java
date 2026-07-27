@@ -25,6 +25,7 @@ public class Order {
     @Indexed
     private String agentId;          // agentProfile.id — null for direct orders
 
+    @Indexed
     private String network;
     private String phoneNumber;
     private String bundleCode;
@@ -42,6 +43,7 @@ public class Order {
     @JsonIgnore
     private BigDecimal commissionAmount;
 
+    @Indexed
     private String status;
     private String providerStatus;
     private String providerOrderNumber;
@@ -52,6 +54,7 @@ public class Order {
     private String failureReason;
     private String byFrom;
 
+    @Indexed
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -59,7 +62,7 @@ public class Order {
     private LocalDateTime adminCompletedAt; // When admin marked it complete
 
     public enum OrderStatus {
-        CREATED, PENDING_PAYMENT, PAID, PROCESSING, COMPLETED, COMPLETE_BY_ADMIN, FAILED, REFUNDED
+        CREATED, PENDING_PAYMENT, PAID, PROCESSING, PROCESSING_UNKNOWN, COMPLETED, COMPLETE_BY_ADMIN, FAILED, REFUNDED
     }
 
     // ── State transitions ──────────────────────────────────────────────────
@@ -86,8 +89,16 @@ public class Order {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void markProcessingUnknown() {
+        if (!OrderStatus.PROCESSING.name().equals(status) && !OrderStatus.PAID.name().equals(status))
+            throw new IllegalStateException("Invalid state for processing unknown: " + status);
+        this.status = OrderStatus.PROCESSING_UNKNOWN.name();
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void markCompleted(String providerReference) {
-        assertStatus(OrderStatus.PROCESSING);
+        if (!OrderStatus.PROCESSING.name().equals(status) && !OrderStatus.PROCESSING_UNKNOWN.name().equals(status))
+            throw new IllegalStateException("Expected PROCESSING or PROCESSING_UNKNOWN but was " + status);
         this.status = OrderStatus.COMPLETED.name();
         this.providerOrderNumber = providerReference;
         this.updatedAt = LocalDateTime.now();

@@ -14,11 +14,10 @@ import OrdersPage from "@/pages/OrdersPage";
 import WithdrawalsPage from "@/pages/WithdrawalsPage";
 import MashupPage from "@/pages/MashupPage";
 import AgentPricingPage from "@/pages/AgentPricingPage";
-// import { CheckerPortPage } from "@/pages/CheckerPortPage";
+import CheckerPortPage from "@/pages/CheckerPortPage";
 import SettingsPage from "@/pages/SettingsPage";
-
-// import AnnouncementsPage from "@/pages/AnnouncementsPage";
-// import TransactionsPage from "@/pages/TransactionsPage";
+import AnnouncementsPage from "@/pages/AnnouncementsPage";
+import TransactionsPage from "@/pages/TransactionsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,10 +49,10 @@ export default function App() {
                 <Route path="/withdrawals" element={<WithdrawalsPage />} />
                 <Route path="/mashup" element={<MashupPage />} />
                 <Route path="/agent-pricing" element={<AgentPricingPage />} />
-                {/* <Route path="/checkerport" element={<CheckerPortPage />} /> */}
+                <Route path="/checkerport" element={<CheckerPortPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
-                {/* <Route path="/announcements" element={<AnnouncementsPage />} /> */}
-                {/* <Route path="/transactions" element={<TransactionsPage />} /> */}
+                <Route path="/announcements" element={<AnnouncementsPage />} />
+                <Route path="/transactions" element={<TransactionsPage />} />
               </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

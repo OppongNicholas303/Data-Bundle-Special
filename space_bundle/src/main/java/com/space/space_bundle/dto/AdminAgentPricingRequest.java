@@ -22,12 +22,13 @@ public class AdminAgentPricingRequest {
      * Agent's selling price must always be >= this value.
      */
     @NotNull(message = "Base price is required")
-    @DecimalMin(value = "0.01", message = "Base price must be greater than zero")
+    @DecimalMin(value = "0.00", message = "Base price cannot be negative")
     private BigDecimal basePrice;
 
     /**
      * Optionally pre-set the agent's selling price too.
      * If null, agent keeps their current selling price or defaults to basePrice.
      */
+    @DecimalMin(value = "0.00", message = "Selling price cannot be negative")
     private BigDecimal sellingPrice;
 }

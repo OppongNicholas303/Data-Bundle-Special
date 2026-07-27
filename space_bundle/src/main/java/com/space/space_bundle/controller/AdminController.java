@@ -4,11 +4,18 @@ import com.space.space_bundle.dto.AdminOrderView;
 import com.space.space_bundle.dto.ApiResponse;
 import com.space.space_bundle.service.OrderMigrationService;
 import com.space.space_bundle.dto.CreateBundleRequest;
+import com.space.space_bundle.dto.AdminBundleResponse;
 import com.space.space_bundle.entity.*;
 import com.space.space_bundle.repository.*;
 import com.space.space_bundle.service.AdminWithdrawalService;
 import com.space.space_bundle.service.BundleService;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.query.Criteria;
 import lombok.Data;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -41,12 +48,13 @@ public class AdminController {
     private final com.space.space_bundle.service.ResultsCheckerService resultsCheckerService;
     private final com.space.space_bundle.service.TransactionService transactionService;
     private final com.space.space_bundle.service.OrderService orderService;
+    private final MongoTemplate mongoTemplate;
 
     // ── Users ──────────────────────────────────────────────────────────────
 
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
-        return ResponseEntity.ok(ApiResponse.success(userRepository.findAll()));
+        return ResponseEntity.ok(ApiResponse.success(userRepository.findAll(PageRequest.of(0, 1000)).getContent()));
     }
 
     @GetMapping("/users/{id}")
@@ -181,7 +189,7 @@ public class AdminController {
 
     @GetMapping("/agents")
     public ResponseEntity<ApiResponse<List<AgentProfile>>> getAllAgents() {
-        return ResponseEntity.ok(ApiResponse.success(agentProfileRepository.findAll()));
+        return ResponseEntity.ok(ApiResponse.success(agentProfileRepository.findAll(PageRequest.of(0, 1000)).getContent()));
     }
 
     @GetMapping("/agents/{id}")
@@ -358,32 +366,35 @@ public class AdminController {
     // ── Bundles ────────────────────────────────────────────────────────────
 
     @GetMapping("/bundles")
-    public ResponseEntity<ApiResponse<List<Bundle>>> getAllBundles() {
-        return ResponseEntity.ok(ApiResponse.success(bundleService.getAll()));
+    public ResponseEntity<ApiResponse<List<AdminBundleResponse>>> getAllBundles() {
+        List<AdminBundleResponse> res = bundleService.getAll().stream()
+                .map(AdminBundleResponse::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(res));
     }
 
     @PostMapping("/bundles")
-    public ResponseEntity<ApiResponse<Bundle>> createBundle(@RequestBody CreateBundleRequest req) {
+    public ResponseEntity<ApiResponse<AdminBundleResponse>> createBundle(@RequestBody CreateBundleRequest req) {
         Bundle bundle = bundleService.create(req.getCode(), req.getName(), req.getDataSize(),
                 req.getNetwork(), req.getCostPrice(), req.getSellingPrice(), req.getDescription());
-        return ResponseEntity.ok(ApiResponse.success("Bundle created", bundle));
+        return ResponseEntity.ok(ApiResponse.success("Bundle created", AdminBundleResponse.from(bundle)));
     }
 
     @PutMapping("/bundles/{id}")
-    public ResponseEntity<ApiResponse<Bundle>> updateBundle(
+    public ResponseEntity<ApiResponse<AdminBundleResponse>> updateBundle(
             @PathVariable String id, @RequestBody UpdateBundleRequest req) {
         Bundle bundle = bundleService.update(id, req.getName(), req.getDataSize(),
                 req.getCostPrice(), req.getSellingPrice(), req.getDescription());
-        return ResponseEntity.ok(ApiResponse.success("Bundle updated", bundle));
+        return ResponseEntity.ok(ApiResponse.success("Bundle updated", AdminBundleResponse.from(bundle)));
     }
 
     @PutMapping("/bundles/{id}/status")
-    public ResponseEntity<ApiResponse<Bundle>> setBundleStatus(
+    public ResponseEntity<ApiResponse<AdminBundleResponse>> setBundleStatus(
             @PathVariable String id, @RequestBody Map<String, String> body) {
         String status = body.get("status");
         if (status == null) throw new IllegalArgumentException("status is required");
         return ResponseEntity.ok(ApiResponse.success("Bundle status updated",
-                bundleService.setStatus(id, status)));
+                AdminBundleResponse.from(bundleService.setStatus(id, status))));
     }
 
     @DeleteMapping("/bundles/{id}")
@@ -409,22 +420,25 @@ public class AdminController {
          boolean hasNet    = network != null;
 
          List<Order> orders;
-         if (hasDate && hasStatus && hasNet)
-             orders = orderRepository.findByStatusAndNetworkAndCreatedAtBetween(status.toUpperCase(), network.toLowerCase(), fromDt, toDt);
-         else if (hasDate && hasStatus)
-             orders = orderRepository.findByStatusAndCreatedAtBetween(status.toUpperCase(), fromDt, toDt);
+         // Hard limit to 1000 to prevent OOM without breaking frontend Array response structure
+         Pageable limit = PageRequest.of(0, 1000);
+
+         if (hasStatus && hasNet && hasDate)
+             orders = orderRepository.findByStatusAndNetworkAndCreatedAtBetween(status.toUpperCase(), network.toLowerCase(), fromDt, toDt, limit);
+         else if (hasStatus && hasDate)
+             orders = orderRepository.findByStatusAndCreatedAtBetween(status.toUpperCase(), fromDt, toDt, limit);
          else if (hasDate && hasNet)
-             orders = orderRepository.findByNetworkAndCreatedAtBetween(network.toLowerCase(), fromDt, toDt);
+             orders = orderRepository.findByNetworkAndCreatedAtBetween(network.toLowerCase(), fromDt, toDt, limit);
          else if (hasDate)
-             orders = orderRepository.findByCreatedAtBetween(fromDt, toDt);
+             orders = orderRepository.findByCreatedAtBetween(fromDt, toDt, limit);
          else if (hasStatus && hasNet)
-             orders = orderRepository.findByStatusAndNetwork(status.toUpperCase(), network.toLowerCase());
+             orders = orderRepository.findByStatusAndNetwork(status.toUpperCase(), network.toLowerCase(), limit);
          else if (hasStatus)
-             orders = orderRepository.findByStatus(status.toUpperCase());
+             orders = orderRepository.findByStatus(status.toUpperCase(), limit);
          else if (hasNet)
-             orders = orderRepository.findByNetwork(network.toLowerCase());
+             orders = orderRepository.findByNetwork(network.toLowerCase(), limit);
          else
-             orders = orderRepository.findAll();
+             orders = orderRepository.findAll(limit).getContent();
 
          return ResponseEntity.ok(ApiResponse.success(
                  orders.stream()
@@ -486,7 +500,8 @@ public class AdminController {
 
           try {
               order.markCompleteByAdmin(adminId);
-              orderRepository.save(order);
+              order = orderRepository.save(order);
+              orderService.settleCommission(order);
               return ResponseEntity.ok(ApiResponse.success("Order marked as COMPLETE_BY_ADMIN by admin", AdminOrderView.from(order)));
           } catch (IllegalStateException e) {
               throw new IllegalArgumentException(e.getMessage());
@@ -603,32 +618,43 @@ public class AdminController {
 
     // ── Stats ──────────────────────────────────────────────────────────────
 
+    @Data
+    private static class StatsAggregationResult {
+        private long count;
+        private BigDecimal totalRevenue;
+        private BigDecimal totalCost;
+    }
+
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
         long totalUsers         = userRepository.count();
         long totalAgents        = agentProfileRepository.count();
         long totalBundles       = bundleService.getAll().size();
         long totalOrders        = orderRepository.count();
-        long completedOrders    = orderRepository.findAll().stream()
-                .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus())).count();
         long failedOrders       = orderRepository.findByStatus("FAILED").size();
         long pendingWithdrawals = adminWithdrawalService.getByStatus("PENDING").size();
 
-        List<Order> completed = orderRepository.findAll().stream()
-                .filter(o -> "COMPLETED".equals(o.getStatus()) || "COMPLETE_BY_ADMIN".equals(o.getStatus()))
-                .toList();
+        Aggregation agg = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("status").in("COMPLETED", "COMPLETE_BY_ADMIN")),
+                Aggregation.group()
+                        .count().as("count")
+                        .sum("baseAmount").as("totalRevenue")
+                        .sum("costPrice").as("totalCost")
+        );
 
-        BigDecimal totalRevenue = completed.stream()
-                .map(o -> o.getBaseAmount() != null ? o.getBaseAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        AggregationResults<StatsAggregationResult> results = mongoTemplate.aggregate(agg, "orders", StatsAggregationResult.class);
+        StatsAggregationResult statsResult = results.getUniqueMappedResult();
 
-        BigDecimal totalProfit = completed.stream()
-                .map(o -> {
-                    BigDecimal selling = o.getBaseAmount()       != null ? o.getBaseAmount()       : BigDecimal.ZERO;
-                    BigDecimal cost    = o.getCostPrice()        != null ? o.getCostPrice()        : BigDecimal.ZERO;
-                    return selling.subtract(cost);
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long completedOrders = 0;
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        BigDecimal totalProfit = BigDecimal.ZERO;
+
+        if (statsResult != null) {
+            completedOrders = statsResult.getCount();
+            totalRevenue = statsResult.getTotalRevenue() != null ? statsResult.getTotalRevenue() : BigDecimal.ZERO;
+            BigDecimal totalCost = statsResult.getTotalCost() != null ? statsResult.getTotalCost() : BigDecimal.ZERO;
+            totalProfit = totalRevenue.subtract(totalCost);
+        }
 
         return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "totalUsers",         totalUsers,

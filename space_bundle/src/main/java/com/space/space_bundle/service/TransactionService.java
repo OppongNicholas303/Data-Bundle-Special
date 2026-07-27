@@ -218,6 +218,7 @@ public class TransactionService {
         operations.add(unwindUser);
         if (match != null) operations.add(match);
         operations.add(sort);
+        operations.add(org.springframework.data.mongodb.core.aggregation.Aggregation.limit(1000));
         operations.add(project);
 
         org.springframework.data.mongodb.core.aggregation.Aggregation aggregation = org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(operations);

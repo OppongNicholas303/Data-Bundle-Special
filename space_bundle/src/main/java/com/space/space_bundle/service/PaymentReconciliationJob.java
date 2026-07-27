@@ -19,6 +19,10 @@ public class PaymentReconciliationJob {
     private final OrderRepository orderRepository;
     private final WebhookService webhookService;
     private final MoolreAdapter moolreAdapter;
+    private final EmailService emailService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.support-email:support@tapdata.com}")
+    private String supportEmail;
 
     @Scheduled(fixedDelay = 300000) // Run every 5 minutes
     public void reconcilePendingOrders() {
@@ -62,6 +66,25 @@ public class PaymentReconciliationJob {
                 log.error("[RECONCILIATION] Error verifying order {}: {}", order.getId(), e.getMessage());
             }
         }
+
+        // Handle PROCESSING_UNKNOWN
+        LocalDateTime fromUnknown = LocalDateTime.now().minusMinutes(15);
+        LocalDateTime toUnknown = LocalDateTime.now().minusMinutes(5);
+        List<Order> unknownOrders = orderRepository.findByStatusAndCreatedAtBetween(Order.OrderStatus.PROCESSING_UNKNOWN.name(), fromUnknown, toUnknown);
+        
+        for (Order order : unknownOrders) {
+            log.warn("[RECONCILIATION] Order {} is PROCESSING_UNKNOWN. Needs manual check.", order.getId());
+            try {
+                emailService.send(supportEmail, "Manual Intervention Required: Order " + order.getId(),
+                        "Order " + order.getId() + " for " + order.getPhoneNumber() + 
+                        " is in PROCESSING_UNKNOWN state due to a provider timeout. " +
+                        "Please check the provider dashboard (MyDataGigs/Randy) manually to verify if the bundle was sent, " +
+                        "and then manually complete or fail/refund the order.");
+            } catch (Exception e) {
+                log.error("Failed to send email for unknown order {}", order.getId(), e);
+            }
+        }
+
         log.info("[RECONCILIATION] Reconciliation job completed.");
     }
 }

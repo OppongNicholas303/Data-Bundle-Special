@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.mongodb.repository.Query;
 
 import java.time.LocalDateTime;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,4 +32,11 @@ public interface OrderRepository extends MongoRepository<Order, String> {
     @Query(value = "{ 'status': 'COMPLETED' }", fields = "{ 'phoneNumber': 1 }")
     List<Order> findCompletedOrders();
 
+    List<Order> findByStatus(String status, Pageable pageable);
+    List<Order> findByNetwork(String network, Pageable pageable);
+    List<Order> findByStatusAndNetwork(String status, String network, Pageable pageable);
+    List<Order> findByCreatedAtBetween(LocalDateTime from, LocalDateTime to, Pageable pageable);
+    List<Order> findByStatusAndCreatedAtBetween(String status, LocalDateTime from, LocalDateTime to, Pageable pageable);
+    List<Order> findByNetworkAndCreatedAtBetween(String network, LocalDateTime from, LocalDateTime to, Pageable pageable);
+    List<Order> findByStatusAndNetworkAndCreatedAtBetween(String status, String network, LocalDateTime from, LocalDateTime to, Pageable pageable);
 }

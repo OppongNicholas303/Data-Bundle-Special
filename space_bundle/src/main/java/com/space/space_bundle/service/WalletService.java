@@ -59,14 +59,18 @@ public class WalletService {
     public void credit(String userId, BigDecimal amount, String description) {
         Wallet wallet = getByUserId(userId);
         BigDecimal before = wallet.getBalance();
-        atomicCredit(userId, amount);
-        transactionService.createCompletedCredit(userId, wallet.getId(), amount, before, before.add(amount), description);
+        BigDecimal after = atomicCredit(userId, amount);
+        if (after != null) {
+            transactionService.createCompletedCredit(userId, wallet.getId(), amount, before, after, description);
+        }
     }
 
-    public void atomicCredit(String userId, BigDecimal amount) {
+    public BigDecimal atomicCredit(String userId, BigDecimal amount) {
         Query query = new Query(Criteria.where("userId").is(userId));
         Update update = new Update().inc("balance", amount).set("updatedAt", LocalDateTime.now());
-        mongoTemplate.updateFirst(query, update, Wallet.class);
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
+        Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
+        return updatedWallet != null ? updatedWallet.getBalance() : null;
     }
 
     @Transactional
@@ -77,19 +81,20 @@ public class WalletService {
             throw new IllegalArgumentException("Insufficient wallet balance");
         }
         
-        boolean success = atomicDebit(userId, amount);
-        if (!success) {
-            throw new IllegalArgumentException("Insufficient wallet balance");
+        BigDecimal after = atomicDebit(userId, amount);
+        if (after == null) {
+            throw new IllegalArgumentException("Insufficient wallet balance or concurrent update");
         }
         
-        transactionService.createCompletedDebit(userId, orderId, amount, before, before.subtract(amount), description);
+        transactionService.createCompletedDebit(userId, orderId, amount, before, after, description);
     }
 
-    public boolean atomicDebit(String userId, BigDecimal amount) {
+    public BigDecimal atomicDebit(String userId, BigDecimal amount) {
         Query query = new Query(Criteria.where("userId").is(userId).and("balance").gte(amount));
         Update update = new Update().inc("balance", amount.negate()).set("updatedAt", LocalDateTime.now());
-        com.mongodb.client.result.UpdateResult result = mongoTemplate.updateFirst(query, update, Wallet.class);
-        return result.getModifiedCount() > 0;
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
+        Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
+        return updatedWallet != null ? updatedWallet.getBalance() : null;
     }
 
     public BigDecimal getBalance(String userId) {
@@ -165,14 +170,20 @@ public class WalletService {
             return;
         }
 
+        // Validate that the paid amount matches or exceeds the requested top-up amount
+        if (amount.compareTo(pending.getAmount()) < 0) {
+            log.error("Partial payment detected for topUpId={}. Requested: {}, Paid: {}", topUpId, pending.getAmount(), amount);
+            throw new IllegalArgumentException("Paid amount is less than requested amount.");
+        }
+
         Wallet wallet = getByUserId(pending.getUserId());
-        BigDecimal actualCreditAmount = pending.getAmount(); // Use original requested amount
+        BigDecimal actualCreditAmount = amount; // Credit the actual paid amount
         
         BigDecimal before = wallet.getBalance();
-        BigDecimal after = before.add(actualCreditAmount);
+        BigDecimal expectedAfter = before.add(actualCreditAmount);
         
         // Atomically claim the transaction first to prevent race conditions
-        boolean claimed = transactionService.atomicComplete(pending.getId(), before, after);
+        boolean claimed = transactionService.atomicComplete(pending.getId(), before, expectedAfter);
         if (!claimed) {
             log.warn("TopUp transaction {} was already claimed by another thread", topUpId);
             return; // Another thread already processed it!

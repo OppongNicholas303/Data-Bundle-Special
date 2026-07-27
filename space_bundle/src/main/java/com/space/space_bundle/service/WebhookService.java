@@ -31,6 +31,7 @@ public class WebhookService {
     private final EmailService emailService;
     private final com.space.space_bundle.feature.FeatureFlagService featureFlagService;
     private final com.space.space_bundle.security.PaystackAdapter paystackAdapter;
+    private final AsyncFulfillmentService asyncFulfillmentService;
 
     @Value("${app.support-email:support@tapdata.com}")
     private String supportEmail;
@@ -142,11 +143,18 @@ public class WebhookService {
         var verification = moolreAdapter.checkPaymentStatus(reference, 1);
         if (!verification.containsKey("txstatus") || !Integer.valueOf(1).equals(verification.get("txstatus"))) return;
 
+        BigDecimal amountPaid = BigDecimal.valueOf(Double.parseDouble(String.valueOf(verification.get("amount"))));
+
         String orderId = reference.replace("ORDER_", "");
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
 
         if (!Order.OrderStatus.PENDING_PAYMENT.name().equals(order.getStatus())) return;
+
+        if (amountPaid.compareTo(order.getAmount()) < 0) {
+            log.error("[WEBHOOK] Partial payment for order {}. Expected: {}, Paid: {}", orderId, order.getAmount(), amountPaid);
+            return;
+        }
 
         fulfillVerifiedOrder(order);
     }
@@ -162,22 +170,30 @@ public class WebhookService {
 
         boolean verified = false;
         boolean isMoolre = order.getPaymentReference().equals(order.getPaymentAccessCode());
+        BigDecimal amountPaid = BigDecimal.ZERO;
 
         if (isMoolre) {
             var verification = moolreAdapter.checkPaymentStatus(reference, 2);
             log.info("[MANUAL_VERIFY] Parsed Moolre verification: {}", verification);
             if (verification.containsKey("txstatus") && Integer.valueOf(1).equals(verification.get("txstatus"))) {
                 verified = true;
+                amountPaid = BigDecimal.valueOf(Double.parseDouble(String.valueOf(verification.get("amount"))));
             }
         } else {
             var verification = paystackAdapter.verifyTransaction(reference);
             log.info("[MANUAL_VERIFY] Parsed Paystack verification: {}", verification);
             if (verification != null && verification.isStatus() && verification.getData() != null && "success".equalsIgnoreCase(verification.getData().getStatus())) {
                 verified = true;
+                amountPaid = BigDecimal.valueOf(verification.getData().getAmount() / 100.0);
             }
         }
 
         if (!verified) {
+            return false;
+        }
+
+        if (amountPaid.compareTo(order.getAmount()) < 0) {
+            log.error("[MANUAL_VERIFY] Partial payment for order {}. Expected: {}, Paid: {}", orderId, order.getAmount(), amountPaid);
             return false;
         }
 
@@ -197,49 +213,17 @@ public class WebhookService {
         }
         order.setStatus(Order.OrderStatus.PAID.name()); // reflect in memory
 
-        try {
-
-            if (order.getUserId() != null) {
-                BigDecimal bal = walletService.getBalance(order.getUserId());
-                transactionService.createPayment(order.getUserId(), order.getId(),
-                        order.getAmount(), bal, bal, "Paystack payment for " + order.getBundleCode());
-            }
-
-            order.markProcessing();
-            orderRepository.save(order);
-
-            String providerRef;
-            boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", false); // Align with OrderService (default false)
-            if (useRandyOnly) {
-                order.setByFrom("randy");
-                providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
-            } else {
-                order.setByFrom("mydatagigs");
-                providerRef = automationService.buy(order);
-            }
-
-            order.markCompleted(providerRef);
-            orderRepository.save(order);
-
-            orderService.settleCommission(order);
-            log.info("[FULFILLMENT] Order completed: {}", order.getId());
-            return true;
-
-        } catch (Exception ex) {
-            log.error("[FULFILLMENT] Order failed: {}", order.getId(), ex);
-            emailService.send(supportEmail, "Order Failed: " + order.getId(), ex.getMessage());
-            order.markFailed("Processing failed: " + ex.getMessage());
-            orderRepository.save(order);
-            return false;
-        }
+        asyncFulfillmentService.executeFulfillment(order);
+        return true;
     }
 
     public boolean verifyTopUpPayment(String topUpId, String reference) {
         boolean verified = false;
         BigDecimal amount = BigDecimal.ZERO;
 
-        // Try Paystack if reference looks like ours
-        if (reference != null && reference.startsWith("TOPUP_")) {
+        // Try Paystack if reference matches exactly our topup id
+        String expectedReference = "TOPUP_" + topUpId;
+        if (reference != null && reference.equals(expectedReference)) {
             try {
                 var paystackVerification = paystackAdapter.verifyTransaction(reference);
                 log.info("[MANUAL_VERIFY_TOPUP] Parsed Paystack verification: {}", paystackVerification);
@@ -251,6 +235,8 @@ public class WebhookService {
             } catch (Exception e) {
                 log.warn("[MANUAL_VERIFY_TOPUP] Paystack check failed for reference {}", reference);
             }
+        } else if (reference != null && reference.startsWith("TOPUP_")) {
+            log.warn("[MANUAL_VERIFY_TOPUP] Reference {} does not match expected reference {}", reference, expectedReference);
         }
 
         // Fallback to Moolre

@@ -4,6 +4,7 @@ import com.space.space_bundle.dto.SingleOrderUserDTO;
 import com.space.space_bundle.entity.Order;
 import com.space.space_bundle.dto.ApiResponse;
 import com.space.space_bundle.dto.PlaceOrderRequest;
+import com.space.space_bundle.dto.ExternalOrderStatusDto;
 import com.space.space_bundle.security.CustomUserDetailsService;
 import com.space.space_bundle.service.OrderService;
 import jakarta.validation.Valid;
@@ -104,5 +105,20 @@ public class OrderController {
         } else {
             return ResponseEntity.badRequest().body(ApiResponse.error("Payment could not be verified"));
         }
+    }
+
+    @GetMapping("/{id}/external-status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<ExternalOrderStatusDto>> checkExternalStatus(
+            @PathVariable String id,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        Order order = orderService.getById(id, userDetails.getUserId());
+        if (order == null || (!"COMPLETED".equalsIgnoreCase(order.getStatus()) && !"FAILED".equalsIgnoreCase(order.getStatus()) && !"PROCESSING".equalsIgnoreCase(order.getStatus()))) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Order not eligible for external tracking"));
+        }
+        if (order.getProviderReference() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("This order doesn't have an external reference ID and cannot be tracked. It might be an old order or completed manually."));
+        }
+        return ResponseEntity.ok(ApiResponse.success(orderService.checkExternalStatus(order)));
     }
 }

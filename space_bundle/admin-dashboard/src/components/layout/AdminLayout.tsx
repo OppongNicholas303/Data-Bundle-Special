@@ -13,6 +13,10 @@ const breadcrumbMap: Record<string, string> = {
   "/bundles": "Bundles",
   "/orders": "Orders",
   "/withdrawals": "Withdrawals",
+  "/mashup": "Mashup",
+  "/checkerport": "CheckerPort",
+  "/announcements": "Announcements",
+  "/transactions": "Transactions",
 };
 
 export function AdminLayout() {

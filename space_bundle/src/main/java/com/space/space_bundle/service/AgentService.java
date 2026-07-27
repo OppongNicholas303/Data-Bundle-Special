@@ -31,6 +31,7 @@ public class AgentService {
     private final AgentMashupPricingRepository agentMashupPricingRepository;
     private final MashupRepository mashupRepository;
     private final org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+    private final WalletService walletService;
 
     public void atomicUpdateStats(String agentProfileId, BigDecimal sales, BigDecimal profit) {
         org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query(
@@ -324,11 +325,23 @@ public class AgentService {
     public AgentCheckerPricing setAgentCheckerSellingPrice(String userId, String serviceName, BigDecimal sellingPrice) {
         AgentProfile profile = getProfileByUserId(userId);
 
-        AgentCheckerPricing pricing = agentCheckerPricingRepository.findByAgentIdAndServiceName(profile.getId(), serviceName)
-                .orElseThrow(() -> new IllegalStateException("Pricing override not found. Wait for admin to set base price."));
+        ResultCheckerPricing globalPricing = resultCheckerPricingRepository.findById(serviceName)
+                .orElseThrow(() -> new IllegalArgumentException("Checker service not found: " + serviceName));
 
-        if (sellingPrice.compareTo(pricing.getBasePrice()) < 0) {
-            throw new IllegalArgumentException("Selling price cannot be lower than base price: " + pricing.getBasePrice());
+        AgentCheckerPricing pricing = agentCheckerPricingRepository.findByAgentIdAndServiceName(profile.getId(), serviceName)
+                .orElse(AgentCheckerPricing.builder()
+                        .id(java.util.UUID.randomUUID().toString())
+                        .agentId(profile.getId())
+                        .serviceName(serviceName)
+                        .basePrice(globalPricing.getRetailPrice() != null ? globalPricing.getRetailPrice() : globalPricing.getAmount())
+                        .active(true)
+                        .createdAt(LocalDateTime.now())
+                        .build());
+
+        BigDecimal floor = pricing.getBasePrice() != null ? pricing.getBasePrice() : (globalPricing.getRetailPrice() != null ? globalPricing.getRetailPrice() : globalPricing.getAmount());
+
+        if (sellingPrice.compareTo(floor) < 0) {
+            throw new IllegalArgumentException("Selling price cannot be lower than base price: " + floor);
         }
 
         pricing.setSellingPrice(sellingPrice);
@@ -510,10 +523,13 @@ public class AgentService {
 
         // Deduct from wallet immediately so agent cannot double-request
         BigDecimal before = wallet.getBalance();
-        wallet.debit(amount);
-        walletRepository.save(wallet);
+        BigDecimal after = walletService.atomicDebit(agentUserId, amount);
+        if (after == null) {
+            throw new IllegalStateException("Insufficient balance or concurrent update");
+        }
+
         transactionService.createWithdrawal(agentUserId, reference, amount, before,
-                wallet.getBalance(), "Withdrawal request pending admin approval — " + momoNumber + " (" + momoProvider + ")");
+                after, "Withdrawal request pending admin approval — " + momoNumber + " (" + momoProvider + ")");
 
         WithdrawalRequest request = withdrawalRepository.save(WithdrawalRequest.builder()
                 .id(UUID.randomUUID().toString())

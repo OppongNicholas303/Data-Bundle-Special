@@ -21,6 +21,7 @@ public class AdminWithdrawalService {
     private final WithdrawalRepository withdrawalRepository;
     private final WalletRepository walletRepository;
     private final TransactionService transactionService;
+    private final WalletService walletService;
 
     public List<WithdrawalRequest> getAll() {
         return withdrawalRepository.findAllByOrderByCreatedAtDesc();
@@ -69,11 +70,10 @@ public class AdminWithdrawalService {
                 .orElseThrow(() -> new IllegalStateException("Agent wallet not found"));
 
         BigDecimal before = wallet.getBalance();
-        wallet.credit(req.getAmount());
-        walletRepository.save(wallet);
+        BigDecimal after = walletService.atomicCredit(req.getAgentUserId(), req.getAmount());
 
         transactionService.createCompletedRefund(req.getAgentUserId(), req.getReference(),
-                req.getAmount(), before, wallet.getBalance(),
+                req.getAmount(), before, after != null ? after : before.add(req.getAmount()),
                 "Refund — withdrawal rejected by admin: " + (adminNote != null ? adminNote : ""));
 
         // Mark failed on the original withdrawal transaction

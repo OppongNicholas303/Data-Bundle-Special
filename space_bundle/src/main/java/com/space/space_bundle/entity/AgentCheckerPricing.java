@@ -22,7 +22,6 @@ public class AgentCheckerPricing {
     private String agentId;
     private String serviceName;
 
-    @JsonIgnore  // Never expose platform base price to customers via agent APIs
     private BigDecimal basePrice;
     private BigDecimal sellingPrice;
     private boolean active;

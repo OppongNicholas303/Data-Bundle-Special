@@ -1,6 +1,7 @@
 package com.space.space_bundle.service;
 
 import com.space.space_bundle.dto.SingleOrderUserDTO;
+import com.space.space_bundle.dto.ExternalOrderStatusDto;
 import com.space.space_bundle.entity.AgentProfile;
 import com.space.space_bundle.entity.MashupBundle;
 import com.space.space_bundle.entity.Order;
@@ -343,6 +344,11 @@ public class OrderService {
             log.info("[REPROCESS] Order completed: {}", order.getId());
             return order;
 
+        } catch (com.space.space_bundle.exception.ProviderTimeoutException ex) {
+            log.error("[REPROCESS] Order provider timeout: {}", order.getId(), ex);
+            order.markProcessingUnknown();
+            orderRepository.save(order);
+            throw new RuntimeException("Reprocessing provider timeout: " + ex.getMessage());
         } catch (Exception ex) {
             log.error("[REPROCESS] Order failed: {}", order.getId(), ex);
             order.markFailed("Reprocessing failed: " + ex.getMessage());
@@ -379,7 +385,11 @@ public class OrderService {
         return results.getMappedResults();
     }
 
-    // ── Internal helpers ───────────────────────────────────────────────────
+    public ExternalOrderStatusDto checkExternalStatus(Order order) {
+        return automationService.checkExternalStatus(order);
+    }
+
+    // ── Queries ────────────────────────────────────────────────────────────
 
     private boolean isMashupBundle(String bundleType) {
         return bundleType != null && "MASHUP".equalsIgnoreCase(bundleType.trim());
@@ -418,8 +428,8 @@ public class OrderService {
                 before, before.subtract(amount), "Order payment for " + order.getBundleCode());
 
         try {
-            boolean success = walletService.atomicDebit(userId, amount);
-            if (!success) {
+            java.math.BigDecimal newBalance = walletService.atomicDebit(userId, amount);
+            if (newBalance == null) {
                 throw new IllegalStateException("Insufficient wallet balance or concurrent update");
             }
             transactionService.complete(debitTx.getId());
@@ -435,6 +445,11 @@ public class OrderService {
             settleCommission(order);
             return order;
 
+        } catch (com.space.space_bundle.exception.ProviderTimeoutException ex) {
+            log.error("Wallet order provider timeout: orderId={}", order.getId(), ex);
+            order.markProcessingUnknown();
+            order = orderRepository.save(order);
+            return order;
         } catch (Exception ex) {
             log.error("Wallet order failed: orderId={}", order.getId(), ex);
             transactionService.fail(debitTx.getId());
@@ -443,9 +458,9 @@ public class OrderService {
 
             // Refund
             BigDecimal afterFail = walletService.getBalance(userId); // Get fresh balance just in case
-            walletService.atomicCredit(userId, amount);
+            BigDecimal trueAfter = walletService.atomicCredit(userId, amount);
             transactionService.createRefund(userId, order.getId(), amount,
-                    afterFail, afterFail.add(amount), "Refund for failed order " + order.getId());
+                    afterFail, trueAfter != null ? trueAfter : afterFail.add(amount), "Refund for failed order " + order.getId());
             order.markRefunded();
             orderRepository.save(order);
 
