@@ -3,6 +3,7 @@ import type {
   AdminStats, AdminUser, AdminAgent, Bundle, AdminOrder,
   Commission, CreateBundlePayload, UpdateBundlePayload, WithdrawalRequest, DailyAnalytics,
   AdminMashupPackage, MashupSyncResult, AgentBundlePricing, AgentMashupPricing, AgentCheckerPricing, AdminTransaction,
+  Announcement, CheckerTransaction, ResultCheckerPricing
 } from "@/types";
 
 type ApiWrap<T> = { data: T };
@@ -256,6 +257,55 @@ export const adminService = {
   },
   setMashupStatus: async (id: string, status: string): Promise<AdminMashupPackage> => {
     const res = await apiClient.put(`/admin/mashup/packages/${id}/status`, { status }) as ApiWrap<AdminMashupPackage>;
+    return res.data;
+  },
+
+  // Transactions
+  getAllTransactions: async (params?: {
+    status?: string;
+    type?: string;
+    search?: string;
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<AdminTransaction[]> => {
+    const query = new URLSearchParams();
+    if (params?.status) query.append("status", params.status);
+    if (params?.type) query.append("type", params.type);
+    if (params?.search) query.append("search", params.search);
+    if (params?.fromDate) query.append("fromDate", params.fromDate);
+    if (params?.toDate) query.append("toDate", params.toDate);
+    const res = await apiClient.get(`/admin/transactions?${query.toString()}`) as ApiWrap<AdminTransaction[]>;
+    return res.data;
+  },
+
+  // Announcements
+  getAnnouncements: async (): Promise<Announcement[]> => {
+    const res = await apiClient.get("/announcements") as ApiWrap<Announcement[]>;
+    return res.data;
+  },
+  createAnnouncement: async (data: { title: string; message: string; active: boolean }): Promise<Announcement> => {
+    const res = await apiClient.post("/announcements", data) as ApiWrap<Announcement>;
+    return res.data;
+  },
+  updateAnnouncement: async (id: string, data: { title: string; message: string; active: boolean }): Promise<Announcement> => {
+    const res = await apiClient.put(`/announcements/${id}`, data) as ApiWrap<Announcement>;
+    return res.data;
+  },
+  deleteAnnouncement: async (id: string): Promise<void> => {
+    await apiClient.delete(`/announcements/${id}`);
+  },
+
+  // CheckerPort Transactions
+  getCheckerTransactions: async (): Promise<CheckerTransaction[]> => {
+    const res = await apiClient.get("/admin/results-checker/transactions") as ApiWrap<CheckerTransaction[]>;
+    return res.data;
+  },
+  retryCheckerTransaction: async (referenceId: string): Promise<CheckerTransaction> => {
+    const res = await apiClient.post(`/admin/results-checker/transactions/${referenceId}/retry`) as ApiWrap<CheckerTransaction>;
+    return res.data;
+  },
+  updateCheckerPricing: async (serviceName: string, retailPrice: number | null): Promise<ResultCheckerPricing> => {
+    const res = await apiClient.put(`/admin/results-checker/pricing/${serviceName}`, { retailPrice }) as ApiWrap<ResultCheckerPricing>;
     return res.data;
   },
 };

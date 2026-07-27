@@ -320,7 +320,7 @@ moolre:
   account-number: ${MOOLRE_ACCOUNT_NUMBER:10793006063230}
   webhook-secret: ${MOOLRE_WEBHOOK_SECRET:7150c99a-e388-47b4-8358-c2661422c2c3}
   callback-url: ${MOOLRE_CALLBACK_URL:https://data-bundle-special-ulkt.onrender.com/api/webhook/moolre}
-  redirect-url: ${MOOLRE_REDIRECT_URL:http://localhost:8081/orders}
+  redirect-url: ${MOOLRE_REDIRECT_URL:https://tapdata.vercel.app/dashboard}
 
 # Bot Configuration
 bot:
@@ -356,7 +356,7 @@ checkerport:
 paystack:
   secret-key: sk_live_489959da8939c105130ec78ae95984eff4647735
   public-key: pk_live_36be4dbef25af294c1495a55cd589e4c43a2dfc3
-  callback-url: http://
+  callback-url: https://tapdata.vercel.app/dashboard
 
 ---
 # Development Profile

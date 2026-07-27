@@ -218,3 +218,34 @@ export interface AgentWallet {
   updatedAt?: string | null;
 }
 
+export interface Announcement {
+  id: string;
+  title: string;
+  message: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CheckerTransaction {
+  id: string;
+  referenceId: string;
+  userId: string;
+  studentId: string;
+  serviceName: string;
+  amount: number;
+  currency: string;
+  status: string;
+  paymentStatus: string;
+  paymentReference: string;
+  providerResponse: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResultCheckerPricing {
+  serviceName: string;
+  amount: number;
+  retailPrice: number | null;
+  updatedAt: string;
+}
