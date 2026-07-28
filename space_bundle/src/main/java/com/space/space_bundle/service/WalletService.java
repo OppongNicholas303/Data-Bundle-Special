@@ -48,6 +48,7 @@ public class WalletService {
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
                 .balance(BigDecimal.ZERO)
+                .commissionBalance(BigDecimal.ZERO)
                 .currency("GHS")
                 .status(Wallet.WalletStatus.ACTIVE.name())
                 .createdAt(LocalDateTime.now())
@@ -71,6 +72,64 @@ public class WalletService {
         org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
         Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
         return updatedWallet != null ? updatedWallet.getBalance() : null;
+    }
+
+    @Transactional
+    public void creditCommission(String userId, BigDecimal amount, String description) {
+        Wallet wallet = getByUserId(userId);
+        BigDecimal before = wallet.getCommissionBalance();
+        BigDecimal after = atomicCommissionCredit(userId, amount);
+        if (after != null) {
+            transactionService.createCompletedCredit(userId, wallet.getId(), amount, before, after, description);
+        }
+    }
+
+    public BigDecimal atomicCommissionDebit(String userId, BigDecimal amount) {
+        Query query = new Query(Criteria.where("userId").is(userId).and("commissionBalance").gte(amount));
+        Update update = new Update().inc("commissionBalance", amount.negate()).set("updatedAt", LocalDateTime.now());
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
+        Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
+        return updatedWallet != null ? updatedWallet.getCommissionBalance() : null;
+    }
+
+    public BigDecimal atomicCommissionCredit(String userId, BigDecimal amount) {
+        Query query = new Query(Criteria.where("userId").is(userId));
+        Update update = new Update().inc("commissionBalance", amount).set("updatedAt", LocalDateTime.now());
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
+        Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
+        return updatedWallet != null ? updatedWallet.getCommissionBalance() : null;
+    }
+
+    @Transactional
+    public void transferCommissionToMain(String userId, BigDecimal amount) {
+        Wallet wallet = getByUserId(userId);
+        if (wallet.getCommissionBalance().compareTo(amount) < 0) {
+            throw new IllegalStateException("Insufficient commission balance for transfer");
+        }
+        debitCommission(userId, amount, null, "Transfer to Main Wallet");
+        credit(userId, amount, "Transfer from Commission Wallet");
+    }
+
+    @Transactional
+    public void debitCommission(String userId, BigDecimal amount, String orderId, String description) {
+        Wallet wallet = getByUserId(userId);
+        BigDecimal before = wallet.getCommissionBalance();
+        if (before.compareTo(amount) < 0) {
+            throw new IllegalStateException("Insufficient commission balance");
+        }
+
+        var debitTx = transactionService.createDebit(userId, orderId, amount, before, before.subtract(amount), description);
+
+        Query query = new Query(Criteria.where("userId").is(userId).and("commissionBalance").gte(amount));
+        Update update = new Update().inc("commissionBalance", amount.negate()).set("updatedAt", LocalDateTime.now());
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
+        Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
+
+        if (updatedWallet == null) {
+            transactionService.fail(debitTx.getId());
+            throw new IllegalStateException("Insufficient commission balance after concurrent check");
+        }
+        transactionService.complete(debitTx.getId());
     }
 
     @Transactional

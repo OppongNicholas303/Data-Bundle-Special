@@ -65,15 +65,8 @@ public class AdminWithdrawalService {
         if (!WithdrawalRequest.Status.PENDING.name().equals(req.getStatus()))
             throw new IllegalStateException("Withdrawal is not PENDING — current status: " + req.getStatus());
 
-        // Refund the agent's wallet
-        Wallet wallet = walletRepository.findFirstByUserId(req.getAgentUserId())
-                .orElseThrow(() -> new IllegalStateException("Agent wallet not found"));
-
-        BigDecimal before = wallet.getBalance();
-        BigDecimal after = walletService.atomicCredit(req.getAgentUserId(), req.getAmount());
-
-        transactionService.createCompletedRefund(req.getAgentUserId(), req.getReference(),
-                req.getAmount(), before, after != null ? after : before.add(req.getAmount()),
+        // Refund the agent's commission wallet
+        walletService.creditCommission(req.getAgentUserId(), req.getAmount(),
                 "Refund — withdrawal rejected by admin: " + (adminNote != null ? adminNote : ""));
 
         // Mark failed on the original withdrawal transaction

@@ -35,10 +35,12 @@ public class WalletController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<WalletBalanceResponse>> balance(
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        var wallet = walletService.getByUserId(userDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success(
                 WalletBalanceResponse.builder()
-                        .balance(walletService.getBalance(userDetails.getUserId()))
-                        .currency("GHS")
+                        .balance(wallet.getBalance())
+                        .commissionBalance(wallet.getCommissionBalance())
+                        .currency(wallet.getCurrency())
                         .build()));
     }
 

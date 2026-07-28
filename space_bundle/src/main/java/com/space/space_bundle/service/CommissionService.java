@@ -69,9 +69,9 @@ public class CommissionService {
 
         Wallet wallet = walletRepository.findFirstByUserId(agentUserId)
                 .orElseThrow(() -> new IllegalStateException("Agent wallet not found for user: " + agentUserId));
-        BigDecimal before = wallet.getBalance();
+        BigDecimal before = wallet.getCommissionBalance();
         
-        BigDecimal after = walletService.atomicCredit(agentUserId, profit);
+        BigDecimal after = walletService.atomicCommissionCredit(agentUserId, profit);
 
         transactionService.createCommission(agentUserId, orderId, profit, before, after != null ? after : before.add(profit),
                 "Commission from order " + orderId);

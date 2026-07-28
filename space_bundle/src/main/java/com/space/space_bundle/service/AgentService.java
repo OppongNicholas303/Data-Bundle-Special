@@ -516,14 +516,14 @@ public class AgentService {
 
         Wallet wallet = walletRepository.findFirstByUserId(agentUserId)
                 .orElseThrow(() -> new IllegalStateException("Wallet not found"));
-        if (wallet.getBalance().compareTo(amount) < 0)
-            throw new IllegalStateException("Insufficient balance. Available: GHS " + wallet.getBalance());
+        if (wallet.getCommissionBalance().compareTo(amount) < 0)
+            throw new IllegalStateException("Insufficient commission balance. Available: GHS " + wallet.getCommissionBalance());
 
         String reference = "WD_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase(Locale.ROOT);
 
-        // Deduct from wallet immediately so agent cannot double-request
-        BigDecimal before = wallet.getBalance();
-        BigDecimal after = walletService.atomicDebit(agentUserId, amount);
+        // Deduct from commission wallet immediately so agent cannot double-request
+        BigDecimal before = wallet.getCommissionBalance();
+        BigDecimal after = walletService.atomicCommissionDebit(agentUserId, amount);
         if (after == null) {
             throw new IllegalStateException("Insufficient balance or concurrent update");
         }

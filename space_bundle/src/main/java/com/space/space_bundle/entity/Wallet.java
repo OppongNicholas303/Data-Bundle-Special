@@ -22,6 +22,14 @@ public class Wallet {
     private String userId;
 
     private BigDecimal balance;
+    public BigDecimal getBalance() {
+        return balance == null ? BigDecimal.ZERO : balance;
+    }
+
+    private BigDecimal commissionBalance = BigDecimal.ZERO;
+    public BigDecimal getCommissionBalance() {
+        return commissionBalance == null ? BigDecimal.ZERO : commissionBalance;
+    }
     private String currency;
     private String status;
     private LocalDateTime createdAt;

@@ -9,5 +9,6 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class WalletBalanceResponse {
     private BigDecimal balance;
+    private BigDecimal commissionBalance;
     private String currency;
 }

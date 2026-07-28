@@ -26,7 +26,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import com.space.space_bundle.dto.TransferCommissionRequest;
 
 @Slf4j
 @RestController
@@ -165,6 +167,15 @@ public class AgentController {
             @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
         return ResponseEntity.ok(ApiResponse.success(
                 agentService.getWithdrawals(userDetails.getUserId())));
+    }
+
+    @PostMapping("/transfer-commission")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<ApiResponse<String>> transferCommission(
+            @Valid @RequestBody TransferCommissionRequest request,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
+        walletService.transferCommissionToMain(userDetails.getUserId(), request.getAmount());
+        return ResponseEntity.ok(ApiResponse.success("Transferred GHS " + request.getAmount() + " to main wallet"));
     }
 
     // ── Public storefront ──────────────────────────────────────────────────
