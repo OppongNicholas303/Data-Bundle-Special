@@ -66,7 +66,7 @@ class CheckerPortClientTest {
         when(responseSpec.bodyToMono(any(ParameterizedTypeReference.class)))
                 .thenReturn(Mono.just(mockResp));
 
-        CheckerPortVoucherRequest req = new CheckerPortVoucherRequest("PlatformWaecNew", 1, "0240000000", "email@test.com", BigDecimal.valueOf(20), "url", null, null);
+        CheckerPortVoucherRequest req = new CheckerPortVoucherRequest("PlatformWaecNew", 1, "0240000000", "email@test.com", BigDecimal.valueOf(20), BigDecimal.valueOf(20), "url", null, null);
         CheckerPortResponse<Map<String, Object>> response = client.buyVoucher(req);
 
         assertEquals("SUCCESS", response.getStatus());
