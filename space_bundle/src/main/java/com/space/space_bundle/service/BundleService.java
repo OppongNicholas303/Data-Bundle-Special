@@ -24,13 +24,14 @@ public class BundleService {
     private  final MashupRepository mashupRepository;
 
     public Bundle create(String code, String name, String dataSize, String network,
-                         BigDecimal costPrice, BigDecimal sellingPrice, String description) {
+                         BigDecimal costPrice, BigDecimal sellingPrice, String description, String preferredProvider) {
         return bundleRepository.save(Bundle.builder()
                 .id(UUID.randomUUID().toString())
                 .code(code).name(name).dataSize(dataSize).network(network)
                 .costPrice(costPrice).sellingPrice(sellingPrice)
                 .status(Bundle.BundleStatus.ACTIVE.name())
                 .description(description)
+                .preferredProvider(preferredProvider != null && !preferredProvider.isBlank() ? preferredProvider : "mydatagigs")
                 .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now())
                 .build());
     }
@@ -100,13 +101,14 @@ public class BundleService {
     }
 
     public Bundle update(String id, String name, String dataSize,
-                         BigDecimal costPrice, BigDecimal sellingPrice, String description) {
+                         BigDecimal costPrice, BigDecimal sellingPrice, String description, String preferredProvider) {
         Bundle bundle = getById(id);
         if (name != null) bundle.setName(name);
         if (dataSize != null) bundle.setDataSize(dataSize);
         if (costPrice != null) bundle.setCostPrice(costPrice);
         if (sellingPrice != null) bundle.setSellingPrice(sellingPrice);
         if (description != null) bundle.setDescription(description);
+        if (preferredProvider != null) bundle.setPreferredProvider(preferredProvider);
         bundle.setUpdatedAt(LocalDateTime.now());
         return bundleRepository.save(bundle);
     }

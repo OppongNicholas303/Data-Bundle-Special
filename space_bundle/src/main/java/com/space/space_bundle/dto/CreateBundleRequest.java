@@ -15,4 +15,5 @@ public class CreateBundleRequest {
     private BigDecimal costPrice;
     private BigDecimal sellingPrice;
     private String description;
+    private String preferredProvider;
 }

@@ -66,9 +66,11 @@ public class AdminController {
 
     @GetMapping("/users/{id}/wallet")
     public ResponseEntity<ApiResponse<com.space.space_bundle.dto.WalletBalanceResponse>> getUserWallet(@PathVariable String id) {
+        com.space.space_bundle.entity.Wallet wallet = walletService.getByUserId(id);
         return ResponseEntity.ok(ApiResponse.success(
                 com.space.space_bundle.dto.WalletBalanceResponse.builder()
-                        .balance(walletService.getBalance(id))
+                        .balance(wallet.getBalance())
+                        .commissionBalance(wallet.getCommissionBalance())
                         .currency("GHS")
                         .build()));
     }
@@ -312,10 +314,12 @@ public class AdminController {
     public ResponseEntity<ApiResponse<com.space.space_bundle.dto.WalletBalanceResponse>> getAgentWallet(@PathVariable String id) {
         AgentProfile agent = agentProfileRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + id));
-        java.math.BigDecimal balance = walletService.getBalance(agent.getUserId());
+        com.space.space_bundle.entity.Wallet wallet = walletService.getByUserId(agent.getUserId());
         return ResponseEntity.ok(ApiResponse.success(
                 com.space.space_bundle.dto.WalletBalanceResponse.builder()
-                        .balance(balance).currency("GHS").build()));
+                        .balance(wallet.getBalance())
+                        .commissionBalance(wallet.getCommissionBalance())
+                        .currency("GHS").build()));
     }
 
     @PostMapping("/agents/{id}/wallet/topup")
@@ -376,7 +380,7 @@ public class AdminController {
     @PostMapping("/bundles")
     public ResponseEntity<ApiResponse<AdminBundleResponse>> createBundle(@RequestBody CreateBundleRequest req) {
         Bundle bundle = bundleService.create(req.getCode(), req.getName(), req.getDataSize(),
-                req.getNetwork(), req.getCostPrice(), req.getSellingPrice(), req.getDescription());
+                req.getNetwork(), req.getCostPrice(), req.getSellingPrice(), req.getDescription(), req.getPreferredProvider());
         return ResponseEntity.ok(ApiResponse.success("Bundle created", AdminBundleResponse.from(bundle)));
     }
 
@@ -384,7 +388,7 @@ public class AdminController {
     public ResponseEntity<ApiResponse<AdminBundleResponse>> updateBundle(
             @PathVariable String id, @RequestBody UpdateBundleRequest req) {
         Bundle bundle = bundleService.update(id, req.getName(), req.getDataSize(),
-                req.getCostPrice(), req.getSellingPrice(), req.getDescription());
+                req.getCostPrice(), req.getSellingPrice(), req.getDescription(), req.getPreferredProvider());
         return ResponseEntity.ok(ApiResponse.success("Bundle updated", AdminBundleResponse.from(bundle)));
     }
 
@@ -696,6 +700,7 @@ public class AdminController {
         private BigDecimal costPrice;
         private BigDecimal sellingPrice;
         private String description;
+        private String preferredProvider;
     }
 
     @Data

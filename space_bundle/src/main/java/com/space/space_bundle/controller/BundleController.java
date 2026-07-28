@@ -41,7 +41,7 @@ public class BundleController {
     public ResponseEntity<ApiResponse<Bundle>> create(@RequestBody CreateBundleRequest request) {
         Bundle bundle = bundleService.create(request.getCode(), request.getName(),
                 request.getDataSize(), request.getNetwork(),
-                request.getCostPrice(), request.getSellingPrice(), request.getDescription());
+                request.getCostPrice(), request.getSellingPrice(), request.getDescription(), request.getPreferredProvider());
         return ResponseEntity.ok(ApiResponse.success("Bundle created", bundle));
     }
 
@@ -51,7 +51,7 @@ public class BundleController {
                                                       @RequestBody CreateBundleRequest request) {
         Bundle updated = bundleService.update(id,
                 request.getName(), request.getDataSize(),
-                request.getCostPrice(), request.getSellingPrice(), request.getDescription());
+                request.getCostPrice(), request.getSellingPrice(), request.getDescription(), request.getPreferredProvider());
         return ResponseEntity.ok(ApiResponse.success("Bundle updated", updated));
     }
 

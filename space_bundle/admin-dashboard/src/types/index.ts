@@ -52,6 +52,7 @@ export interface Bundle {
   sellingPrice: number;
   status: string;
   description: string;
+  preferredProvider?: string;
   createdAt: string;
   updatedAt: string;
 }

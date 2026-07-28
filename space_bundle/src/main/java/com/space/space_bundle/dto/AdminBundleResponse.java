@@ -23,6 +23,7 @@ public class AdminBundleResponse {
     private BigDecimal sellingPrice;
     private String status;
     private String description;
+    private String preferredProvider;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -38,6 +39,7 @@ public class AdminBundleResponse {
                 .sellingPrice(bundle.getSellingPrice())
                 .status(bundle.getStatus())
                 .description(bundle.getDescription())
+                .preferredProvider(bundle.getPreferredProvider())
                 .createdAt(bundle.getCreatedAt())
                 .updatedAt(bundle.getUpdatedAt())
                 .build();

@@ -114,12 +114,21 @@ function AgentDetail({ agent }: { agent: AdminAgent }) {
                   <CardContent className="p-6 flex flex-col h-full justify-between">
                     <div>
                       <p className="text-sm font-medium text-primary flex items-center gap-2 mb-2">
-                        <Wallet className="h-4 w-4" /> Current Wallet Balance
+                        <Wallet className="h-4 w-4" /> Wallet Balances
                       </p>
                       {loadingWallet ? (
                         <p className="text-3xl font-bold">...</p>
                       ) : wallet ? (
-                        <p className="text-3xl font-bold">{formatCurrency(wallet.balance)}</p>
+                        <div className="space-y-2">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Main</p>
+                            <p className="text-2xl font-bold">{formatCurrency(wallet.balance)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Commission</p>
+                            <p className="text-2xl font-bold text-success">{formatCurrency(wallet.commissionBalance || 0)}</p>
+                          </div>
+                        </div>
                       ) : (
                         <p className="text-3xl font-bold">—</p>
                       )}

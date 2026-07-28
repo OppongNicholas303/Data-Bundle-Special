@@ -22,6 +22,7 @@ public class AsyncFulfillmentService {
     private final OrderService orderService;
     private final EmailService emailService;
     private final com.space.space_bundle.feature.FeatureFlagService featureFlagService;
+    private final BundleService bundleService;
 
     @Value("${app.support-email:support@tapdata.com}")
     private String supportEmail;
@@ -38,14 +39,44 @@ public class AsyncFulfillmentService {
             order.markProcessing();
             orderRepository.save(order);
 
-            String providerRef;
+            String providerRef = null;
             boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", false);
-            if (useRandyOnly) {
-                order.setByFrom("randy");
-                providerRef = "MASHUP".equalsIgnoreCase(order.getBundleType()) ? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
+
+            if ("MASHUP".equalsIgnoreCase(order.getBundleType())) {
+                // User explicitly requested Mashup not to have dynamic routing
+                if (useRandyOnly) {
+                    order.setByFrom("randy");
+                    providerRef = automationService.buyFromRandyMashup(order);
+                } else {
+                    order.setByFrom("mydatagigs");
+                    providerRef = automationService.buy(order);
+                }
             } else {
-                order.setByFrom("mydatagigs");
-                providerRef = automationService.buy(order);
+                com.space.space_bundle.entity.Bundle bundle = bundleService.getByCodeAndNetwork(order.getBundleCode(), order.getNetwork());
+                String preferred = bundle.getPreferredProvider();
+                if (preferred == null || preferred.isBlank() || preferred.equalsIgnoreCase("default")) {
+                    preferred = useRandyOnly ? "ramdy" : "mydatagigs"; // Fallback to global setting if no specific preference
+                }
+
+                if ("ramdy".equalsIgnoreCase(preferred) || "randy".equalsIgnoreCase(preferred)) {
+                    order.setByFrom("randy");
+                    try {
+                        providerRef = automationService.buyFromRandy(order);
+                    } catch (Exception ex) {
+                        log.warn("[FULFILLMENT] Randy failed for order {}, falling back to MyDataGigs. Error: {}", order.getId(), ex.getMessage());
+                        order.setByFrom("mydatagigs");
+                        providerRef = automationService.buy(order);
+                    }
+                } else {
+                    order.setByFrom("mydatagigs");
+                    try {
+                        providerRef = automationService.buy(order);
+                    } catch (Exception ex) {
+                        log.warn("[FULFILLMENT] MyDataGigs failed for order {}, falling back to Randy. Error: {}", order.getId(), ex.getMessage());
+                        order.setByFrom("randy");
+                        providerRef = automationService.buyFromRandy(order);
+                    }
+                }
             }
 
             order.markCompleted(providerRef);

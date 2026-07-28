@@ -330,13 +330,26 @@ export default function UsersPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="p-4 bg-muted/50 rounded-lg text-center">
-              <p className="text-sm text-muted-foreground mb-1">Current Balance</p>
+              <p className="text-sm text-muted-foreground mb-1">Balances</p>
               {isLoadingWallet ? (
                 <p className="text-2xl font-bold animate-pulse">...</p>
               ) : (
-                <p className="text-2xl font-bold">
-                  {walletData?.currency} {walletData?.balance?.toFixed(2)}
-                </p>
+                <div className="flex justify-around items-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Main</p>
+                    <p className="text-xl font-bold">
+                      {walletData?.currency} {walletData?.balance?.toFixed(2)}
+                    </p>
+                  </div>
+                  {walletData?.commissionBalance !== undefined && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Commission</p>
+                      <p className="text-xl font-bold text-success">
+                        {walletData?.currency} {walletData?.commissionBalance?.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,6 +27,7 @@ const bundleSchema = z.object({
   costPrice: z.coerce.number().positive("Must be positive"),
   sellingPrice: z.coerce.number().positive("Must be positive"),
   description: z.string().default(""),
+  preferredProvider: z.string().default("default"),
 });
 
 type BundleForm = z.infer<typeof bundleSchema>;
@@ -137,6 +138,7 @@ export default function BundlesPage() {
                 <tr className="border-b bg-muted/30">
                   <th className="text-left p-4 font-medium text-muted-foreground">Bundle</th>
                   <th className="text-left p-4 font-medium text-muted-foreground hidden sm:table-cell">Network</th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">Provider</th>
                   <th className="text-left p-4 font-medium text-muted-foreground hidden md:table-cell">Cost</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Price</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
@@ -155,6 +157,11 @@ export default function BundlesPage() {
                     </td>
                     <td className="p-4 hidden sm:table-cell">
                       <span className="uppercase text-xs font-semibold">{bundle.network}</span>
+                    </td>
+                    <td className="p-4">
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {bundle.preferredProvider && bundle.preferredProvider !== "default" ? bundle.preferredProvider : "Auto"}
+                      </Badge>
                     </td>
                     <td className="p-4 hidden md:table-cell text-muted-foreground">{formatCurrency(bundle.costPrice)}</td>
                     <td className="p-4 font-semibold">{formatCurrency(bundle.sellingPrice)}</td>
@@ -239,11 +246,15 @@ function BundleFormDialog({ open, bundle, onClose, onSubmit, isLoading }: {
 }) {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<BundleForm>({
     resolver: zodResolver(bundleSchema),
-    defaultValues: bundle ?? { code: "", name: "", dataSize: "", network: "mtn", costPrice: 0, sellingPrice: 0, description: "" },
+    defaultValues: bundle ? { ...bundle, preferredProvider: bundle.preferredProvider || "default" } : { code: "", name: "", dataSize: "", network: "mtn", costPrice: 0, sellingPrice: 0, description: "", preferredProvider: "default" },
   });
 
   // Reset form when bundle changes
-  useState(() => { reset(bundle ?? { code: "", name: "", dataSize: "", network: "mtn", costPrice: 0, sellingPrice: 0, description: "" }); });
+  useEffect(() => { 
+    if (open) {
+      reset(bundle ? { ...bundle, preferredProvider: bundle.preferredProvider || "default" } : { code: "", name: "", dataSize: "", network: "mtn", costPrice: 0, sellingPrice: 0, description: "", preferredProvider: "default" }); 
+    }
+  }, [bundle, open, reset]);
 
   return (
     <Dialog open={open} onOpenChange={open => !open && onClose()}>
@@ -270,11 +281,21 @@ function BundleFormDialog({ open, bundle, onClose, onSubmit, isLoading }: {
             <Input id="name" {...register("name")} placeholder="e.g. MTN 1GB Daily" aria-describedby={errors.name ? "name-err" : undefined} />
             {errors.name && <p id="name-err" className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="network">Network</Label>
-            <select id="network" {...register("network")} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-              {NETWORKS.map(n => <option key={n} value={n}>{n.toUpperCase()}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="network">Network</Label>
+              <select id="network" {...register("network")} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                {NETWORKS.map(n => <option key={n} value={n}>{n.toUpperCase()}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="preferredProvider">Preferred Provider</Label>
+              <select id="preferredProvider" {...register("preferredProvider")} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                <option value="default">Auto (Default)</option>
+                <option value="mydatagigs">MyDataGigs</option>
+                <option value="ramdy">Randy</option>
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

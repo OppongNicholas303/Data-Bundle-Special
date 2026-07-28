@@ -32,8 +32,8 @@ export const adminService = {
     const res = await apiClient.put(`/admin/users/${id}/roles`, { roles }) as ApiWrap<AdminUser>;
     return res.data;
   },
-  getUserWallet: async (id: string): Promise<{ balance: number; currency: string }> => {
-    const res = await apiClient.get(`/admin/users/${id}/wallet`) as ApiWrap<{ balance: number; currency: string }>;
+  getUserWallet: async (id: string): Promise<{ balance: number; commissionBalance?: number; currency: string }> => {
+    const res = await apiClient.get(`/admin/users/${id}/wallet`) as ApiWrap<{ balance: number; commissionBalance?: number; currency: string }>;
     return res.data;
   },
   getUserTransactions: async (id: string): Promise<any[]> => {
@@ -83,12 +83,12 @@ export const adminService = {
   },
 
   // Wallet
-  getAgentWallet: async (agentProfileId: string): Promise<{ balance: number; currency: string; updatedAt?: string | null }> => {
-    const res = await apiClient.get(`/admin/agents/${agentProfileId}/wallet`) as ApiWrap<{ balance: number; currency: string; updatedAt?: string | null }>;
+  getAgentWallet: async (agentProfileId: string): Promise<{ balance: number; commissionBalance?: number; currency: string; updatedAt?: string | null }> => {
+    const res = await apiClient.get(`/admin/agents/${agentProfileId}/wallet`) as ApiWrap<{ balance: number; commissionBalance?: number; currency: string; updatedAt?: string | null }>;
     return res.data;
   },
-  topUpAgentWallet: async (agentProfileId: string, amount: number, note?: string): Promise<{ balance: number; currency: string; updatedAt?: string | null }> => {
-    const res = await apiClient.post(`/admin/agents/${agentProfileId}/wallet/topup`, { amount, note }) as ApiWrap<{ balance: number; currency: string; updatedAt?: string | null }>;
+  topUpAgentWallet: async (agentProfileId: string, amount: number, note?: string): Promise<{ balance: number; commissionBalance?: number; currency: string; updatedAt?: string | null }> => {
+    const res = await apiClient.post(`/admin/agents/${agentProfileId}/wallet/topup`, { amount, note }) as ApiWrap<{ balance: number; commissionBalance?: number; currency: string; updatedAt?: string | null }>;
     return res.data;
   },
 
