@@ -23,7 +23,7 @@ public class BundleController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Bundle>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(bundleService.getAll()));
+        return ResponseEntity.ok(ApiResponse.success(bundleService.getAllActive()));
     }
 
     @GetMapping("/network/{network}")

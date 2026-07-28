@@ -14,4 +14,5 @@ public interface BundleRepository extends MongoRepository<Bundle, String> {
     Optional<Bundle> findFirstByCodeAndNetwork(String code, String network);
     List<Bundle> findByNetwork(String network);
     List<Bundle> findByNetworkAndStatus(String network, String status);
+    List<Bundle> findByStatus(String status, Sort sort);
 }

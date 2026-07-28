@@ -90,6 +90,10 @@ public class BundleService {
         return bundleRepository.findAll(Sort.by(Sort.Direction.ASC, "sellingPrice"));
     }
 
+    public List<Bundle> getAllActive() {
+        return bundleRepository.findByStatus(Bundle.BundleStatus.ACTIVE.name(), Sort.by(Sort.Direction.ASC, "sellingPrice"));
+    }
+
     public List<Bundle> getActiveByNetwork(String network) {
         String normalized = network == null ? null : network.toLowerCase();
         return bundleRepository.findByNetworkAndStatus(normalized, Bundle.BundleStatus.ACTIVE.name());

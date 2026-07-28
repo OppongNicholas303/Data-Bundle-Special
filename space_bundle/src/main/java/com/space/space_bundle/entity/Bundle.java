@@ -27,6 +27,7 @@ public class Bundle {
     private BigDecimal sellingPrice;
     private String status;
     private String description;
+    @JsonIgnore // Internal routing — never expose to clients
     private String preferredProvider; // "ramdy", "mydatagigs", etc.
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
