@@ -17,6 +17,7 @@ public class CheckerPortArcRequest {
     private String phoneNumber;
     private String email;
     private BigDecimal price;
+    private BigDecimal amount;
     private String webhookCallbackUrl;
     private String referenceId;
     private String year;

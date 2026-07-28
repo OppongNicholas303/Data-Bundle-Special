@@ -51,6 +51,7 @@ public class ResultsCheckerService {
 
         // SECURITY: Override the request price with the Admin's configured retail price!
         request.setPrice(pricing.getRetailPrice());
+        request.setAmount(pricing.getRetailPrice());
 
         // Check for Agent Pricing Override
         String agentId = null;
@@ -76,6 +77,7 @@ public class ResultsCheckerService {
                 AgentCheckerPricing agentPricing = agentPricingOpt.get();
                 // SECURITY: Override with Agent's selling price
                 request.setPrice(agentPricing.getSellingPrice());
+                request.setAmount(agentPricing.getSellingPrice());
                 agentProfit = agentPricing.calculateProfit();
                     
                 // Multiply profit by quantity!
@@ -139,6 +141,7 @@ public class ResultsCheckerService {
 
         // SECURITY: Override the request price with the Admin's configured retail price!
         request.setPrice(pricing.getRetailPrice());
+        request.setAmount(pricing.getRetailPrice());
 
         // Check for Agent Pricing Override
         String agentId = null;
@@ -164,6 +167,7 @@ public class ResultsCheckerService {
                 AgentCheckerPricing agentPricing = agentPricingOpt.get();
                 // SECURITY: Override with Agent's selling price
                 request.setPrice(agentPricing.getSellingPrice());
+                request.setAmount(agentPricing.getSellingPrice());
                 agentProfit = agentPricing.calculateProfit();
             }
         }
