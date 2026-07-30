@@ -227,6 +227,70 @@ public class ResultsCheckerService {
         return transactionRepository.save(tx);
     }
 
+    public java.util.List<ResultsTransaction> getTransactionsByRefOrPhone(String referenceIdOrPhone) {
+        if (referenceIdOrPhone == null || referenceIdOrPhone.trim().isEmpty()) {
+            return java.util.List.of();
+        }
+
+        String search = referenceIdOrPhone.trim();
+        java.util.List<ResultsTransaction> transactions = new java.util.ArrayList<>();
+
+        // 1. Try finding by referenceId first
+        Optional<ResultsTransaction> txOpt = transactionRepository.findByReferenceId(search);
+        if (txOpt.isPresent()) {
+            transactions.add(txOpt.get());
+        } else {
+            // 2. Otherwise find all transactions for this phone number
+            String cleanPhone = search.replaceAll("\\D", "");
+            java.util.List<ResultsTransaction> byPhone = transactionRepository.findByPhoneNumberOrderByCreatedAtDesc(search);
+            if (byPhone.isEmpty() && !cleanPhone.equals(search) && !cleanPhone.isEmpty()) {
+                byPhone = transactionRepository.findByPhoneNumberOrderByCreatedAtDesc(cleanPhone);
+            }
+            transactions.addAll(byPhone);
+        }
+
+        // Run JIT status check for pending transactions created > 5 mins ago
+        for (int i = 0; i < transactions.size(); i++) {
+            ResultsTransaction tx = transactions.get(i);
+            if (tx.getStatus() == ServiceStatus.PENDING &&
+                tx.getCreatedAt() != null &&
+                tx.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
+                try {
+                    CheckerPortResponse<Map<String, Object>> resp = checkerPortClient.getStatus(tx.getReferenceId());
+                    if ("SUCCESS".equalsIgnoreCase(resp.getStatus()) && resp.getData() != null) {
+                        Map<String, Object> data = resp.getData();
+                        String serviceStatus = (String) data.get("serviceStatus");
+                        
+                        if ("complete".equalsIgnoreCase(serviceStatus)) {
+                            tx.setStatus(ServiceStatus.COMPLETE);
+                        } else if ("pending-input".equalsIgnoreCase(serviceStatus)) {
+                            tx.setStatus(ServiceStatus.PENDING_INPUT);
+                        } else if ("failed".equalsIgnoreCase(serviceStatus)) {
+                            tx.setStatus(ServiceStatus.FAILED);
+                        }
+                        
+                        tx.setStatusCode((String) data.get("statusCode"));
+                        
+                        if (data.containsKey("result")) {
+                            tx.setResultData((Map<String, Object>) data.get("result"));
+                        }
+                        if (data.containsKey("vouchers")) {
+                            tx.setVouchers(data.get("vouchers"));
+                        }
+                        
+                        tx.setUpdatedAt(LocalDateTime.now());
+                        tx = transactionRepository.save(tx);
+                        transactions.set(i, tx);
+                    }
+                } catch (Exception e) {
+                    log.error("JIT status check failed for {}: {}", tx.getReferenceId(), e.getMessage());
+                }
+            }
+        }
+
+        return transactions;
+    }
+
     public Optional<ResultsTransaction> getTransaction(String referenceIdOrPhone) {
         Optional<ResultsTransaction> txOpt = transactionRepository.findByReferenceId(referenceIdOrPhone);
         if (txOpt.isEmpty()) {

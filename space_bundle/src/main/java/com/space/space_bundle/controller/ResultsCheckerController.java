@@ -44,10 +44,12 @@ public class ResultsCheckerController {
     }
 
     @GetMapping("/transactions/{referenceId}")
-    public ResponseEntity<ResultsTransaction> getTransaction(@PathVariable String referenceId) {
-        return resultsCheckerService.getTransaction(referenceId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Object> getTransaction(@PathVariable String referenceId) {
+        java.util.List<ResultsTransaction> list = resultsCheckerService.getTransactionsByRefOrPhone(referenceId);
+        if (list.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/transactions")

@@ -12,6 +12,7 @@ import java.util.Optional;
 public interface ResultsTransactionRepository extends MongoRepository<ResultsTransaction, String> {
     Optional<ResultsTransaction> findByReferenceId(String referenceId);
     Optional<ResultsTransaction> findFirstByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
+    List<ResultsTransaction> findByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
     List<ResultsTransaction> findByUserId(String userId);
     List<ResultsTransaction> findByUserIdOrderByCreatedAtDesc(String userId);
     List<ResultsTransaction> findByUserIdOrEmailOrderByCreatedAtDesc(String userId, String email);
