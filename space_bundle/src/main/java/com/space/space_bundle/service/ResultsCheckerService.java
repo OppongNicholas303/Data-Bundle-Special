@@ -44,12 +44,13 @@ public class ResultsCheckerService {
         String pricingKey = "VoucherPrice" + request.getPlatform();
         ResultCheckerPricing pricing = pricingRepository.findById(pricingKey)
                 .orElseThrow(() -> new IllegalStateException("Pricing not configured for " + request.getPlatform()));
-        
+
         if (pricing.getRetailPrice() == null) {
             throw new IllegalStateException("Retail price not set by Admin for " + request.getPlatform());
         }
 
-        // SECURITY: Override the request price with the Admin's configured retail price!
+        // SECURITY: Override the request price with the Admin's configured retail
+        // price!
         request.setPrice(pricing.getRetailPrice());
         request.setAmount(pricing.getRetailPrice());
 
@@ -69,17 +70,18 @@ public class ResultsCheckerService {
                 agentId = agent.getId();
             }
         }
-        
+
         if (agentId != null) {
-            Optional<AgentCheckerPricing> agentPricingOpt = agentCheckerPricingRepository.findByAgentIdAndServiceName(agentId, pricingKey);
-                
+            Optional<AgentCheckerPricing> agentPricingOpt = agentCheckerPricingRepository
+                    .findByAgentIdAndServiceName(agentId, pricingKey);
+
             if (agentPricingOpt.isPresent() && agentPricingOpt.get().isActive()) {
                 AgentCheckerPricing agentPricing = agentPricingOpt.get();
                 // SECURITY: Override with Agent's selling price
                 request.setPrice(agentPricing.getSellingPrice());
                 request.setAmount(agentPricing.getSellingPrice());
                 agentProfit = agentPricing.calculateProfit();
-                    
+
                 // Multiply profit by quantity!
                 if (request.getQty() != null && request.getQty() > 1) {
                     agentProfit = agentProfit.multiply(BigDecimal.valueOf(request.getQty()));
@@ -120,7 +122,8 @@ public class ResultsCheckerService {
         if (!"ShsPlacement".equalsIgnoreCase(request.getType()) && request.getYear() == null) {
             throw new IllegalArgumentException("Year is required for this result type");
         }
-        if (("WasscePrivate".equalsIgnoreCase(request.getType()) || "ShsPlacement".equalsIgnoreCase(request.getType())) && request.getDob() == null) {
+        if (("WasscePrivate".equalsIgnoreCase(request.getType()) || "ShsPlacement".equalsIgnoreCase(request.getType()))
+                && request.getDob() == null) {
             throw new IllegalArgumentException("DOB is required for this result type");
         }
 
@@ -139,7 +142,8 @@ public class ResultsCheckerService {
             throw new IllegalStateException("Retail price not set by Admin for " + request.getType());
         }
 
-        // SECURITY: Override the request price with the Admin's configured retail price!
+        // SECURITY: Override the request price with the Admin's configured retail
+        // price!
         request.setPrice(pricing.getRetailPrice());
         request.setAmount(pricing.getRetailPrice());
 
@@ -161,8 +165,9 @@ public class ResultsCheckerService {
         }
 
         if (agentId != null) {
-            Optional<AgentCheckerPricing> agentPricingOpt = agentCheckerPricingRepository.findByAgentIdAndServiceName(agentId, pricingKey);
-                
+            Optional<AgentCheckerPricing> agentPricingOpt = agentCheckerPricingRepository
+                    .findByAgentIdAndServiceName(agentId, pricingKey);
+
             if (agentPricingOpt.isPresent() && agentPricingOpt.get().isActive()) {
                 AgentCheckerPricing agentPricing = agentPricingOpt.get();
                 // SECURITY: Override with Agent's selling price
@@ -300,40 +305,43 @@ public class ResultsCheckerService {
         if (txOpt.isPresent()) {
             ResultsTransaction tx = txOpt.get();
             String actualReferenceId = tx.getReferenceId();
-            
+
             if (tx.getStatus() == ServiceStatus.PENDING &&
-                tx.getCreatedAt() != null &&
-                tx.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
-                
+                    tx.getCreatedAt() != null &&
+                    tx.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
+
                 try {
                     CheckerPortResponse<Map<String, Object>> resp = checkerPortClient.getStatus(actualReferenceId);
                     if ("SUCCESS".equalsIgnoreCase(resp.getStatus()) && resp.getData() != null) {
                         Map<String, Object> data = resp.getData();
                         String serviceStatus = (String) data.get("serviceStatus");
-                        
+
                         if ("complete".equalsIgnoreCase(serviceStatus)) {
                             tx.setStatus(ServiceStatus.COMPLETE);
                         } else if ("pending-input".equalsIgnoreCase(serviceStatus)) {
                             tx.setStatus(ServiceStatus.PENDING_INPUT);
                         }
-                        
+
                         tx.setStatusCode((String) data.get("statusCode"));
-                        
+
                         if (data.containsKey("result")) {
                             tx.setResultData((Map<String, Object>) data.get("result"));
                         }
                         if (data.containsKey("vouchers")) {
                             tx.setVouchers(data.get("vouchers"));
                         }
-                        
+
                         tx.setUpdatedAt(LocalDateTime.now());
                         tx = transactionRepository.save(tx);
-                        
-                        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null && !tx.getEmail().isEmpty()) {
+
+                        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null
+                                && !tx.getEmail().isEmpty()) {
                             sendDeliveryEmail(tx);
                         }
-                        
-                        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null && !tx.isCommissionPaid() && tx.getAgentProfit() != null && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
+
+                        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null
+                                && !tx.isCommissionPaid() && tx.getAgentProfit() != null
+                                && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
                             try {
                                 BigDecimal baseAmount = tx.getPrice().subtract(tx.getAgentProfit());
                                 commissionService.settle(tx.getAgentId(), tx.getId(), baseAmount, tx.getPrice());
@@ -364,7 +372,7 @@ public class ResultsCheckerService {
                 if ("SUCCESS".equalsIgnoreCase(resp.getStatus()) && resp.getData() != null) {
                     Map<String, Object> data = resp.getData();
                     String serviceStatus = (String) data.get("serviceStatus");
-                    
+
                     if ("complete".equalsIgnoreCase(serviceStatus)) {
                         tx.setStatus(ServiceStatus.COMPLETE);
                     } else if ("pending-input".equalsIgnoreCase(serviceStatus)) {
@@ -372,27 +380,30 @@ public class ResultsCheckerService {
                     } else if ("failed".equalsIgnoreCase(serviceStatus)) {
                         tx.setStatus(ServiceStatus.FAILED);
                     }
-                    
+
                     tx.setStatusCode((String) data.get("statusCode"));
-                    
+
                     if (data.containsKey("result")) {
                         tx.setResultData((Map<String, Object>) data.get("result"));
                     }
                     if (data.containsKey("vouchers")) {
                         tx.setVouchers(data.get("vouchers"));
                     }
-                    
+
                     tx.setUpdatedAt(LocalDateTime.now());
                     tx = transactionRepository.save(tx);
-                    
-                    // Trigger email if complete and not previously triggered? 
-                    // To prevent duplicate emails, we assume forceSync might re-trigger if needed, 
-                    // or we check if email was already sent. But sending again is fine for a manual force sync.
-                    if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null && !tx.getEmail().isEmpty()) {
+
+                    // Trigger email if complete and not previously triggered?
+                    // To prevent duplicate emails, we assume forceSync might re-trigger if needed,
+                    // or we check if email was already sent. But sending again is fine for a manual
+                    // force sync.
+                    if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null
+                            && !tx.getEmail().isEmpty()) {
                         sendDeliveryEmail(tx);
                     }
-                    
-                    if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null && !tx.isCommissionPaid() && tx.getAgentProfit() != null && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
+
+                    if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null && !tx.isCommissionPaid()
+                            && tx.getAgentProfit() != null && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
                         try {
                             BigDecimal baseAmount = tx.getPrice().subtract(tx.getAgentProfit());
                             commissionService.settle(tx.getAgentId(), tx.getId(), baseAmount, tx.getPrice());
@@ -402,7 +413,7 @@ public class ResultsCheckerService {
                             log.error("Failed to settle commission for tx {}: {}", tx.getId(), e.getMessage());
                         }
                     }
-                    
+
                     return Optional.of(tx);
                 }
             } catch (Exception e) {
@@ -422,7 +433,8 @@ public class ResultsCheckerService {
         String cleanPhone = (phoneNumber != null && !phoneNumber.trim().isEmpty()) ? phoneNumber.trim() : null;
 
         if (cleanEmail != null && cleanPhone != null) {
-            return transactionRepository.findByUserIdOrEmailOrPhoneNumberOrderByCreatedAtDesc(userId, cleanEmail, cleanPhone);
+            return transactionRepository.findByUserIdOrEmailOrPhoneNumberOrderByCreatedAtDesc(userId, cleanEmail,
+                    cleanPhone);
         } else if (cleanEmail != null) {
             return transactionRepository.findByUserIdOrEmailOrderByCreatedAtDesc(userId, cleanEmail);
         } else if (cleanPhone != null) {
@@ -435,18 +447,18 @@ public class ResultsCheckerService {
     @PostConstruct
     @Scheduled(cron = "0 0 0 * * ?")
     public void updatePricingFromApi() {
-        String[] services = {"VoucherPricePlatformWaecNew", "VoucherPricePlatformWaecOld",
-                "ArcPriceWrcBeceSchool", "ArcPriceWrcWassceSchool", "ArcPriceWrcWasscePrivate", "ArcPriceSpr"};
+        String[] services = { "VoucherPricePlatformWaecNew", "VoucherPricePlatformWaecOld",
+                "ArcPriceWrcBeceSchool", "ArcPriceWrcWassceSchool", "ArcPriceWrcWasscePrivate", "ArcPriceSpr" };
 
         for (String s : services) {
-            // Ensure the row ALWAYS exists so admins can set Retail Price, even if the API fetch fails
+            // Ensure the row ALWAYS exists so admins can set Retail Price, even if the API
+            // fetch fails
             ResultCheckerPricing pricing = pricingRepository.findById(s).orElse(
-                ResultCheckerPricing.builder()
-                    .serviceName(s)
-                    .amount(BigDecimal.ZERO)
-                    .retailPrice(new BigDecimal("30.00"))
-                    .build()
-            );
+                    ResultCheckerPricing.builder()
+                            .serviceName(s)
+                            .amount(BigDecimal.ZERO)
+                            .retailPrice(new BigDecimal("30.00"))
+                            .build());
             if (pricing.getRetailPrice() == null) {
                 pricing.setRetailPrice(new BigDecimal("30.00"));
             }
@@ -474,7 +486,8 @@ public class ResultsCheckerService {
     }
 
     public void handleWebhook(Map<String, Object> payload) {
-        if (payload == null) return;
+        if (payload == null)
+            return;
 
         log.info("Received payload webhook from CheckerPort: {}", payload);
 
@@ -486,10 +499,12 @@ public class ResultsCheckerService {
         }
 
         Map<String, Object> data = (Map<String, Object>) payload.get("data");
-        if (data == null) return;
+        if (data == null)
+            return;
 
         String referenceId = (String) data.get("referenceId");
-        if (referenceId == null) return;
+        if (referenceId == null)
+            return;
 
         Optional<ResultsTransaction> txOpt = transactionRepository.findByReferenceId(referenceId);
         if (txOpt.isEmpty()) {
@@ -500,13 +515,14 @@ public class ResultsCheckerService {
         ResultsTransaction tx = txOpt.get();
 
         // Idempotency check
-        if (tx.isWebhookReceived() && (tx.getStatus() == ServiceStatus.COMPLETE || tx.getStatus() == ServiceStatus.FAILED)) {
+        if (tx.isWebhookReceived()
+                && (tx.getStatus() == ServiceStatus.COMPLETE || tx.getStatus() == ServiceStatus.FAILED)) {
             log.info("Ignoring duplicate webhook for already completed/failed referenceId: {}", referenceId);
             return;
         }
 
         String serviceStatus = (String) data.get("serviceStatus");
-        
+
         if ("complete".equalsIgnoreCase(serviceStatus)) {
             tx.setStatus(ServiceStatus.COMPLETE);
         } else if ("pending-input".equalsIgnoreCase(serviceStatus)) {
@@ -535,12 +551,13 @@ public class ResultsCheckerService {
         tx.setUpdatedAt(LocalDateTime.now());
         tx = transactionRepository.save(tx);
         log.info("Successfully processed webhook for referenceId: {}, new status: {}", referenceId, serviceStatus);
-        
+
         if ("complete".equalsIgnoreCase(serviceStatus) && tx.getEmail() != null && !tx.getEmail().isEmpty()) {
             sendDeliveryEmail(tx);
         }
 
-        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null && !tx.isCommissionPaid() && tx.getAgentProfit() != null && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
+        if ("complete".equalsIgnoreCase(serviceStatus) && tx.getAgentId() != null && !tx.isCommissionPaid()
+                && tx.getAgentProfit() != null && tx.getAgentProfit().compareTo(BigDecimal.ZERO) > 0) {
             try {
                 BigDecimal baseAmount = tx.getPrice().subtract(tx.getAgentProfit());
                 commissionService.settle(tx.getAgentId(), tx.getId(), baseAmount, tx.getPrice());
@@ -561,9 +578,11 @@ public class ResultsCheckerService {
             java.util.List<Map<String, Object>> vouchers = (java.util.List<Map<String, Object>>) tx.getVouchers();
             textBody.append("Vouchers:\n");
             for (Map<String, Object> v : vouchers) {
-                String serial = v.containsKey("serialNumber") ? String.valueOf(v.get("serialNumber")) : String.valueOf(v.get("serial"));
+                String serial = v.containsKey("serialNumber") ? String.valueOf(v.get("serialNumber"))
+                        : String.valueOf(v.get("serial"));
                 textBody.append("Serial: ").append(serial).append(" | PIN: ").append(v.get("pin")).append("\n");
-                htmlBody.append("<p><b>Serial:</b> ").append(serial).append(" <br/><b>PIN:</b> ").append(v.get("pin")).append("</p>");
+                htmlBody.append("<p><b>Serial:</b> ").append(serial).append(" <br/><b>PIN:</b> ").append(v.get("pin"))
+                        .append("</p>");
             }
         } else if (tx.getResultData() != null) {
             Map<String, Object> resultContent = (Map<String, Object>) tx.getResultData().get("resultContent");
@@ -574,7 +593,8 @@ public class ResultsCheckerService {
             }
             Map<String, Object> placementDetails = (Map<String, Object>) tx.getResultData().get("placementDetails");
             if (placementDetails != null && placementDetails.get("pdfs") != null) {
-                java.util.List<Map<String, Object>> pdfs = (java.util.List<Map<String, Object>>) placementDetails.get("pdfs");
+                java.util.List<Map<String, Object>> pdfs = (java.util.List<Map<String, Object>>) placementDetails
+                        .get("pdfs");
                 for (Map<String, Object> pdf : pdfs) {
                     String url = (String) pdf.get("url");
                     String desc = (String) pdf.get("description");
@@ -583,14 +603,16 @@ public class ResultsCheckerService {
                 }
             }
         }
-        
+
         textBody.append("\nThank you for using TapData!");
         htmlBody.append("<br/><p>Thank you for using TapData!</p>");
-        
+
         try {
-            // emailService.sendHtml(tx.getEmail(), subject, textBody.toString(), htmlBody.toString());
+            // emailService.sendHtml(tx.getEmail(), subject, textBody.toString(),
+            // htmlBody.toString());
             // log.info("Delivery email sent to {}", tx.getEmail());
-            log.info("Delivery email sending is temporarily disabled for {}. Email Subject: '{}', Body:\n{}", tx.getEmail(), subject, textBody.toString());
+            log.info("Delivery email sending is temporarily disabled for {}. Email Subject: '{}', Body:\n{}",
+                    tx.getEmail(), subject, textBody.toString());
         } catch (Exception e) {
             log.error("Failed to send delivery email to {}: {}", tx.getEmail(), e.getMessage());
         }

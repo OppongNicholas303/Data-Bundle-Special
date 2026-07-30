@@ -11,12 +11,22 @@ import java.util.Optional;
 @Repository
 public interface ResultsTransactionRepository extends MongoRepository<ResultsTransaction, String> {
     Optional<ResultsTransaction> findByReferenceId(String referenceId);
+
     Optional<ResultsTransaction> findFirstByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
+
     List<ResultsTransaction> findByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
+
     List<ResultsTransaction> findByUserId(String userId);
+
     List<ResultsTransaction> findByUserIdOrderByCreatedAtDesc(String userId);
+
     List<ResultsTransaction> findByUserIdOrEmailOrderByCreatedAtDesc(String userId, String email);
-    List<ResultsTransaction> findByUserIdOrEmailOrPhoneNumberOrderByCreatedAtDesc(String userId, String email, String phoneNumber);
+
+    List<ResultsTransaction> findByUserIdOrEmailOrPhoneNumberOrderByCreatedAtDesc(String userId, String email,
+            String phoneNumber);
+
     List<ResultsTransaction> findByUserIdOrPhoneNumberOrderByCreatedAtDesc(String userId, String phoneNumber);
-    List<ResultsTransaction> findByStatusInAndCreatedAtBefore(List<com.space.space_bundle.entity.ServiceStatus> statuses, LocalDateTime time);
+
+    List<ResultsTransaction> findByStatusInAndCreatedAtBefore(
+            List<com.space.space_bundle.entity.ServiceStatus> statuses, LocalDateTime time);
 }

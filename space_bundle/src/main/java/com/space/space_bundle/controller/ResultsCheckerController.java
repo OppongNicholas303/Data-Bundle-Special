@@ -19,7 +19,8 @@ public class ResultsCheckerController {
 
     private final ResultsCheckerService resultsCheckerService;
 
-    // Ideally extract userId from SecurityContext, for now we can pass null or parse it
+    // Ideally extract userId from SecurityContext, for now we can pass null or
+    // parse it
     @PostMapping("/vouchers")
     public ResponseEntity<ResultsTransaction> buyVoucher(
             @RequestBody CheckerPortVoucherRequest request,
@@ -60,7 +61,8 @@ public class ResultsCheckerController {
         }
         String email = userDetails.getEmail();
         String phoneNumber = userDetails.getUser() != null ? userDetails.getUser().getPhoneNumber() : null;
-        return ResponseEntity.ok(resultsCheckerService.getUserTransactions(userDetails.getUserId(), email, phoneNumber));
+        return ResponseEntity
+                .ok(resultsCheckerService.getUserTransactions(userDetails.getUserId(), email, phoneNumber));
     }
 
     @GetMapping("/pricing")
@@ -73,9 +75,11 @@ public class ResultsCheckerController {
         try {
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
             String ip = restTemplate.getForObject("https://api.ipify.org", String.class);
-            return ResponseEntity.ok(java.util.Map.of("ip", ip, "message", "Provide this IP to Moolre for whitelisting."));
+            return ResponseEntity
+                    .ok(java.util.Map.of("ip", ip, "message", "Provide this IP to Moolre for whitelisting."));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Failed to fetch IP: " + e.getMessage()));
+            return ResponseEntity.internalServerError()
+                    .body(java.util.Map.of("error", "Failed to fetch IP: " + e.getMessage()));
         }
     }
 }
