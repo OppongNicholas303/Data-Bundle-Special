@@ -14,5 +14,8 @@ public interface ResultsTransactionRepository extends MongoRepository<ResultsTra
     Optional<ResultsTransaction> findFirstByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
     List<ResultsTransaction> findByUserId(String userId);
     List<ResultsTransaction> findByUserIdOrderByCreatedAtDesc(String userId);
+    List<ResultsTransaction> findByUserIdOrEmailOrderByCreatedAtDesc(String userId, String email);
+    List<ResultsTransaction> findByUserIdOrEmailOrPhoneNumberOrderByCreatedAtDesc(String userId, String email, String phoneNumber);
+    List<ResultsTransaction> findByUserIdOrPhoneNumberOrderByCreatedAtDesc(String userId, String phoneNumber);
     List<ResultsTransaction> findByStatusInAndCreatedAtBefore(List<com.space.space_bundle.entity.ServiceStatus> statuses, LocalDateTime time);
 }

@@ -353,6 +353,21 @@ public class ResultsCheckerService {
         return transactionRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
+    public Iterable<ResultsTransaction> getUserTransactions(String userId, String email, String phoneNumber) {
+        String cleanEmail = (email != null && !email.trim().isEmpty()) ? email.trim() : null;
+        String cleanPhone = (phoneNumber != null && !phoneNumber.trim().isEmpty()) ? phoneNumber.trim() : null;
+
+        if (cleanEmail != null && cleanPhone != null) {
+            return transactionRepository.findByUserIdOrEmailOrPhoneNumberOrderByCreatedAtDesc(userId, cleanEmail, cleanPhone);
+        } else if (cleanEmail != null) {
+            return transactionRepository.findByUserIdOrEmailOrderByCreatedAtDesc(userId, cleanEmail);
+        } else if (cleanPhone != null) {
+            return transactionRepository.findByUserIdOrPhoneNumberOrderByCreatedAtDesc(userId, cleanPhone);
+        } else {
+            return transactionRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        }
+    }
+
     @PostConstruct
     @Scheduled(cron = "0 0 0 * * ?")
     public void updatePricingFromApi() {

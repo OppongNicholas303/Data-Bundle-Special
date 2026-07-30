@@ -56,7 +56,9 @@ public class ResultsCheckerController {
         if (userDetails == null || userDetails.getUserId() == null) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(resultsCheckerService.getTransactionsByUserId(userDetails.getUserId()));
+        String email = userDetails.getEmail();
+        String phoneNumber = userDetails.getUser() != null ? userDetails.getUser().getPhoneNumber() : null;
+        return ResponseEntity.ok(resultsCheckerService.getUserTransactions(userDetails.getUserId(), email, phoneNumber));
     }
 
     @GetMapping("/pricing")
