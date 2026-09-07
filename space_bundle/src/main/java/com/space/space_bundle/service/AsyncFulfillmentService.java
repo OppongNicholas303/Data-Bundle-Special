@@ -41,6 +41,7 @@ public class AsyncFulfillmentService {
 
             String providerRef = null;
             boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", false);
+            boolean useLessData  = featureFlagService.isEnabled("bot.useLessData",  false);
 
             if ("MASHUP".equalsIgnoreCase(order.getBundleType())) {
                 // User explicitly requested Mashup not to have dynamic routing
@@ -55,10 +56,20 @@ public class AsyncFulfillmentService {
                 com.space.space_bundle.entity.Bundle bundle = bundleService.getByCodeAndNetwork(order.getBundleCode(), order.getNetwork());
                 String preferred = bundle.getPreferredProvider();
                 if (preferred == null || preferred.isBlank() || preferred.equalsIgnoreCase("default")) {
-                    preferred = useRandyOnly ? "ramdy" : "mydatagigs"; // Fallback to global setting if no specific preference
+                    // Fallback to global setting if no specific preference
+                    preferred = useLessData ? "lessdata" : (useRandyOnly ? "randy" : "mydatagigs");
                 }
 
-                if ("ramdy".equalsIgnoreCase(preferred) || "randy".equalsIgnoreCase(preferred)) {
+                if ("lessdata".equalsIgnoreCase(preferred)) {
+                    order.setByFrom("lessdata");
+                    try {
+                        providerRef = automationService.buyFromLessData(order);
+                    } catch (Exception ex) {
+                        log.warn("[FULFILLMENT] LessData failed for order {}, falling back to MyDataGigs. Error: {}", order.getId(), ex.getMessage());
+                        order.setByFrom("mydatagigs");
+                        providerRef = automationService.buy(order);
+                    }
+                } else if ("ramdy".equalsIgnoreCase(preferred) || "randy".equalsIgnoreCase(preferred)) {
                     order.setByFrom("randy");
                     try {
                         providerRef = automationService.buyFromRandy(order);

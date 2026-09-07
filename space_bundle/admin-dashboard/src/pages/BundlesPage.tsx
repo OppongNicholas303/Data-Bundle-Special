@@ -294,6 +294,7 @@ function BundleFormDialog({ open, bundle, onClose, onSubmit, isLoading }: {
                 <option value="default">Auto (Default)</option>
                 <option value="mydatagigs">MyDataGigs</option>
                 <option value="ramdy">Randy</option>
+                <option value="lessdata">LessData</option>
               </select>
             </div>
           </div>
