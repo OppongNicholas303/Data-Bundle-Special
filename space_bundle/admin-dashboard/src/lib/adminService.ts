@@ -3,7 +3,7 @@ import type {
   AdminStats, AdminUser, AdminAgent, Bundle, AdminOrder,
   Commission, CreateBundlePayload, UpdateBundlePayload, WithdrawalRequest, DailyAnalytics,
   AdminMashupPackage, MashupSyncResult, AgentBundlePricing, AgentMashupPricing, AgentCheckerPricing, AdminTransaction,
-  Announcement, CheckerTransaction, ResultCheckerPricing
+  Announcement, CheckerTransaction, ResultCheckerPricing, SmsPackage
 } from "@/types";
 
 type ApiWrap<T> = { data: T };
@@ -307,5 +307,22 @@ export const adminService = {
   updateCheckerPricing: async (serviceName: string, retailPrice: number | null): Promise<ResultCheckerPricing> => {
     const res = await apiClient.put(`/admin/results-checker/pricing/${serviceName}`, { retailPrice }) as ApiWrap<ResultCheckerPricing>;
     return res.data;
+  },
+
+  // SMS Packages
+  getSmsPackages: async (): Promise<SmsPackage[]> => {
+    const res = await apiClient.get("/admin/sms-packages") as ApiWrap<SmsPackage[]>;
+    return res.data;
+  },
+  createSmsPackage: async (data: { name: string; messagesCount: number; price: number; active: boolean }): Promise<SmsPackage> => {
+    const res = await apiClient.post("/admin/sms-packages", data) as ApiWrap<SmsPackage>;
+    return res.data;
+  },
+  updateSmsPackage: async (id: string, data: { name?: string; messagesCount?: number; price?: number; active: boolean }): Promise<SmsPackage> => {
+    const res = await apiClient.put(`/admin/sms-packages/${id}`, data) as ApiWrap<SmsPackage>;
+    return res.data;
+  },
+  deleteSmsPackage: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/sms-packages/${id}`);
   },
 };

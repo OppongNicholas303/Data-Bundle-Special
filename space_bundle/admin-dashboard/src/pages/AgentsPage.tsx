@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, ChevronDown, ChevronUp, RefreshCw, TrendingUp, ShoppingCart, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -455,8 +455,8 @@ export default function AgentsPage() {
               </thead>
               <tbody>
                 {filtered.map(agent => (
-                  <>
-                    <tr key={agent.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                  <Fragment key={agent.id}>
+                    <tr className="border-b last:border-0 hover:bg-muted/20 transition-colors">
                       <td className="p-4">
                         <div>
                           <p className="font-medium">{agent.businessName}</p>
@@ -500,7 +500,7 @@ export default function AgentsPage() {
                       </td>
                     </tr>
                     {expandedId === agent.id && <AgentDetail key={`detail-${agent.id}`} agent={agent} />}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

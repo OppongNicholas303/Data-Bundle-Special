@@ -18,6 +18,7 @@ import CheckerPortPage from "@/pages/CheckerPortPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AnnouncementsPage from "@/pages/AnnouncementsPage";
 import TransactionsPage from "@/pages/TransactionsPage";
+import { SmsPackagesPage } from "@/pages/SmsPackagesPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +54,7 @@ export default function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/announcements" element={<AnnouncementsPage />} />
                 <Route path="/transactions" element={<TransactionsPage />} />
+                <Route path="/sms-packages" element={<SmsPackagesPage />} />
               </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -335,6 +335,12 @@ bot:
       username: nicholas.oppong2623@gmail.com
       password: Vida0243911336@
 
+# LessData Configuration
+lessdata:
+  base-url: ${LESSDATA_BASE_URL:https://api.lessbundle.com}
+  api-key: ${LESSDATA_API_KEY:jup_live_1788788099658_78xub6jdnhfovi7e13iv_ivzb48nxryo8widgswmx8t}
+  callback-url: ${LESSDATA_CALLBACK_URL:https://data-bundle-special-ulkt.onrender.com/api/webhook/lessdata}
+
 mashup:
   offers:
     url: https://myspaceserver.com/api/external/special-offers/mashup/orders

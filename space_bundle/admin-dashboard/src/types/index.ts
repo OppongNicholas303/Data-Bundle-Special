@@ -250,3 +250,13 @@ export interface ResultCheckerPricing {
   retailPrice: number | null;
   updatedAt: string;
 }
+
+export interface SmsPackage {
+  id: string;
+  name: string;
+  messagesCount: number;
+  price: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

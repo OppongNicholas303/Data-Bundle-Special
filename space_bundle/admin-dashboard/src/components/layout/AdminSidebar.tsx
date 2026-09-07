@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Store, Package, ShoppingCart, Wallet,
-  LogOut, Menu, X, ChevronLeft, ChevronRight, Shield, Zap, Tag, FileText, Settings, Megaphone
+  LogOut, Menu, X, ChevronLeft, ChevronRight, Shield, Zap, Tag, FileText, Settings, Megaphone, MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ const navItems = [
   { icon: Zap,             label: "Mashup",      path: "/mashup" },
   { icon: FileText,        label: "CheckerPort", path: "/checkerport" },
   { icon: Megaphone,       label: "Announcements", path: "/announcements" },
+  { icon: MessageSquare,   label: "SMS Packages", path: "/sms-packages" },
   { icon: Store,           label: "Transactions", path: "/transactions" },
   { icon: Settings,        label: "Settings",    path: "/settings" },
 ];

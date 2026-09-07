@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import lombok.Data;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +50,7 @@ public class AdminController {
     private final com.space.space_bundle.service.TransactionService transactionService;
     private final com.space.space_bundle.service.OrderService orderService;
     private final MongoTemplate mongoTemplate;
+    private final com.space.space_bundle.repository.SmsPackageRepository smsPackageRepository;
 
     // ── Users ──────────────────────────────────────────────────────────────
 
@@ -448,8 +450,25 @@ public class AdminController {
                  orders.stream()
                          .sorted(Comparator.comparing(Order::getCreatedAt).reversed())
                          .map(AdminOrderView::from)
-                         .toList()
+                         .collect(Collectors.toList())
          ));
+     }
+
+     @GetMapping("/orders/phone-numbers")
+     public ResponseEntity<ApiResponse<List<String>>> getDistinctOrderPhoneNumbers(
+             @RequestParam(required = false) String status,
+             @RequestParam(required = false) String network) {
+
+         Query query = new Query();
+         if (status != null && !status.isBlank()) {
+             query.addCriteria(Criteria.where("status").is(status.toUpperCase()));
+         }
+         if (network != null && !network.isBlank()) {
+             query.addCriteria(Criteria.where("network").is(network.toUpperCase()));
+         }
+
+         List<String> phoneNumbers = mongoTemplate.findDistinct(query, "phoneNumber", Order.class, String.class);
+         return ResponseEntity.ok(ApiResponse.success(phoneNumbers));
      }
 
      // ── Transactions ────────────────────────────────────────────────────────
@@ -684,6 +703,63 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> backfillOrderCosts() {
         return ResponseEntity.ok(ApiResponse.success("Migration complete",
                 orderMigrationService.backfillCostPrices()));
+    }
+
+    // ── SMS Packages ───────────────────────────────────────────────────────
+
+    @GetMapping("/sms-packages")
+    public ResponseEntity<ApiResponse<List<SmsPackage>>> getAllSmsPackages() {
+        return ResponseEntity.ok(ApiResponse.success(smsPackageRepository.findAllByOrderByPriceAsc()));
+    }
+
+    @PostMapping("/sms-packages")
+    public ResponseEntity<ApiResponse<SmsPackage>> createSmsPackage(@RequestBody SmsPackage pkg) {
+        if (pkg.getName() == null || pkg.getName().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Package name is required"));
+        }
+        if (pkg.getMessagesCount() <= 0) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Messages count must be positive"));
+        }
+        if (pkg.getPrice() == null || pkg.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Price must be greater than zero"));
+        }
+        pkg.setId(UUID.randomUUID().toString());
+        pkg.setCreatedAt(LocalDateTime.now());
+        pkg.setUpdatedAt(LocalDateTime.now());
+        SmsPackage saved = smsPackageRepository.save(pkg);
+        return ResponseEntity.ok(ApiResponse.success(saved));
+    }
+
+    @PutMapping("/sms-packages/{id}")
+    public ResponseEntity<ApiResponse<SmsPackage>> updateSmsPackage(
+            @PathVariable String id,
+            @RequestBody SmsPackage pkgDetails) {
+        SmsPackage existing = smsPackageRepository.findById(id).orElse(null);
+        if (existing == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("SMS package not found"));
+        }
+        if (pkgDetails.getName() != null && !pkgDetails.getName().isBlank()) {
+            existing.setName(pkgDetails.getName());
+        }
+        if (pkgDetails.getMessagesCount() > 0) {
+            existing.setMessagesCount(pkgDetails.getMessagesCount());
+        }
+        if (pkgDetails.getPrice() != null && pkgDetails.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+            existing.setPrice(pkgDetails.getPrice());
+        }
+        existing.setActive(pkgDetails.isActive());
+        existing.setUpdatedAt(LocalDateTime.now());
+        SmsPackage saved = smsPackageRepository.save(existing);
+        return ResponseEntity.ok(ApiResponse.success(saved));
+    }
+
+    @DeleteMapping("/sms-packages/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteSmsPackage(@PathVariable String id) {
+        if (!smsPackageRepository.existsById(id)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("SMS package not found"));
+        }
+        smsPackageRepository.deleteById(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     // ── DTOs ───────────────────────────────────────────────────────────────

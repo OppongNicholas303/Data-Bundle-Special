@@ -30,6 +30,12 @@ public class Wallet {
     public BigDecimal getCommissionBalance() {
         return commissionBalance == null ? BigDecimal.ZERO : commissionBalance;
     }
+
+    private int smsBalance = 0;
+    public int getSmsBalance() {
+        return smsBalance;
+    }
+
     private String currency;
     private String status;
     private LocalDateTime createdAt;

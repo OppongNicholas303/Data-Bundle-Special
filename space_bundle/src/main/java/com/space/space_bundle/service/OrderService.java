@@ -531,14 +531,24 @@ public class OrderService {
     }
 
     private String buyBundle(Order order, String network) {
-        boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", false); // Admin toggle
-        if (useRandyOnly) {
-            // Route all orders through Randy when the feature flag is enabled
-            order.setByFrom("randy");
-            return order.getBundleType().equalsIgnoreCase("MASHUP")? automationService.buyFromRandyMashup(order) : automationService.buyFromRandy(order);
+        boolean useRandyOnly   = featureFlagService.isEnabled("bot.useRandyOnly",    false);
+        boolean useLessData    = featureFlagService.isEnabled("bot.useLessData",     false);
+
+        // LessData flag takes priority when enabled
+        if (useLessData) {
+            order.setByFrom("lessdata");
+            log.info("[ORDER] Routing to LessData: orderId={}", order.getId());
+            return automationService.buyFromLessData(order);
         }
 
-        // Default behaviour: Route everything to MyDataGigs via buy()
+        if (useRandyOnly) {
+            order.setByFrom("randy");
+            return order.getBundleType().equalsIgnoreCase("MASHUP")
+                    ? automationService.buyFromRandyMashup(order)
+                    : automationService.buyFromRandy(order);
+        }
+
+        // Default: MyDataGigs
         order.setByFrom("mydatagigs");
         return automationService.buy(order);
     }

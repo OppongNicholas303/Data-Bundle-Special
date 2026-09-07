@@ -160,6 +160,26 @@ public class WalletService {
         return getByUserId(userId).getBalance();
     }
 
+    public int getSmsBalance(String userId) {
+        return getByUserId(userId).getSmsBalance();
+    }
+
+    public int atomicSmsCredit(String userId, int count) {
+        Query query = new Query(Criteria.where("userId").is(userId));
+        Update update = new Update().inc("smsBalance", count).set("updatedAt", LocalDateTime.now());
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
+        Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
+        return updatedWallet != null ? updatedWallet.getSmsBalance() : 0;
+    }
+
+    public Integer atomicSmsDebit(String userId, int count) {
+        Query query = new Query(Criteria.where("userId").is(userId).and("smsBalance").gte(count));
+        Update update = new Update().inc("smsBalance", -count).set("updatedAt", LocalDateTime.now());
+        org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
+        Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
+        return updatedWallet != null ? updatedWallet.getSmsBalance() : null;
+    }
+
     public Wallet getByUserId(String userId) {
         return walletRepository.findFirstByUserId(userId)
                 .orElseThrow(() -> new IllegalStateException("Wallet not found for userId=" + userId));
