@@ -22,6 +22,8 @@ public interface OrderRepository extends MongoRepository<Order, String> {
     List<Order> findByUserIdAndPhoneNumber(String userId, String phoneNumber);
     List<Order> findByUserIdAndPhoneNumberAndStatus(String userId, String phoneNumber, String status);
     Optional<Order> findFirstByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
+    Optional<Order> findByProviderOrderNumber(String providerOrderNumber);
+    Optional<Order> findByProviderReference(String providerReference);
     List<Order> findByStatus(String status);
     List<Order> findByNetwork(String network);
     List<Order> findByStatusAndNetwork(String status, String network);

@@ -283,6 +283,54 @@ public class WebhookService {
         }
     }
 
+    @Async
+    @Transactional
+    public void processLessData(java.util.Map<String, Object> payload) {
+        try {
+            log.info("[LESSDATA WEBHOOK] Processing webhook payload: {}", payload);
+            String lessDataOrderId = (String) payload.get("id");
+            String status = (String) payload.get("status");
+            if (lessDataOrderId == null) {
+                Object pObj = payload.get("payload");
+                if (pObj instanceof java.util.Map) {
+                    java.util.Map<?, ?> inner = (java.util.Map<?, ?>) pObj;
+                    lessDataOrderId = (String) inner.get("id");
+                    if (status == null) status = (String) inner.get("status");
+                }
+            }
+            if (lessDataOrderId == null) {
+                log.warn("[LESSDATA WEBHOOK] Missing order id in payload: {}", payload);
+                return;
+            }
+
+            final String orderIdToSearch = lessDataOrderId;
+            Order order = orderRepository.findByProviderOrderNumber(orderIdToSearch)
+                    .orElseGet(() -> orderRepository.findByProviderReference(orderIdToSearch).orElse(null));
+
+            if (order == null) {
+                log.warn("[LESSDATA WEBHOOK] Order not found for LessData order ID: {}", lessDataOrderId);
+                return;
+            }
+
+            log.info("[LESSDATA WEBHOOK] Found order id={}, current status={}, new status={}", order.getId(), order.getStatus(), status);
+            if ("COMPLETED".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)) {
+                if (!Order.OrderStatus.COMPLETED.name().equals(order.getStatus())) {
+                    order.markCompleted(lessDataOrderId);
+                    order.setProviderStatus("Delivered");
+                    orderRepository.save(order);
+                }
+            } else if ("FAILED".equalsIgnoreCase(status)) {
+                if (!Order.OrderStatus.FAILED.name().equals(order.getStatus())) {
+                    order.markFailed("LessData webhook: Order failed");
+                    order.setProviderStatus("Failed");
+                    orderRepository.save(order);
+                }
+            }
+        } catch (Exception e) {
+            log.error("[LESSDATA WEBHOOK] Failed to process webhook: {}", e.getMessage(), e);
+        }
+    }
+
     private String extractValue(String json, String key) {
         String searchKey = "\"" + key + "\":";
         int start = json.indexOf(searchKey);

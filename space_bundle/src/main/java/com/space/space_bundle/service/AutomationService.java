@@ -179,7 +179,7 @@ public class AutomationService {
 
     // ── LessData ───────────────────────────────────────────────────────────
 
-    public String buyFromLessData(Order order) {
+    public String  buyFromLessData(Order order) {
         String network = resolveLessDataNetwork(order.getNetwork(), order.getBundleType());
         int sizeGb = extractSizeGb(order.getBundleCode());
 

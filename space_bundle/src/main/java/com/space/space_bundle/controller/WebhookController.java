@@ -77,4 +77,13 @@ public class WebhookController {
         webhookService.processPaystack(payload);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping({"/webhook/lessdata", "/webhooks/lessdata"})
+    public ResponseEntity<Void> lessdata(
+            @RequestBody java.util.Map<String, Object> payload,
+            @RequestHeader(value = "x-api-key", required = false) String apiKey) {
+        log.info("[WEBHOOK] Received LessData webhook payload: {}", payload);
+        webhookService.processLessData(payload);
+        return ResponseEntity.ok().build();
+    }
 }
