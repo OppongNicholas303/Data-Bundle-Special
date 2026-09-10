@@ -532,7 +532,7 @@ public class OrderService {
 
     private String buyBundle(Order order, String network) {
         boolean useRandyOnly   = featureFlagService.isEnabled("bot.useRandyOnly",    false);
-        boolean useLessData    = featureFlagService.isEnabled("bot.useLessData",     false);
+        boolean useLessData    = featureFlagService.isEnabled("bot.useLessData",     true);
 
         String preferred = "mydatagigs";
         try {

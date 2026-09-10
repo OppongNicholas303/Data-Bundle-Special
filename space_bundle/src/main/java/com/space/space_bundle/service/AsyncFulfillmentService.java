@@ -41,7 +41,7 @@ public class AsyncFulfillmentService {
 
             String providerRef = null;
             boolean useRandyOnly = featureFlagService.isEnabled("bot.useRandyOnly", false);
-            boolean useLessData  = featureFlagService.isEnabled("bot.useLessData",  false);
+            boolean useLessData  = featureFlagService.isEnabled("bot.useLessData",  true);
 
             if ("MASHUP".equalsIgnoreCase(order.getBundleType())) {
                 // User explicitly requested Mashup not to have dynamic routing
@@ -62,13 +62,7 @@ public class AsyncFulfillmentService {
 
                 if ("lessdata".equalsIgnoreCase(preferred)) {
                     order.setByFrom("lessdata");
-                    try {
-                        providerRef = automationService.buyFromLessData(order);
-                    } catch (Exception ex) {
-                        log.warn("[FULFILLMENT] LessData failed for order {}, falling back to MyDataGigs. Error: {}", order.getId(), ex.getMessage());
-                        order.setByFrom("mydatagigs");
-                        providerRef = automationService.buy(order);
-                    }
+                    providerRef = automationService.buyFromLessData(order);
                 } else if ("ramdy".equalsIgnoreCase(preferred) || "randy".equalsIgnoreCase(preferred)) {
                     order.setByFrom("randy");
                     try {
