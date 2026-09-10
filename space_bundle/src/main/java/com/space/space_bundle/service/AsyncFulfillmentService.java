@@ -55,7 +55,7 @@ public class AsyncFulfillmentService {
             } else {
                 com.space.space_bundle.entity.Bundle bundle = bundleService.getByCodeAndNetwork(order.getBundleCode(), order.getNetwork());
                 String preferred = bundle.getPreferredProvider();
-                if (preferred == null || preferred.isBlank() || preferred.equalsIgnoreCase("default")) {
+                if (preferred == null || preferred.isBlank() || preferred.equalsIgnoreCase("default") || preferred.equalsIgnoreCase("mydatagigs")) {
                     // Fallback to global setting if no specific preference
                     preferred = useLessData ? "lessdata" : (useRandyOnly ? "randy" : "mydatagigs");
                 }

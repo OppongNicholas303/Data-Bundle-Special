@@ -534,23 +534,31 @@ public class OrderService {
         boolean useRandyOnly   = featureFlagService.isEnabled("bot.useRandyOnly",    false);
         boolean useLessData    = featureFlagService.isEnabled("bot.useLessData",     false);
 
-        // LessData flag takes priority when enabled
-        if (useLessData) {
+        String preferred = "mydatagigs";
+        try {
+            com.space.space_bundle.entity.Bundle bundle = bundleService.getByCodeAndNetwork(order.getBundleCode(), order.getNetwork());
+            if (bundle != null && bundle.getPreferredProvider() != null) {
+                preferred = bundle.getPreferredProvider();
+            }
+        } catch (Exception ignored) {}
+
+        if (preferred == null || preferred.isBlank() || preferred.equalsIgnoreCase("default") || preferred.equalsIgnoreCase("mydatagigs")) {
+            preferred = useLessData ? "lessdata" : (useRandyOnly ? "randy" : "mydatagigs");
+        }
+
+        if ("lessdata".equalsIgnoreCase(preferred)) {
             order.setByFrom("lessdata");
             log.info("[ORDER] Routing to LessData: orderId={}", order.getId());
             return automationService.buyFromLessData(order);
-        }
-
-        if (useRandyOnly) {
+        } else if ("randy".equalsIgnoreCase(preferred) || "ramdy".equalsIgnoreCase(preferred)) {
             order.setByFrom("randy");
-            return order.getBundleType().equalsIgnoreCase("MASHUP")
+            return order.getBundleType() != null && order.getBundleType().equalsIgnoreCase("MASHUP")
                     ? automationService.buyFromRandyMashup(order)
                     : automationService.buyFromRandy(order);
+        } else {
+            order.setByFrom("mydatagigs");
+            return automationService.buy(order);
         }
-
-        // Default: MyDataGigs
-        order.setByFrom("mydatagigs");
-        return automationService.buy(order);
     }
 
     private String resolvePackageId(String bundleCode, String network, String provided) {
