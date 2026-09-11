@@ -202,6 +202,7 @@ public class AutomationService {
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(LessDataOrderResponse.class)
+                    .timeout(java.time.Duration.ofSeconds(30))
                     .block();
 
             if (response == null)
@@ -238,6 +239,7 @@ public class AutomationService {
                     .header("X-API-Key", lessDataApiKey)
                     .retrieve()
                     .bodyToMono(LessDataOrderResponse.class)
+                    .timeout(java.time.Duration.ofSeconds(30))
                     .block();
             if (response == null || !response.isStatus())
                 throw new RuntimeException("Invalid LessData status response");
