@@ -44,7 +44,7 @@ public class PaystackAdapter {
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .bodyValue(body).retrieve()
                 .bodyToMono(PaystackInitializeResponse.class)
-                .timeout(Duration.ofSeconds(15))
+                .timeout(Duration.ofSeconds(30))
                 .doOnError(e -> log.error("Paystack API error: {}", e.getMessage()))
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
                 .block();

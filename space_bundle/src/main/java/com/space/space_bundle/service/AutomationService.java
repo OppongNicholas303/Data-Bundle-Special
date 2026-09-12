@@ -223,8 +223,9 @@ public class AutomationService {
                 log.error("[LESSDATA] 5xx error: {}", e.getMessage(), e);
                 throw new com.space.space_bundle.exception.ProviderTimeoutException("LessData 5xx error: " + e.getMessage(), e);
             }
-            log.error("[LESSDATA] 4xx error: {}", e.getMessage(), e);
-            throw new RuntimeException("LessData error: " + e.getMessage(), e);
+            String errorBody = e.getResponseBodyAsString();
+            log.error("[LESSDATA] 4xx error (status={}): body={}", e.getStatusCode(), errorBody, e);
+            throw new RuntimeException("LessData error: " + (errorBody != null && !errorBody.isBlank() ? errorBody : e.getMessage()), e);
         } catch (Exception e) {
             log.error("[LESSDATA] Failed: {}", e.getMessage(), e);
             throw new RuntimeException(e.getMessage(), e);
