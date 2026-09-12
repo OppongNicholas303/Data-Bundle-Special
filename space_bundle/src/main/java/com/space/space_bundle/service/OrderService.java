@@ -464,7 +464,7 @@ public class OrderService {
             order.markRefunded();
             orderRepository.save(order);
 
-            return initializePayment(order, email, redirectUrl, paymentMethod);
+            return order;
         }
     }
 

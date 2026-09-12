@@ -67,6 +67,8 @@ public class AsyncFulfillmentService {
                     order.setByFrom("randy");
                     try {
                         providerRef = automationService.buyFromRandy(order);
+                    } catch (com.space.space_bundle.exception.ProviderTimeoutException ex) {
+                        throw ex; // Do not fallback on timeout
                     } catch (Exception ex) {
                         log.warn("[FULFILLMENT] Randy failed for order {}, falling back to MyDataGigs. Error: {}", order.getId(), ex.getMessage());
                         order.setByFrom("mydatagigs");
@@ -76,6 +78,8 @@ public class AsyncFulfillmentService {
                     order.setByFrom("mydatagigs");
                     try {
                         providerRef = automationService.buy(order);
+                    } catch (com.space.space_bundle.exception.ProviderTimeoutException ex) {
+                        throw ex; // Do not fallback on timeout
                     } catch (Exception ex) {
                         log.warn("[FULFILLMENT] MyDataGigs failed for order {}, falling back to Randy. Error: {}", order.getId(), ex.getMessage());
                         order.setByFrom("randy");
