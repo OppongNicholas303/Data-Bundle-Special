@@ -3,7 +3,7 @@ import type {
   AdminStats, AdminUser, AdminAgent, Bundle, AdminOrder,
   Commission, CreateBundlePayload, UpdateBundlePayload, WithdrawalRequest, DailyAnalytics,
   AdminMashupPackage, MashupSyncResult, AgentBundlePricing, AgentMashupPricing, AgentCheckerPricing, AdminTransaction,
-  Announcement, CheckerTransaction, ResultCheckerPricing, SmsPackage
+  Announcement, CheckerTransaction, ResultCheckerPricing, SmsPackage, SmsCampaign, SmsSenderIdRequest, SmsOperationsSettings
 } from "@/types";
 
 type ApiWrap<T> = { data: T };
@@ -312,5 +312,47 @@ export const adminService = {
   },
   deleteSmsPackage: async (id: string): Promise<void> => {
     await apiClient.delete(`/admin/sms-packages/${id}`);
+  },
+
+  // SMS operations
+  getSmsSenderIdRequests: async (): Promise<SmsSenderIdRequest[]> => {
+    const res = await apiClient.get("/admin/sms/sender-ids") as ApiWrap<SmsSenderIdRequest[]>;
+    return res.data;
+  },
+  reviewSmsSenderId: async (id: string, decision: "ADMIN_APPROVED" | "APPROVED" | "REJECTED", note?: string): Promise<SmsSenderIdRequest> => {
+    const res = await apiClient.put(`/admin/sms/sender-ids/${id}/review`, { decision, note }) as ApiWrap<SmsSenderIdRequest>;
+    return res.data;
+  },
+  getSmsCampaigns: async (): Promise<SmsCampaign[]> => {
+    const res = await apiClient.get("/admin/sms/campaigns") as ApiWrap<SmsCampaign[]>;
+    return res.data;
+  },
+  retrySmsCampaign: async (id: string): Promise<SmsCampaign> => {
+    const res = await apiClient.post(`/admin/sms/campaigns/${id}/retry`) as ApiWrap<SmsCampaign>;
+    return res.data;
+  },
+  recoverSmsReservation: async (id: string): Promise<SmsCampaign> => {
+    const res = await apiClient.post(`/admin/sms/campaigns/${id}/recover-credit-reservation`) as ApiWrap<SmsCampaign>;
+    return res.data;
+  },
+  reconcileSmsCampaign: async (id: string): Promise<SmsCampaign> => {
+    const res = await apiClient.post(`/admin/sms/campaigns/${id}/reconcile`) as ApiWrap<SmsCampaign>;
+    return res.data;
+  },
+  resolveSmsRecipient: async (campaignId: string, reference: string, outcome: "DELIVERED" | "FAILED"): Promise<SmsCampaign> => {
+    const res = await apiClient.put(`/admin/sms/campaigns/${campaignId}/recipients/${encodeURIComponent(reference)}/resolve`, { outcome }) as ApiWrap<SmsCampaign>;
+    return res.data;
+  },
+  cancelSmsCampaign: async (id: string, reason: string): Promise<SmsCampaign> => {
+    const res = await apiClient.post(`/admin/sms/campaigns/${id}/cancel`, { reason }) as ApiWrap<SmsCampaign>;
+    return res.data;
+  },
+  getSmsOperationsSettings: async (): Promise<SmsOperationsSettings> => {
+    const res = await apiClient.get("/admin/sms/settings") as ApiWrap<SmsOperationsSettings>;
+    return res.data;
+  },
+  updateSmsOperationsSettings: async (data: Partial<SmsOperationsSettings>): Promise<SmsOperationsSettings> => {
+    const res = await apiClient.put("/admin/sms/settings", data) as ApiWrap<SmsOperationsSettings>;
+    return res.data;
   },
 };

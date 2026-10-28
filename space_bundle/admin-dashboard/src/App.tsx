@@ -19,6 +19,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import AnnouncementsPage from "@/pages/AnnouncementsPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import { SmsPackagesPage } from "@/pages/SmsPackagesPage";
+import SmsOperationsPage from "@/pages/SmsOperationsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="/announcements" element={<AnnouncementsPage />} />
                 <Route path="/transactions" element={<TransactionsPage />} />
                 <Route path="/sms-packages" element={<SmsPackagesPage />} />
+                <Route path="/sms-operations" element={<SmsOperationsPage />} />
               </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

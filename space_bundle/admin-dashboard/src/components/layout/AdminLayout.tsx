@@ -18,6 +18,7 @@ const breadcrumbMap: Record<string, string> = {
   "/announcements": "Announcements",
   "/transactions": "Transactions",
   "/sms-packages": "SMS Packages",
+  "/sms-operations": "SMS Operations",
 };
 
 export function AdminLayout() {

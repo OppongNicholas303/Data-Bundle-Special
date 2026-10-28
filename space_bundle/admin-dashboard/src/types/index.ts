@@ -272,3 +272,21 @@ export interface SmsPackage {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface SmsSenderIdRequest {
+  id: string; userId: string; senderId: string; status: string; providerStatus: string;
+  reviewedBy?: string; reviewNote?: string; createdAt: string; updatedAt: string;
+}
+
+export interface SmsCampaign {
+  id: string; userId: string; senderId: string; message: string; recipients: string[];
+  pages: number; creditsReserved: number; status: string; failureCode?: string; failureReason?: string;
+  creditReservationStatus?: string;
+  providerResponseMessage?: string; createdAt: string; lastAdminActionBy?: string;
+  deliveryDetails?: Array<{ recipient: string; reference: string; status: string; credits: number }>;
+}
+
+export interface SmsOperationsSettings {
+  sendingEnabled: boolean; providerBundleReady: boolean; providerBundleBalanceNote?: string;
+  updatedBy?: string; updatedAt?: string;
+}
