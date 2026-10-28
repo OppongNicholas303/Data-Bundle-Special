@@ -137,18 +137,6 @@ export const adminService = {
      return res.data;
    },
 
-   // Transactions
-   getAllTransactions: async (status?: string, type?: string, search?: string, fromDate?: string, toDate?: string): Promise<AdminTransaction[]> => {
-     const params = new URLSearchParams();
-     if (status) params.set("status", status);
-     if (type) params.set("type", type);
-     if (search) params.set("search", search);
-     if (fromDate) params.set("fromDate", fromDate);
-     if (toDate) params.set("toDate", toDate);
-     const query = params.toString();
-     const res = await apiClient.get(`/admin/transactions${query ? `?${query}` : ""}`) as ApiWrap<AdminTransaction[]>;
-     return res.data;
-   },
 
    // Analytics
    getDailyAnalytics: async (days = 30): Promise<DailyAnalytics[]> => {

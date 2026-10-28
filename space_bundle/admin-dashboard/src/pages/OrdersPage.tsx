@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const STATUSES = ["CREATED", "PENDING_PAYMENT", "PAID", "PROCESSING", "COMPLETED", "COMPLETE_BY_ADMIN", "FAILED", "REFUNDED"];
+const STATUSES = ["CREATED", "PENDING_PAYMENT", "PAID", "PROCESSING", "PROCESSING_UNKNOWN", "COMPLETED", "COMPLETE_BY_ADMIN", "FAILED", "REFUNDED"];
 const NETWORKS = ["mtn", "telecel", "airteltigo"];
 
 function StatusBadge({ status }: { status: string }) {
@@ -18,6 +18,7 @@ function StatusBadge({ status }: { status: string }) {
     COMPLETED: { bg: "bg-green-100", text: "text-green-800", icon: "✓" },
     COMPLETE_BY_ADMIN: { bg: "bg-emerald-100", text: "text-emerald-800", icon: "✓✓" },
     PROCESSING: { bg: "bg-blue-100", text: "text-blue-800", icon: "⟳" },
+    PROCESSING_UNKNOWN: { bg: "bg-amber-100", text: "text-amber-800", icon: "?" },
     PENDING_PAYMENT: { bg: "bg-yellow-100", text: "text-yellow-800", icon: "⏳" },
     PAID: { bg: "bg-blue-100", text: "text-blue-800", icon: "💳" },
     CREATED: { bg: "bg-gray-100", text: "text-gray-800", icon: "+" },
@@ -123,7 +124,7 @@ function ReprocessOrderDialog({ orderId, onSuccess }: { orderId: string; onSucce
       await adminService.reprocessOrder(orderId);
       setIsOpen(false);
       onSuccess();
-      toast.success("Order reprocessed successfully");
+      toast.success("Order replaced or reconciled successfully");
     } catch (error: any) {
       console.error("Failed to reprocess order:", error);
       toast.error(error.message || "Failed to reprocess order");
@@ -148,19 +149,19 @@ function ReprocessOrderDialog({ orderId, onSuccess }: { orderId: string; onSucce
           <Card className="w-96">
             <CardHeader>
               <CardTitle className="text-lg text-blue-700 flex items-center gap-2">
-                <RefreshCw className="h-5 w-5" /> Reprocess Order
+                <RefreshCw className="h-5 w-5" /> Replace / Retry Paid Order
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                This will query Moolre to verify if the payment was actually successful. If the payment was successful, the system will automatically attempt to deliver the bundle again.
+                The server verifies the original payment and checks for refunds before retrying. No second customer charge is made. Unpaid, refunded, unverifiable, or still-pending provider orders are blocked. If delivery already succeeded, the order is completed and commission is settled without sending another bundle.
               </p>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
                   Cancel
                 </Button>
                 <Button onClick={handleReprocess} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  {isLoading ? "Reprocessing..." : "Verify & Reprocess"}
+                  {isLoading ? "Verifying & replacing..." : "Verify & Replace"}
                 </Button>
               </div>
             </CardContent>
@@ -404,6 +405,7 @@ export default function OrdersPage() {
                           <div className="space-y-1">
                             <p className="font-mono text-xs text-muted-foreground">…{order.id.slice(-8)}</p>
                             {order.agentId && <span className="inline-block text-[10px] bg-primary/10 text-primary font-medium px-2 py-0.5 rounded">Agent</span>}
+                            {(order.replacementAttempts ?? 0) > 0 && <span className="inline-block text-[10px] bg-amber-100 text-amber-800 font-medium px-2 py-0.5 rounded">Retries: {order.replacementAttempts}</span>}
                           </div>
                         </td>
                         <td className="p-4 font-medium">{order.phoneNumber}</td>
@@ -428,7 +430,7 @@ export default function OrdersPage() {
                             currentStatus={order.status}
                             onSuccess={() => refetch()}
                           />
-                          {(order.status === "FAILED" || order.status === "PROCESSING") && (
+                          {(order.status === "FAILED" || order.status === "PROCESSING" || order.status === "PROCESSING_UNKNOWN") && (
                             <ReprocessOrderDialog
                               orderId={order.id}
                               onSuccess={() => refetch()}

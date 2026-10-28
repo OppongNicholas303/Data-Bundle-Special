@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search, RefreshCw, Tag, Users, Package,
@@ -49,50 +49,85 @@ function SetPriceDialog({
 }) {
   const qc = useQueryClient();
   const [basePrice, setBasePrice] = useState(
-    existing?.basePrice?.toString() ?? bundle.sellingPrice.toString()
+    existing?.basePrice?.toString() ?? bundle.sellingPrice?.toString() ?? ""
   );
   const [sellingPrice, setSellingPrice] = useState(
     existing?.sellingPrice?.toString() ?? ""
   );
 
+  // Sync state whenever the dialog opens or bundle/existing changes
+  useEffect(() => {
+    if (open) {
+      setBasePrice(existing?.basePrice?.toString() ?? bundle.sellingPrice?.toString() ?? "");
+      setSellingPrice(existing?.sellingPrice?.toString() ?? "");
+    }
+  }, [open, existing, bundle]);
+
+  const minAllowed = Math.max(0, bundle.minimumBasePrice ?? bundle.costPrice ?? 0);
+  const basePriceNum = parseFloat(basePrice) || 0;
+  const sellingPriceNum = parseFloat(sellingPrice) || 0;
+  const agentProfit = sellingPrice.trim() !== "" ? sellingPriceNum - basePriceNum : null;
+  const platformProfit = basePriceNum - (bundle.costPrice ?? 0);
+
+  const isBasePriceValid = !isNaN(basePriceNum) && basePriceNum >= minAllowed;
+  const isSellingPriceInvalid = sellingPrice.trim() !== "" && !isNaN(sellingPriceNum) && sellingPriceNum < basePriceNum;
+  const isValid = isBasePriceValid && !isSellingPriceInvalid;
+
   const mutation = useMutation({
-    mutationFn: () =>
-      bundle.type === "MASHUP"
+    mutationFn: () => {
+      const bPrice = parseFloat(basePrice);
+      const sPrice = sellingPrice.trim() !== "" ? parseFloat(sellingPrice) : undefined;
+      return bundle.type === "MASHUP"
         ? adminService.setAgentMashupBasePrice(
             agent.id,
             bundle.id,
-            parseFloat(basePrice),
-            sellingPrice ? parseFloat(sellingPrice) : undefined
+            bPrice,
+            sPrice
           )
         : bundle.type === "CHECKER"
         ? adminService.setAgentCheckerBasePrice(
             agent.id,
             bundle.code, // serviceName is stored in code
-            parseFloat(basePrice),
-            sellingPrice ? parseFloat(sellingPrice) : undefined
+            bPrice,
+            sPrice
           )
         : adminService.setAgentBasePrice(
             agent.id,
             bundle.id,
-            parseFloat(basePrice),
-            sellingPrice ? parseFloat(sellingPrice) : undefined
-          ),
+            bPrice,
+            sPrice
+          );
+    },
     onSuccess: () => {
       toast.success(`Price updated for ${agent.businessName} — ${bundle.name}`);
+      qc.invalidateQueries({ queryKey: ["agent-pricing"] });
       qc.invalidateQueries({ queryKey: ["agent-pricing", agent.id] });
-      qc.invalidateQueries({ queryKey: [bundle.type === "MASHUP" ? "mashup-pricing" : bundle.type === "CHECKER" ? "checker-pricing" : "bundle-pricing", bundle.id] });
+      qc.invalidateQueries({
+        queryKey: [
+          bundle.type === "MASHUP" ? "mashup-pricing" : bundle.type === "CHECKER" ? "checker-pricing" : "bundle-pricing",
+          bundle.id,
+        ],
+      });
       onClose();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message || "Failed to update price"),
   });
 
-  const basePriceNum = parseFloat(basePrice) || 0;
-  const sellingPriceNum = parseFloat(sellingPrice) || 0;
-  const agentProfit = sellingPrice ? sellingPriceNum - basePriceNum : null;
-  const platformProfit = basePriceNum - bundle.costPrice;
-  const isValid =
-    basePriceNum >= bundle.minimumBasePrice &&
-    (!sellingPrice || sellingPriceNum >= basePriceNum);
+  const handleSave = () => {
+    if (!basePrice || isNaN(basePriceNum) || basePriceNum <= 0) {
+      toast.error("Please enter a valid base price");
+      return;
+    }
+    if (basePriceNum < minAllowed) {
+      toast.error(`Base price cannot be below minimum ${formatCurrency(minAllowed)}`);
+      return;
+    }
+    if (isSellingPriceInvalid) {
+      toast.error(`Selling price cannot be below base price ${formatCurrency(basePriceNum)}. Click 'Match Base' or clear it.`);
+      return;
+    }
+    mutation.mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -116,7 +151,7 @@ function SetPriceDialog({
               <p className="text-xs text-muted-foreground">
                 {bundle.type === "MASHUP" ? "Minimum base price" : "Platform cost price"}
               </p>
-              <p className="font-semibold">{formatCurrency(bundle.minimumBasePrice)}</p>
+              <p className="font-semibold">{formatCurrency(minAllowed)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Platform selling price</p>
@@ -136,17 +171,17 @@ function SetPriceDialog({
               id="base-price"
               type="number"
               step="0.01"
-              min={bundle.minimumBasePrice}
+              min={minAllowed}
               value={basePrice}
               onChange={e => setBasePrice(e.target.value)}
             />
-            {basePriceNum < bundle.minimumBasePrice && basePriceNum > 0 && (
+            {basePriceNum < minAllowed && basePriceNum > 0 && (
               <p className="text-xs text-destructive flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                Cannot be below {formatCurrency(bundle.minimumBasePrice)}
+                Cannot be below {formatCurrency(minAllowed)}
               </p>
             )}
-            {basePriceNum >= bundle.minimumBasePrice && basePriceNum > 0 && (
+            {basePriceNum >= minAllowed && basePriceNum > 0 && (
               <p className="text-xs text-green-500 flex items-center gap-1">
                 <Check className="h-3 w-3" />
                 Platform earns {formatCurrency(platformProfit)} profit per sale
@@ -156,26 +191,48 @@ function SetPriceDialog({
 
           {/* Selling price — what agent charges customers (optional) */}
           <div className="space-y-1.5">
-            <Label htmlFor="selling-price">
-              Agent Selling Price (GHS)
-              <span className="ml-1 text-xs text-muted-foreground">
-                — optional, agent can set this themselves
-              </span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="selling-price">
+                Agent Selling Price (GHS)
+                <span className="ml-1 text-xs text-muted-foreground">
+                  — optional
+                </span>
+              </Label>
+              {sellingPrice.trim() !== "" && (
+                <button
+                  type="button"
+                  onClick={() => setSellingPrice("")}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                >
+                  Clear (agent can set)
+                </button>
+              )}
+            </div>
             <Input
               id="selling-price"
               type="number"
               step="0.01"
               min={basePriceNum}
-              placeholder={`Min ${formatCurrency(basePriceNum)}`}
+              placeholder={`Min ${formatCurrency(basePriceNum)} (leave blank for default)`}
               value={sellingPrice}
               onChange={e => setSellingPrice(e.target.value)}
             />
-            {sellingPrice && sellingPriceNum < basePriceNum && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Cannot be below base price {formatCurrency(basePriceNum)}
-              </p>
+            {isSellingPriceInvalid && (
+              <div className="flex items-center justify-between text-xs text-destructive p-2 rounded bg-destructive/10">
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Cannot be below base price ({formatCurrency(basePriceNum)})
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[10px] px-2"
+                  onClick={() => setSellingPrice(basePrice)}
+                >
+                  Match Base
+                </Button>
+              </div>
             )}
             {agentProfit !== null && agentProfit >= 0 && (
               <p className="text-xs text-blue-500 flex items-center gap-1">
@@ -186,11 +243,13 @@ function SetPriceDialog({
           </div>
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" className="flex-1" onClick={onClose} disabled={mutation.isPending}>
+              Cancel
+            </Button>
             <Button
               className="flex-1"
-              disabled={!isValid || mutation.isPending}
-              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending}
+              onClick={handleSave}
             >
               {mutation.isPending ? "Saving..." : "Save Price"}
             </Button>
@@ -210,7 +269,17 @@ function BulkPriceDialog({
   bundle: PricingItem;
 }) {
   const qc = useQueryClient();
-  const [basePrice, setBasePrice] = useState(bundle.sellingPrice.toString());
+  const [basePrice, setBasePrice] = useState(bundle.sellingPrice?.toString() ?? "");
+
+  useEffect(() => {
+    if (open) {
+      setBasePrice(bundle.sellingPrice?.toString() ?? "");
+    }
+  }, [open, bundle]);
+
+  const minAllowed = Math.max(0, bundle.minimumBasePrice ?? bundle.costPrice ?? 0);
+  const basePriceNum = parseFloat(basePrice) || 0;
+  const isValid = !isNaN(basePriceNum) && basePriceNum >= minAllowed;
 
   const mutation = useMutation({
     mutationFn: () => bundle.type === "MASHUP"
@@ -220,14 +289,29 @@ function BulkPriceDialog({
       : adminService.setBulkBasePrice(bundle.id, parseFloat(basePrice)),
     onSuccess: (result) => {
       toast.success(`Updated ${result.agentsUpdated} agents for ${bundle.name}`);
-      qc.invalidateQueries({ queryKey: [bundle.type === "MASHUP" ? "mashup-pricing" : bundle.type === "CHECKER" ? "checker-pricing" : "bundle-pricing", bundle.id] });
+      qc.invalidateQueries({ queryKey: ["agent-pricing"] });
+      qc.invalidateQueries({
+        queryKey: [
+          bundle.type === "MASHUP" ? "mashup-pricing" : bundle.type === "CHECKER" ? "checker-pricing" : "bundle-pricing",
+          bundle.id,
+        ],
+      });
       onClose();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message || "Bulk update failed"),
   });
 
-  const basePriceNum = parseFloat(basePrice) || 0;
-  const isValid = basePriceNum >= bundle.minimumBasePrice;
+  const handleSave = () => {
+    if (!basePrice || isNaN(basePriceNum) || basePriceNum <= 0) {
+      toast.error("Please enter a valid base price");
+      return;
+    }
+    if (basePriceNum < minAllowed) {
+      toast.error(`Base price cannot be below minimum ${formatCurrency(minAllowed)}`);
+      return;
+    }
+    mutation.mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -257,40 +341,47 @@ function BulkPriceDialog({
               <p className="text-xs text-muted-foreground">
                 {bundle.type === "MASHUP" ? "Minimum base" : "Platform cost"}
               </p>
-              <p className="font-semibold">{formatCurrency(bundle.minimumBasePrice)}</p>
+              <p className="font-semibold">{formatCurrency(minAllowed)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Current selling price</p>
+              <p className="text-xs text-muted-foreground">Platform selling price</p>
               <p className="font-semibold">{formatCurrency(bundle.sellingPrice)}</p>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="bulk-base">New Base Price for All Agents (GHS)</Label>
+            <Label htmlFor="bulk-base-price">
+              New Base Price (GHS)
+              <span className="ml-1 text-xs text-muted-foreground">
+                — applied to all agents
+              </span>
+            </Label>
             <Input
-              id="bulk-base"
+              id="bulk-base-price"
               type="number"
               step="0.01"
-              min={bundle.minimumBasePrice}
+              min={minAllowed}
               value={basePrice}
               onChange={e => setBasePrice(e.target.value)}
             />
-            {!isValid && basePriceNum > 0 && (
+            {basePriceNum < minAllowed && basePriceNum > 0 && (
               <p className="text-xs text-destructive flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                Cannot be below {formatCurrency(bundle.minimumBasePrice)}
+                Cannot be below {formatCurrency(minAllowed)}
               </p>
             )}
           </div>
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" className="flex-1" onClick={onClose} disabled={mutation.isPending}>
+              Cancel
+            </Button>
             <Button
-              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
-              disabled={!isValid || mutation.isPending}
-              onClick={() => mutation.mutate()}
+              className="flex-1"
+              disabled={mutation.isPending}
+              onClick={handleSave}
             >
-              {mutation.isPending ? "Updating..." : "Update All Agents"}
+              {mutation.isPending ? "Updating..." : "Apply to All Agents"}
             </Button>
           </div>
         </div>
@@ -520,10 +611,10 @@ export default function AgentPricingPage() {
         name: bundle.name,
         dataSize: bundle.dataSize,
         network: bundle.network,
-        costPrice: bundle.costPrice,
-        sellingPrice: bundle.sellingPrice,
+        costPrice: bundle.costPrice ?? 0,
+        sellingPrice: bundle.sellingPrice ?? 0,
         status: bundle.status,
-        minimumBasePrice: bundle.costPrice,
+        minimumBasePrice: bundle.costPrice ?? 0,
       }));
 
     const mashupItems = mashupPackages
@@ -538,11 +629,11 @@ export default function AgentPricingPage() {
         costPrice: pkg.costPrice ?? pkg.sellingPrice ?? 0,
         sellingPrice: pkg.sellingPrice ?? 0,
         status: pkg.status,
-        minimumBasePrice: pkg.sellingPrice ?? 0,
+        minimumBasePrice: pkg.costPrice ?? pkg.sellingPrice ?? 0,
       }));
 
     const checkerItems = checkerConfigs.map((config: any) => ({
-      id: config.id,
+      id: config.id ?? config.serviceName,
       type: "CHECKER" as const,
       code: config.serviceName,
       name: config.serviceName === "WAEC" ? "WAEC Results Checker" :

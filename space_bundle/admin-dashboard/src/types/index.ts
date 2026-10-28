@@ -74,6 +74,18 @@ export interface AdminOrder {
   failureReason: string | null;
   createdAt: string;
   updatedAt: string;
+  replacementAttempts?: number;
+  lastReplacementBy?: string | null;
+  lastReplacementAt?: string | null;
+  replacementHistory?: Array<{
+    id: string;
+    adminId: string;
+    attemptedAt: string;
+    paymentCheck: string;
+    providerCheck: string;
+    result: string;
+    detail?: string;
+  }>;
 }
 
 export interface Commission {
