@@ -69,7 +69,9 @@ class CheckerPortPollingJobTest {
 
         pollingJob.pollStaleTransactions();
 
+        assertEquals(ServiceStatus.FAILED, tx.getStatus());
+        assertEquals("Transaction timed out after max poll attempts.", tx.getMessage());
         verify(checkerPortClient, never()).getStatus(any());
-        verify(transactionRepository, never()).save(any());
+        verify(transactionRepository).save(tx);
     }
 }

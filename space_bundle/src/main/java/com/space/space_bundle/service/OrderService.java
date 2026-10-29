@@ -5,6 +5,7 @@ import com.space.space_bundle.dto.ExternalOrderStatusDto;
 import com.space.space_bundle.entity.AgentProfile;
 import com.space.space_bundle.entity.MashupBundle;
 import com.space.space_bundle.entity.Order;
+import com.space.space_bundle.entity.Transaction;
 import com.space.space_bundle.entity.Wallet;
 import com.space.space_bundle.repository.OrderRepository;
 import com.space.space_bundle.repository.WalletRepository;
@@ -85,9 +86,16 @@ public class OrderService {
     public Order placeOrder(String network, String phoneNumber, String bundleCode,
                             String email, String userId, String packageId, String agentCode,
                             String bundleType, String redirectUrl, String paymentMethod) {
+        return placeOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode,
+                bundleType, redirectUrl, paymentMethod, false);
+    }
+
+    public Order placeOrder(String network, String phoneNumber, String bundleCode,
+                            String email, String userId, String packageId, String agentCode,
+                            String bundleType, String redirectUrl, String paymentMethod, boolean buyerIsAgent) {
 
         if (isMashupBundle(bundleType)) {
-            return placeMashupOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, redirectUrl, paymentMethod);
+            return placeMashupOrder(network, phoneNumber, bundleCode, email, userId, packageId, agentCode, redirectUrl, paymentMethod, buyerIsAgent);
         }
 
         // Normalize network to lowercase to match DB storage ("mtn", "telecel", "airteltigo")
@@ -115,11 +123,14 @@ public class OrderService {
             agentProfileId = profile.getId();
             agentUserId = profile.getUserId();
             String bundleId = bundleService.getByCodeAndNetwork(bundleCode, normalizedNetwork).getId();
-            // customerAmount = what customer pays (agent's selling price)
-            customerAmount = agentService.resolveEffectivePrice(agentUserId, bundleId);
             // baseAmount = what platform earns = agent's assigned base price
             baseAmount = agentService.resolveAgentBasePrice(agentUserId, bundleId, baseAmount);
+            customerAmount = agentService.resolveEffectivePrice(agentUserId, bundleId);
             commissionAmount = customerAmount.subtract(baseAmount);
+        } else if (userId != null && (buyerIsAgent || agentService.isActiveAgentUser(userId))) {
+            String bundleId = bundleService.getByCodeAndNetwork(bundleCode, normalizedNetwork).getId();
+            baseAmount = agentService.resolveAgentBasePrice(userId, bundleId, baseAmount);
+            customerAmount = baseAmount;
         }
 
         BigDecimal total = customerAmount;
@@ -159,7 +170,7 @@ public class OrderService {
     }
 
     private Order placeMashupOrder(String network, String phoneNumber, String bundleCode,
-                                   String email, String userId, String packageId, String agentCode, String redirectUrl, String paymentMethod) {
+                                   String email, String userId, String packageId, String agentCode, String redirectUrl, String paymentMethod, boolean buyerIsAgent) {
         MashupBundle mashupBundle = mashupService.getPurchasablePackage(bundleCode, packageId);
         String normalizedNetwork = mashupBundle.getNetwork() != null
                 ? mashupBundle.getNetwork().toUpperCase(Locale.ROOT)
@@ -184,6 +195,9 @@ public class OrderService {
             agentUserId = profile.getUserId();
             customerAmount = agentService.resolveEffectiveMashupPrice(agentUserId, mashupBundle.getId());
             commissionAmount = customerAmount.subtract(baseAmount);
+        } else if (userId != null && (buyerIsAgent || agentService.isActiveAgentUser(userId))) {
+            baseAmount = agentService.resolveAgentMashupBasePrice(userId, mashupBundle.getId(), baseAmount);
+            customerAmount = baseAmount;
         }
 
         BigDecimal total = customerAmount;
@@ -284,60 +298,90 @@ public class OrderService {
     }
 
     public Order reprocessFailedOrder(String orderId) {
+        return reprocessFailedOrder(orderId, "unknown-admin");
+    }
+
+    public Order reprocessFailedOrder(String orderId, String adminId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
 
-        if (!Order.OrderStatus.FAILED.name().equals(order.getStatus()) && !Order.OrderStatus.PROCESSING.name().equals(order.getStatus())) {
-            throw new IllegalStateException("Only FAILED or PROCESSING orders can be reprocessed.");
+        String originalStatus = order.getStatus();
+        if (!List.of(Order.OrderStatus.FAILED.name(), Order.OrderStatus.PROCESSING.name(),
+                Order.OrderStatus.PROCESSING_UNKNOWN.name()).contains(originalStatus)) {
+            throw new IllegalStateException("Replacement is only allowed for FAILED or stale PROCESSING orders. Current status: " + originalStatus);
         }
 
-        boolean claimed = atomicClaimFailedOrderForReprocessing(orderId);
-        if (!claimed) {
-            throw new IllegalStateException("Order is currently being processed by another request.");
+        PaymentCheck payment;
+        try {
+            payment = verifyReplacementPayment(order);
+        } catch (Exception ex) {
+            recordBlockedReplacement(order, adminId, "PAYMENT_CHECK_ERROR", "NOT_CHECKED",
+                    "Payment provider could not verify the original charge; no replacement was sent.");
+            throw new IllegalStateException("Could not verify original payment. Replacement is blocked; retry after the payment provider is available.", ex);
         }
-        order.setStatus(Order.OrderStatus.PROCESSING.name()); // reflect in object
+        if (!payment.paid()) {
+            recordBlockedReplacement(order, adminId, payment.source(), "NOT_CHECKED", payment.message());
+            throw new IllegalStateException(payment.message());
+        }
 
-        if (order.getPaymentReference() != null && !order.getPaymentReference().isBlank()) {
-            boolean isMoolre = order.getPaymentReference().equals(order.getPaymentAccessCode());
-            boolean verified = false;
-
-            try {
-                if (isMoolre) {
-                    var verification = moolreAdapter.checkPaymentStatus(order.getPaymentReference(), 2);
-                    if (verification.containsKey("txstatus") && Integer.valueOf(1).equals(verification.get("txstatus"))) {
-                        verified = true;
-                    }
-                } else {
-                    var verification = paystackAdapter.verifyTransaction(order.getPaymentReference());
-                    if (verification != null && verification.isStatus() && verification.getData() != null && "success".equalsIgnoreCase(verification.getData().getStatus())) {
-                        verified = true;
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Payment verification failed for order {}: {}", orderId, e.getMessage());
+        if (Order.OrderStatus.PROCESSING.name().equals(originalStatus)
+                || Order.OrderStatus.PROCESSING_UNKNOWN.name().equals(originalStatus)) {
+            LocalDateTime lastChanged = order.getUpdatedAt() != null ? order.getUpdatedAt() : order.getCreatedAt();
+            if (lastChanged == null || lastChanged.isAfter(LocalDateTime.now().minusMinutes(10))) {
+                String message = "Order is still within the 10-minute processing window. Wait for provider reconciliation before replacing it.";
+                recordBlockedReplacement(order, adminId, payment.source(), "NOT_CHECKED", message);
+                throw new IllegalStateException(message);
             }
+            if (order.getProviderReference() == null || order.getProviderReference().isBlank()) {
+                String message = "Provider has not returned an order reference. Delivery cannot be checked safely; this order needs manual provider review.";
+                recordBlockedReplacement(order, adminId, payment.source(), "NOT_CHECKED", message);
+                throw new IllegalStateException(message);
+            }
+        }
 
-            if (!verified) {
-                // Revert status to FAILED since we claimed it
-                order.setStatus(Order.OrderStatus.FAILED.name());
+        if (!claimReplacement(order, adminId)) {
+            String message = "Order is currently being processed or another admin already claimed its replacement.";
+            recordBlockedReplacement(order, adminId, payment.source(), "NOT_CHECKED", message);
+            throw new IllegalStateException(message);
+        }
+        order = orderRepository.findById(orderId).orElseThrow();
+        Order.ReplacementAttempt attempt = Order.ReplacementAttempt.builder()
+                .id(UUID.randomUUID().toString()).adminId(adminId).attemptedAt(LocalDateTime.now())
+                .paymentCheck(payment.source()).providerCheck("NOT_CHECKED").result("STARTED").build();
+        order.recordReplacementAttempt(attempt);
+        orderRepository.save(order);
+
+        if (!Order.OrderStatus.FAILED.name().equals(originalStatus)
+                || (order.getProviderReference() != null && !order.getProviderReference().isBlank())) {
+            ExternalOrderStatusDto provider = automationService.checkExternalStatus(order);
+            String outcome = classifyProviderStatus(provider.getStatus());
+            attempt.setProviderCheck(provider.getProvider() + ":" + provider.getStatus());
+            if ("DELIVERED".equals(outcome)) {
+                String verifiedProviderRef = provider.getProviderOrderId() != null
+                        ? provider.getProviderOrderId() : order.getProviderReference();
+                order.markCompleted(verifiedProviderRef);
+                attempt.setResult("ALREADY_DELIVERED");
+                attempt.setDetail("Provider confirmed delivery; no replacement was sent.");
                 orderRepository.save(order);
-                throw new IllegalStateException("Payment verification failed. Payment was not successful.");
+                settleCommission(order);
+                return order;
+            }
+            if (!"FAILED".equals(outcome)) {
+                order.setStatus(originalStatus);
+                attempt.setResult("BLOCKED");
+                attempt.setDetail("Provider did not confirm terminal failure; no replacement was sent.");
+                orderRepository.save(order);
+                throw new IllegalStateException("Provider status is " + provider.getStatus() + ". Replacement is blocked until delivery or failure is confirmed.");
             }
         } else {
-            // Wallet order without external payment reference
-            if (Order.OrderStatus.FAILED.name().equals(order.getStatus())) {
-                // Revert status to FAILED since we claimed it
-                order.setStatus(Order.OrderStatus.FAILED.name());
-                orderRepository.save(order);
-                throw new IllegalStateException("FAILED wallet orders are typically already refunded. They cannot be reprocessed to avoid double issuing.");
-            }
+            attempt.setProviderCheck(order.getProviderReference() == null ? "NO_PROVIDER_ORDER" : "FAILED_ORDER");
         }
-
-        // We already claimed it in the DB, so we don't need to save again here unless there's an error later
 
         try {
             String providerRef = buyBundle(order, order.getNetwork());
             order.markCompleted(providerRef);
+            attempt.setResult("COMPLETED");
+            attempt.setDetail("Replacement delivery confirmed by provider response.");
             orderRepository.save(order);
 
             settleCommission(order);
@@ -347,15 +391,142 @@ public class OrderService {
         } catch (com.space.space_bundle.exception.ProviderTimeoutException ex) {
             log.error("[REPROCESS] Order provider timeout: {}", order.getId(), ex);
             order.markProcessingUnknown();
+            attempt.setResult("PROVIDER_OUTCOME_UNKNOWN");
+            attempt.setDetail("Provider timed out. Reconcile provider status before another replacement.");
             orderRepository.save(order);
             throw new RuntimeException("Reprocessing provider timeout: " + ex.getMessage());
         } catch (Exception ex) {
             log.error("[REPROCESS] Order failed: {}", order.getId(), ex);
-            order.markFailed("Reprocessing failed: " + ex.getMessage());
+            if (isDefinitiveProviderRejection(ex)) {
+                order.markFailed("Reprocessing failed: " + ex.getMessage());
+                attempt.setResult("FAILED");
+                attempt.setDetail(ex.getMessage());
+            } else {
+                order.markProcessingUnknown();
+                attempt.setResult("PROVIDER_OUTCOME_UNKNOWN");
+                attempt.setDetail("Provider response was ambiguous. Reconcile provider status before another replacement.");
+            }
             orderRepository.save(order);
             throw new RuntimeException("Reprocessing failed: " + ex.getMessage());
         }
     }
+
+    private void recordBlockedReplacement(Order order, String adminId, String paymentCheck,
+                                          String providerCheck, String detail) {
+        LocalDateTime now = LocalDateTime.now();
+        Order.ReplacementAttempt attempt = Order.ReplacementAttempt.builder()
+                .id(UUID.randomUUID().toString()).adminId(adminId).attemptedAt(now)
+                .paymentCheck(paymentCheck).providerCheck(providerCheck).result("BLOCKED").detail(detail).build();
+        Query query = new Query(Criteria.where("id").is(order.getId()).and("status").is(order.getStatus()));
+        var update = new org.springframework.data.mongodb.core.query.Update()
+                .push("replacementHistory", attempt)
+                .inc("replacementAttempts", 1)
+                .set("lastReplacementBy", adminId)
+                .set("lastReplacementAt", now);
+        mongoTemplate.updateFirst(query, update, Order.class);
+    }
+
+    private boolean isDefinitiveProviderRejection(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof org.springframework.web.reactive.function.client.WebClientResponseException response
+                    && response.getStatusCode().is4xxClientError()) return true;
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean claimReplacement(Order order, String adminId) {
+        Query query = new Query(Criteria.where("id").is(order.getId()).and("status").is(order.getStatus()));
+        if (Order.OrderStatus.PROCESSING.name().equals(order.getStatus())
+                || Order.OrderStatus.PROCESSING_UNKNOWN.name().equals(order.getStatus())) {
+            LocalDateTime lastChanged = order.getUpdatedAt() != null ? order.getUpdatedAt() : order.getCreatedAt();
+            if (lastChanged == null) return false;
+            LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
+            if (order.getUpdatedAt() != null) {
+                query.addCriteria(Criteria.where("updatedAt").lte(cutoff));
+            } else {
+                query.addCriteria(new Criteria().andOperator(
+                        Criteria.where("createdAt").lte(cutoff),
+                        new Criteria().orOperator(Criteria.where("updatedAt").exists(false), Criteria.where("updatedAt").is(null))));
+            }
+        }
+        var update = new org.springframework.data.mongodb.core.query.Update()
+                .set("status", Order.OrderStatus.PROCESSING.name())
+                .set("lastReplacementBy", adminId)
+                .set("lastReplacementAt", LocalDateTime.now())
+                .inc("replacementAttempts", 1)
+                .set("updatedAt", LocalDateTime.now());
+        return mongoTemplate.updateFirst(query, update, Order.class).getModifiedCount() > 0;
+    }
+
+    private PaymentCheck verifyReplacementPayment(Order order) {
+        if (order.getAmount() == null || order.getAmount().compareTo(BigDecimal.ZERO) <= 0)
+            return new PaymentCheck(false, "INVALID_ORDER_AMOUNT", "Order amount is missing or invalid; replacement is blocked.");
+        List<Transaction> transactions = transactionService.getTransactionsByOrderId(order.getId());
+        BigDecimal refunds = transactions.stream()
+                .filter(tx -> Transaction.Type.REFUND.name().equalsIgnoreCase(tx.getType()))
+                .filter(tx -> !Transaction.Status.FAILED.name().equalsIgnoreCase(tx.getStatus())
+                        && !Transaction.Status.CANCELLED.name().equalsIgnoreCase(tx.getStatus()))
+                .map(tx -> tx.getAmount() == null ? BigDecimal.ZERO : tx.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (order.getPaymentReference() != null && !order.getPaymentReference().isBlank()) {
+            if (order.getPaymentReference().equals(order.getPaymentAccessCode())) {
+                var verification = moolreAdapter.checkPaymentStatus(order.getPaymentReference(), 2);
+                Integer status = parseInteger(verification.get("txstatus"));
+                if (!Integer.valueOf(1).equals(status))
+                    return new PaymentCheck(false, "MOOLRE_" + status, "Moolre has not confirmed successful payment. Current status: " + status);
+                if (refunds.compareTo(BigDecimal.ZERO) > 0)
+                    return new PaymentCheck(false, "REFUNDED", "This order has already been refunded; replacement is blocked.");
+                return new PaymentCheck(true, "MOOLRE_VERIFIED", "Payment verified");
+            }
+            var verification = paystackAdapter.verifyTransaction(order.getPaymentReference());
+            if (verification == null || !verification.isStatus() || verification.getData() == null
+                    || !"success".equalsIgnoreCase(verification.getData().getStatus()))
+                return new PaymentCheck(false, "PAYSTACK_NOT_PAID", "Paystack has not confirmed successful payment.");
+            var data = verification.getData();
+            int expectedPesewas = order.getAmount().multiply(new BigDecimal("1.02"))
+                    .multiply(new BigDecimal("100")).intValue();
+            if (!"GHS".equalsIgnoreCase(data.getCurrency()) || data.getAmount() == null || data.getAmount() < expectedPesewas)
+                return new PaymentCheck(false, "PAYSTACK_AMOUNT_MISMATCH", "Verified Paystack amount or currency does not cover this order.");
+            if (refunds.compareTo(BigDecimal.ZERO) > 0)
+                return new PaymentCheck(false, "REFUNDED", "This order has already been refunded; replacement is blocked.");
+            return new PaymentCheck(true, "PAYSTACK_VERIFIED", "Payment verified");
+        }
+
+        if (order.getUserId() == null || order.getUserId().isBlank())
+            return new PaymentCheck(false, "NO_PAYMENT_RECORD", "No payment reference or wallet owner is recorded; replacement is blocked.");
+        BigDecimal completedDebits = transactions.stream()
+                .filter(tx -> Transaction.Type.DEBIT.name().equalsIgnoreCase(tx.getType()))
+                .filter(tx -> Transaction.Status.COMPLETED.name().equalsIgnoreCase(tx.getStatus()))
+                .map(tx -> tx.getAmount() == null ? BigDecimal.ZERO : tx.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (completedDebits.subtract(refunds).compareTo(order.getAmount()) < 0)
+            return new PaymentCheck(false, "WALLET_NOT_PAID", "Completed wallet debit records do not prove the full order amount remains paid.");
+        return new PaymentCheck(true, "WALLET_VERIFIED", "Wallet debit verified");
+    }
+
+    private Integer parseInteger(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        if (value instanceof String string) {
+            try { return Integer.valueOf(string); } catch (NumberFormatException ignored) { return null; }
+        }
+        return null;
+    }
+
+    private String classifyProviderStatus(String status) {
+        if (status == null) return "UNKNOWN";
+        String value = status.trim().toLowerCase(Locale.ROOT);
+        if (value.contains("fail") || value.contains("reject") || value.contains("cancel")) return "FAILED";
+        if (List.of("completed", "complete", "delivered", "success", "successful").contains(value)
+                || value.startsWith("completed ") || value.startsWith("delivered ")) return "DELIVERED";
+        if (value.contains("pending") || value.contains("processing") || value.contains("queued")
+                || value.contains("in progress") || value.contains("in_progress")) return "PENDING";
+        return "UNKNOWN";
+    }
+
+    private record PaymentCheck(boolean paid, String source, String message) {}
 
 
     public List<SingleOrderUserDTO> getUsersWithSingleCompletedOrder() {

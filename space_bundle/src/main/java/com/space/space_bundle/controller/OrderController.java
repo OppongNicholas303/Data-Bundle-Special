@@ -46,7 +46,9 @@ public class OrderController {
                 request.getNetwork(), request.getPhoneNumber(), request.getBundleCode(),
                 email, userDetails != null ? userDetails.getUserId() : null,
                 request.getPackage_id(), request.getAgentCode(), request.getBundleType(),
-                request.getRedirectUrl(), request.getPaymentMethod());
+                request.getRedirectUrl(), request.getPaymentMethod(),
+                userDetails != null && userDetails.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_AGENT".equals(authority.getAuthority())));
 
         return ResponseEntity.ok(ApiResponse.success(order));
     }

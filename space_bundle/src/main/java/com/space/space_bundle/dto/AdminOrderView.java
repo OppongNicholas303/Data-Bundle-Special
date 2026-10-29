@@ -45,6 +45,10 @@ public class AdminOrderView {
     private String byFrom;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer replacementAttempts;
+    private String lastReplacementBy;
+    private LocalDateTime lastReplacementAt;
+    private java.util.List<Order.ReplacementAttempt> replacementHistory;
 
     public static AdminOrderView from(Order o) {
         BigDecimal selling    = o.getBaseAmount()       != null ? o.getBaseAmount()       : BigDecimal.ZERO;
@@ -75,6 +79,10 @@ public class AdminOrderView {
                 .byFrom(o.getByFrom())
                 .createdAt(o.getCreatedAt())
                 .updatedAt(o.getUpdatedAt())
+                .replacementAttempts(o.getReplacementAttempts())
+                .lastReplacementBy(o.getLastReplacementBy())
+                .lastReplacementAt(o.getLastReplacementAt())
+                .replacementHistory(o.getReplacementHistory())
                 .build();
     }
 }

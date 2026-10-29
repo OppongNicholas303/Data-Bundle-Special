@@ -254,10 +254,16 @@ public class AutomationService {
     // ── External status dispatcher ─────────────────────────────────────────
 
     public ExternalOrderStatusDto checkExternalStatus(Order order) {
+        String providerOrderId = order.getProviderReference() != null && !order.getProviderReference().isBlank()
+                ? order.getProviderReference() : order.getProviderOrderNumber();
+        if (providerOrderId == null || providerOrderId.isBlank()) {
+            return ExternalOrderStatusDto.builder().provider(order.getByFrom()).status("Unknown")
+                    .providerOrderId(null).amount("0.00").build();
+        }
         if ("randy".equalsIgnoreCase(order.getByFrom())) {
             try {
                 RandyStatusResponse response = webClient.get()
-                        .uri(botUrlRandy + "/external/orders/status?order_number=" + order.getProviderReference())
+                        .uri(botUrlRandy + "/external/orders/status?order_number=" + providerOrderId)
                         .header("X-API-Key", botTokenRandy)
                         .retrieve()
                         .bodyToMono(RandyStatusResponse.class)
@@ -277,7 +283,7 @@ public class AutomationService {
 
         } else if ("lessdata".equalsIgnoreCase(order.getByFrom())) {
             try {
-                LessDataOrderResponse response = checkLessDataStatus(order.getProviderReference());
+                LessDataOrderResponse response = checkLessDataStatus(providerOrderId);
                 if (response != null && response.isStatus() && response.getPayload() != null) {
                     String status = response.getPayload().getStatus();
                     if ("COMPLETED".equalsIgnoreCase(status)) status = "Delivered";
@@ -295,7 +301,7 @@ public class AutomationService {
         } else {
             try {
                 MyDataGigsStatusResponse response = webClient.get()
-                        .uri("https://mydatagigs.com/wp-json/custom/v1/order-status?order_id=" + order.getProviderReference())
+                        .uri("https://mydatagigs.com/wp-json/custom/v1/order-status?order_id=" + providerOrderId)
                         .header("Authorization", "Bearer " + botToken)
                         .retrieve()
                         .bodyToMono(MyDataGigsStatusResponse.class)
@@ -314,7 +320,7 @@ public class AutomationService {
 
         return ExternalOrderStatusDto.builder()
                 .provider(order.getByFrom()).status("Unknown")
-                .providerOrderId(order.getProviderReference()).amount("0.00")
+                .providerOrderId(providerOrderId).amount("0.00")
                 .build();
     }
 

@@ -59,6 +59,9 @@ target/
 
 # Maven
 .mvn/
+!space_bundle/.mvn/
+!space_bundle/.mvn/wrapper/
+!space_bundle/.mvn/wrapper/maven-wrapper.properties
 # Note: mvnw and mvnw.cmd are Maven wrapper scripts and should typically be committed
 # Uncomment the lines below if you don't want to commit them
 # mvnw

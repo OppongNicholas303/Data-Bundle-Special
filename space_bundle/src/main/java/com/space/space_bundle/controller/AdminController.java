@@ -501,14 +501,18 @@ public class AdminController {
                  : "MANUAL_" + UUID.randomUUID().toString().substring(0, 8);
 
          order.markCompleted(providerReference);
-         orderRepository.save(order);
+         order = orderRepository.save(order);
+         orderService.settleCommission(order);
 
       return ResponseEntity.ok(ApiResponse.success("Order marked as complete", AdminOrderView.from(order)));
       }
 
       @PostMapping("/orders/{id}/reprocess")
-      public ResponseEntity<ApiResponse<AdminOrderView>> reprocessOrder(@PathVariable String id) {
-          Order order = orderService.reprocessFailedOrder(id);
+      public ResponseEntity<ApiResponse<AdminOrderView>> reprocessOrder(
+              @PathVariable String id,
+              @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+          String adminId = userDetails != null ? userDetails.getUsername() : "unknown-admin";
+          Order order = orderService.reprocessFailedOrder(id, adminId);
           return ResponseEntity.ok(ApiResponse.success("Order reprocessed successfully", AdminOrderView.from(order)));
       }
 

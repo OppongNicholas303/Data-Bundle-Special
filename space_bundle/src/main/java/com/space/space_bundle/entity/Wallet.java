@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 @Builder
@@ -32,6 +33,7 @@ public class Wallet {
     }
 
     private int smsBalance = 0;
+    private Set<String> smsCreditOperationIds;
     public int getSmsBalance() {
         return smsBalance;
     }

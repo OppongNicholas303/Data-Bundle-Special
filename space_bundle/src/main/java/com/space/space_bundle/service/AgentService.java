@@ -76,6 +76,12 @@ public class AgentService {
                 .orElseThrow(() -> new IllegalArgumentException("Agent profile not found for userId=" + userId));
     }
 
+    public boolean isActiveAgentUser(String userId) {
+        return userId != null && agentProfileRepository.findFirstByUserId(userId)
+                .map(AgentProfile::isActive)
+                .orElse(false);
+    }
+
     public AgentProfile resolveByCode(String referralCode) {
         String upper = referralCode.toUpperCase(Locale.ROOT);
         log.info("[AGENT] resolveByCode input='{}' normalized='{}'", referralCode, upper);
@@ -150,6 +156,17 @@ public class AgentService {
                 .filter(AgentBundlePricing::isActive)
                 .map(AgentBundlePricing::getBasePrice)
                 .filter(p -> p != null && p.compareTo(BigDecimal.ZERO) > 0)
+                .orElse(platformDefault);
+    }
+
+    /** The admin-assigned amount an agent pays for a Mashup bundle. */
+    public BigDecimal resolveAgentMashupBasePrice(String agentUserId, String mashupBundleId, BigDecimal platformDefault) {
+        AgentProfile profile = getProfileByUserId(agentUserId);
+        return agentMashupPricingRepository
+                .findByAgentIdAndMashupBundleId(profile.getId(), mashupBundleId)
+                .filter(AgentMashupPricing::isActive)
+                .map(AgentMashupPricing::getBasePrice)
+                .filter(price -> price != null && price.compareTo(BigDecimal.ZERO) > 0)
                 .orElse(platformDefault);
     }
 

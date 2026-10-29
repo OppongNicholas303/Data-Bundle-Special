@@ -7,6 +7,8 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.time.LocalDateTime;
 
 @Data
@@ -60,6 +62,24 @@ public class Order {
 
     private String adminCompletedBy;      // ID of admin who marked as COMPLETE_BY_ADMIN
     private LocalDateTime adminCompletedAt; // When admin marked it complete
+    private Integer replacementAttempts;
+    private String lastReplacementBy;
+    private LocalDateTime lastReplacementAt;
+    private List<ReplacementAttempt> replacementHistory;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReplacementAttempt {
+        private String id;
+        private String adminId;
+        private LocalDateTime attemptedAt;
+        private String paymentCheck;
+        private String providerCheck;
+        private String result;
+        private String detail;
+    }
 
     public enum OrderStatus {
         CREATED, PENDING_PAYMENT, PAID, PROCESSING, PROCESSING_UNKNOWN, COMPLETED, COMPLETE_BY_ADMIN, FAILED, REFUNDED
@@ -101,6 +121,7 @@ public class Order {
             throw new IllegalStateException("Expected PROCESSING or PROCESSING_UNKNOWN but was " + status);
         this.status = OrderStatus.COMPLETED.name();
         this.providerOrderNumber = providerReference;
+        this.providerReference = providerReference;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -112,6 +133,15 @@ public class Order {
         this.adminCompletedBy = adminId;
         this.adminCompletedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void recordReplacementAttempt(ReplacementAttempt attempt) {
+        if (replacementHistory == null) replacementHistory = new ArrayList<>();
+        replacementHistory.add(attempt);
+        replacementAttempts = Math.max(replacementAttempts == null ? 0 : replacementAttempts, replacementHistory.size());
+        lastReplacementBy = attempt.getAdminId();
+        lastReplacementAt = attempt.getAttemptedAt();
+        updatedAt = LocalDateTime.now();
     }
 
     public void markFailed(String reason) {

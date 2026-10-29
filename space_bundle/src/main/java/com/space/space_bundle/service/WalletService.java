@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.Set;
 
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -178,6 +179,34 @@ public class WalletService {
         org.springframework.data.mongodb.core.FindAndModifyOptions options = new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true);
         Wallet updatedWallet = mongoTemplate.findAndModify(query, update, options, Wallet.class);
         return updatedWallet != null ? updatedWallet.getSmsBalance() : null;
+    }
+
+    /** Idempotent SMS credit reservation/refund. The wallet update and operation marker are one Mongo document write. */
+    public Integer atomicSmsDebitOnce(String userId, int count, String operationId) {
+        Query query = new Query(Criteria.where("userId").is(userId).and("smsBalance").gte(count)
+                .and("smsCreditOperationIds").ne(operationId));
+        Update update = new Update().inc("smsBalance", -count).addToSet("smsCreditOperationIds", operationId)
+                .set("updatedAt", LocalDateTime.now());
+        Wallet wallet = mongoTemplate.findAndModify(query, update,
+                new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true), Wallet.class);
+        if (wallet != null) return wallet.getSmsBalance();
+        return hasSmsCreditOperation(userId, operationId);
+    }
+
+    public Integer atomicSmsCreditOnce(String userId, int count, String operationId) {
+        Query query = new Query(Criteria.where("userId").is(userId).and("smsCreditOperationIds").ne(operationId));
+        Update update = new Update().inc("smsBalance", count).addToSet("smsCreditOperationIds", operationId)
+                .set("updatedAt", LocalDateTime.now());
+        Wallet wallet = mongoTemplate.findAndModify(query, update,
+                new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true), Wallet.class);
+        if (wallet != null) return wallet.getSmsBalance();
+        return hasSmsCreditOperation(userId, operationId);
+    }
+
+    private Integer hasSmsCreditOperation(String userId, String operationId) {
+        return walletRepository.findFirstByUserId(userId)
+                .filter(wallet -> wallet.getSmsCreditOperationIds() != null && wallet.getSmsCreditOperationIds().contains(operationId))
+                .map(Wallet::getSmsBalance).orElse(null);
     }
 
     public Wallet getByUserId(String userId) {

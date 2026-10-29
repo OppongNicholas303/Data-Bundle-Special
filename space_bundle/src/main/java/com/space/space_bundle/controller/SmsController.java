@@ -4,179 +4,104 @@ import com.space.space_bundle.dto.ApiResponse;
 import com.space.space_bundle.dto.SmsSendRequest;
 import com.space.space_bundle.entity.SmsCampaign;
 import com.space.space_bundle.entity.SmsPackage;
+import com.space.space_bundle.entity.SmsSenderIdRequest;
 import com.space.space_bundle.repository.SmsCampaignRepository;
 import com.space.space_bundle.repository.SmsPackageRepository;
+import com.space.space_bundle.repository.SmsSenderIdRequestRepository;
 import com.space.space_bundle.security.CustomUserDetailsService;
 import com.space.space_bundle.service.MoolreSmsService;
+import com.space.space_bundle.service.SmsCampaignService;
 import com.space.space_bundle.service.WalletService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
-@Slf4j
 @RestController
 @RequestMapping("/sms")
 @RequiredArgsConstructor
 public class SmsController {
-
-    private final MoolreSmsService moolreSmsService;
     private final WalletService walletService;
-    private final SmsCampaignRepository smsCampaignRepository;
+    private final SmsCampaignRepository campaignRepository;
     private final SmsPackageRepository smsPackageRepository;
+    private final SmsSenderIdRequestRepository senderIdRepository;
+    private final SmsCampaignService campaignService;
+    private final MoolreSmsService moolreSmsService;
 
-    @Value("${moolre.sms.price-per-page:0.04}")
-    private double pricePerPage;
-
-    @Value("${moolre.sms.sender-ids:Moolre}")
-    private List<String> allowedSenderIds;
 
     @GetMapping("/packages")
-    public ResponseEntity<ApiResponse<List<SmsPackage>>> getActivePackages() {
-        List<SmsPackage> packages = smsPackageRepository.findByActiveTrueOrderByPriceAsc();
-        return ResponseEntity.ok(ApiResponse.success(packages));
+    public ResponseEntity<ApiResponse<List<SmsPackage>>> packages() {
+        return ResponseEntity.ok(ApiResponse.success(smsPackageRepository.findByActiveTrueOrderByPriceAsc()));
     }
 
     @GetMapping("/balance")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSmsBalance(
-            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        int smsBalance = walletService.getSmsBalance(userDetails.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(Map.of("smsBalance", smsBalance)));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> balance(@AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails user) {
+        return ResponseEntity.ok(ApiResponse.success(Map.of("smsBalance", walletService.getSmsBalance(user.getUserId()))));
     }
 
     @PostMapping("/buy-package/{packageId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> buyPackage(
-            @PathVariable String packageId,
-            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        String userId = userDetails.getUserId();
-        SmsPackage smsPkg = smsPackageRepository.findById(packageId)
-                .orElse(null);
-
-        if (smsPkg == null || !smsPkg.isActive()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid or inactive SMS package"));
-        }
-
-        BigDecimal price = smsPkg.getPrice();
-        BigDecimal balance = walletService.getBalance(userId);
-
-        if (balance.compareTo(price) < 0) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Insufficient wallet balance to purchase this package. Required: GHS " + price));
-        }
-
-        // Debit wallet and credit SMS credits
-        String txId = "SMSPKG_" + System.currentTimeMillis();
-        walletService.debit(userId, price, txId, "Purchased SMS Package: " + smsPkg.getName() + " (" + smsPkg.getMessagesCount() + " messages)");
-        int newBalance = walletService.atomicSmsCredit(userId, smsPkg.getMessagesCount());
-
-        log.info("User {} purchased SMS package {} ({} messages) for GHS {}. New SMS balance: {}",
-                userId, smsPkg.getName(), smsPkg.getMessagesCount(), price, newBalance);
-
-        return ResponseEntity.ok(ApiResponse.success(Map.of(
-                "message", "Successfully purchased " + smsPkg.getMessagesCount() + " SMS credits",
-                "smsBalance", newBalance,
-                "packageName", smsPkg.getName()
-        )));
-    }
-
-    @PostMapping("/send")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<SmsCampaign>> sendSms(
-            @Valid @RequestBody SmsSendRequest request,
-            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-
-        String userId = userDetails.getUserId();
-
-        // Validate sender ID
-        if (!allowedSenderIds.contains(request.getSenderId())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Sender ID not approved"));
-        }
-
-        // Calculate pages and total credits required
-        int pages = MoolreSmsService.calculatePages(request.getMessage());
-        int recipientsCount = request.getRecipients().size();
-        int totalRequiredCredits = pages * recipientsCount;
-
-        int userSmsBalance = walletService.getSmsBalance(userId);
-        boolean usingSmsCredits = userSmsBalance >= totalRequiredCredits;
-        double totalCost = pages * recipientsCount * pricePerPage;
-        BigDecimal costBd = BigDecimal.valueOf(totalCost);
-
-        if (usingSmsCredits) {
-            Integer updatedBalance = walletService.atomicSmsDebit(userId, totalRequiredCredits);
-            if (updatedBalance == null) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Insufficient SMS credits"));
-            }
-        } else {
-            // Check wallet cash balance
-            BigDecimal currentBalance = walletService.getBalance(userId);
-            if (currentBalance.compareTo(costBd) < 0) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(
-                        "Insufficient SMS credits (" + userSmsBalance + " credits available) and insufficient wallet cash balance (GHS " + currentBalance + "). Required: " + totalRequiredCredits + " SMS credits or GHS " + totalCost
-                ));
-            }
-
-            // Deduct cash from wallet
-            String campaignId = "SMS_" + System.currentTimeMillis();
-            walletService.debit(userId, costBd, campaignId, "Bulk SMS: " + recipientsCount + " recipients");
-        }
-
-        // Create campaign record
-        SmsCampaign campaign = new SmsCampaign();
-        campaign.setUserId(userId);
-        campaign.setSenderId(request.getSenderId());
-        campaign.setMessage(request.getMessage());
-        campaign.setRecipients(request.getRecipients());
-        campaign.setPages(pages);
-        campaign.setTotalCost(totalCost);
-        campaign.setStatus("PROCESSING");
-
-        SmsCampaign savedCampaign = smsCampaignRepository.save(campaign);
-
+    public ResponseEntity<ApiResponse<Map<String, Object>>> buyPackage(@PathVariable String packageId,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails user) {
+        SmsPackage smsPackage = smsPackageRepository.findById(packageId).filter(SmsPackage::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or inactive SMS package"));
+        if (smsPackage.getMessagesCount() <= 0 || smsPackage.getPrice() == null || smsPackage.getPrice().signum() <= 0)
+            throw new IllegalStateException("SMS package is not configured correctly");
+        String userId = user.getUserId();
+        walletService.debit(userId, smsPackage.getPrice(), "SMSPKG_" + UUID.randomUUID(),
+                "Purchased SMS Package: " + smsPackage.getName());
+        int newBalance;
         try {
-            // Dispatch via Moolre
-            List<String> refs = moolreSmsService.sendBulkSms(request.getSenderId(), request.getMessage(), request.getRecipients());
-
-            savedCampaign.setMoolreRefs(refs);
-            savedCampaign.setStatus("DISPATCHED");
-            smsCampaignRepository.save(savedCampaign);
-
-            return ResponseEntity.ok(ApiResponse.success(savedCampaign));
-        } catch (Exception e) {
-            log.error("Failed to dispatch SMS", e);
-            // Refund the user if Moolre fails immediately
-            if (usingSmsCredits) {
-                walletService.atomicSmsCredit(userId, totalRequiredCredits);
-            } else {
-                walletService.credit(userId, costBd, "Refund for failed SMS campaign");
-            }
-
-            savedCampaign.setStatus("FAILED");
-            smsCampaignRepository.save(savedCampaign);
-            return ResponseEntity.internalServerError().body(ApiResponse.error("Failed to send SMS: " + e.getMessage()));
+            newBalance = walletService.atomicSmsCredit(userId, smsPackage.getMessagesCount());
+            if (newBalance <= 0) throw new IllegalStateException("SMS credit grant did not complete");
+        } catch (RuntimeException failure) {
+            walletService.credit(userId, smsPackage.getPrice(), "Compensation for incomplete SMS package purchase");
+            throw failure;
         }
+        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "SMS credits added",
+                "smsBalance", newBalance, "packageName", smsPackage.getName(), "credits", smsPackage.getMessagesCount())));
     }
 
-    @GetMapping("/campaigns")
+    @PostMapping("/sender-ids")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<SmsCampaign>>> getCampaigns(
-            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails userDetails) {
-        List<SmsCampaign> campaigns = smsCampaignRepository.findByUserIdOrderByCreatedAtDesc(userDetails.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(campaigns));
+    public ResponseEntity<ApiResponse<SmsSenderIdRequest>> requestSenderId(@RequestBody Map<String, String> request,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails user) {
+        String senderId = request.getOrDefault("senderId", "").trim();
+        if (senderId.isBlank() || senderId.length() > 11 || !senderId.matches("(?=.*[A-Za-z])[A-Za-z0-9]+"))
+            throw new IllegalArgumentException("Sender ID must be 1-11 letters and numbers, contain at least one letter, and contain no special characters");
+        if (senderIdRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId()).stream()
+                .anyMatch(existing -> existing.getSenderId().equalsIgnoreCase(senderId)))
+            throw new IllegalStateException("You have already submitted this sender ID");
+        SmsSenderIdRequest entity = SmsSenderIdRequest.builder().id(UUID.randomUUID().toString())
+                .userId(user.getUserId()).senderId(senderId).status("PENDING").providerStatus("UNKNOWN")
+                .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
+        return ResponseEntity.ok(ApiResponse.success(senderIdRepository.save(entity)));
     }
 
     @GetMapping("/sender-ids")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<String>>> getSenderIds() {
-        return ResponseEntity.ok(ApiResponse.success(allowedSenderIds));
+    public ResponseEntity<ApiResponse<List<SmsSenderIdRequest>>> senderIds(@AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails user) {
+        return ResponseEntity.ok(ApiResponse.success(senderIdRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId())));
+    }
+
+    @PostMapping("/send")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<SmsCampaign>> send(@RequestBody SmsSendRequest request,
+            @AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails user) {
+        return ResponseEntity.ok(ApiResponse.success(campaignService.send(user.getUserId(), request)));
+    }
+
+    @GetMapping("/campaigns")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<SmsCampaign>>> campaigns(@AuthenticationPrincipal CustomUserDetailsService.CustomUserDetails user) {
+        return ResponseEntity.ok(ApiResponse.success(campaignRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId())));
     }
 }

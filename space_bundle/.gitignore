@@ -35,4 +35,12 @@ build/
 admin-dashboard/node_modules
 bundle-buddy-99/node_modules
 admin-dashboard/
+!admin-dashboard/
+admin-dashboard/*
+!admin-dashboard/src/
+admin-dashboard/src/*
+!admin-dashboard/src/pages/
+admin-dashboard/src/pages/*
+!admin-dashboard/src/pages/SmsOperationsPage.tsx
 bundle-buddy-99/
+!admin-dashboard/.env.example

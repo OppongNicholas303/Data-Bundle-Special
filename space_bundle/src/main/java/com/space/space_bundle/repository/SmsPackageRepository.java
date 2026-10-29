@@ -8,4 +8,5 @@ import java.util.List;
 public interface SmsPackageRepository extends MongoRepository<SmsPackage, String> {
     List<SmsPackage> findByActiveTrueOrderByPriceAsc();
     List<SmsPackage> findAllByOrderByPriceAsc();
+    boolean existsByMessagesCount(int messagesCount);
 }
