@@ -142,14 +142,14 @@ function ReprocessOrderDialog({ orderId, onSuccess }: { orderId: string; onSucce
         onClick={() => setIsOpen(true)}
       >
         <RefreshCw className="h-3.5 w-3.5" />
-        Reprocess
+        Replace order
       </Button>
       {isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-96">
             <CardHeader>
-              <CardTitle className="text-lg text-blue-700 flex items-center gap-2">
-                <RefreshCw className="h-5 w-5" /> Replace / Retry Paid Order
+                <CardTitle className="text-lg text-blue-700 flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" /> Verify payment & replace order
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -176,7 +176,10 @@ export default function OrdersPage() {
   const [search,        setSearch]        = useState("");
   const [filterStatus,  setFilterStatus]  = useState("ALL");
   const [filterNetwork, setFilterNetwork] = useState("ALL");
-  const today = new Date().toISOString().split("T")[0];
+  // Date inputs represent the admin's local calendar day; toISOString() would
+  // shift this date to UTC and can hide orders around midnight.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [fromDate,      setFromDate]      = useState(today);
   const [toDate,        setToDate]        = useState(today);
   const [tab, setTab] = useState<"orders" | "commissions">("orders");
